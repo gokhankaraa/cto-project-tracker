@@ -5,15 +5,16 @@ CTO monitors the entire project portfolio from a single place.
 
 Track: **Backend (Java + Spring Boot)** · Author: Gökhan Kara
 
-> **Status:** T07 (days 13–14) complete — the CTO dashboard summary endpoint aggregates every
-> project's latest status in one view, on top of WorkItem CRUD (T06), Project/WeeklyReport CRUD
-> (T05) and the T04 skeleton (health endpoint, shared error format, Swagger). MVP test round is
-> next (T08).
+> **Status:** MVP (T01–T12) complete. T13 (days 21–24) adds filtering on the CTO dashboard and two
+> cross-project list endpoints for reports and work items, with paging, sorting and a shared delay
+> rule. Next: PostgreSQL migration, then role-based authorization (T14).
 
 Project documents (in [`docs/`](docs/)):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, scope, user stories, acceptance criteria)
 - [`teknik-karar-notu.docx`](docs/teknik-karar-notu.docx) — technical decision note and learning plan
 - [`test-raporu-MVP-T08.docx`](docs/test-raporu-MVP-T08.docx) — MVP test report (incl. T09 regression)
+- [`analiz-notu-T13.md`](docs/analiz-notu-T13.md) — T13 filtering analysis (decisions, acceptance criteria)
+- [`filtre-sozlesmesi-T13.md`](docs/filtre-sozlesmesi-T13.md) — T13 filter API contract (parameters, examples, errors)
 - [`Test Senaryolari - CTO Takip Sistemi.xlsx`](docs/) — detailed test-case log
 - Weekly internship reports and per-task reports
 
@@ -128,9 +129,11 @@ without touching the code.
 | GET / PUT / DELETE | `/api/projects/{id}` | Project detail / update / delete |
 | GET / POST | `/api/projects/{projectId}/reports` | List / create weekly reports for a project |
 | GET / PUT / DELETE | `/api/reports/{id}` | Weekly report detail / update / delete |
+| GET | `/api/reports` | Cross-project report list: filtered, paged, sorted |
 | GET / POST | `/api/reports/{reportId}/work-items` | List / create work items for a report |
 | GET / PUT / DELETE | `/api/work-items/{id}` | Work item detail / update / delete |
-| GET | `/api/dashboard/summary` | CTO portfolio summary (optional `?riskLevel=`) |
+| GET | `/api/work-items` | Cross-project work item list: filtered, paged, sorted |
+| GET | `/api/dashboard/summary` | CTO portfolio summary, with optional filters |
 
 The full, interactive contract is in Swagger UI. Key business rules (see pre-analysis §H-03/H-04):
 
@@ -150,6 +153,39 @@ The full, interactive contract is in Swagger UI. Key business rules (see pre-ana
 > **Scope note (from the pre-analysis):** progress uses a single staged model, so there is no
 > separate "target %"; the schedule (`scheduleStatus`) field is out of MVP scope. Both are
 > documented decisions in the analysis document.
+
+## Filtering, paging and sorting
+
+The full contract, with examples against the demo data, is in
+[`filtre-sozlesmesi-T13.md`](docs/filtre-sozlesmesi-T13.md). Every parameter is also described in
+Swagger UI with an example value.
+
+| Endpoint | Filters | Paging / sorting |
+|---|---|---|
+| `GET /api/dashboard/summary` | `projectId`, `projectStatus`, `ownerId`, `weekNumber`, `overallStatus`, `riskLevel`, `delayed` | None; rows ordered by project id |
+| `GET /api/reports` | `projectId`, `ownerId`, `weekFrom`, `weekTo`, `dateFrom`, `dateTo`, `overallStatus`, `riskLevel`, `progressStage` | Default `reportDate,desc`; sortable by `reportDate`, `weekNumber`, `projectName` |
+| `GET /api/work-items` | `projectId`, `weekNumber`, `assignee`, `status`, `delayed` | Default `plannedDate,asc` (items without a date last); sortable by `plannedDate`, `title`, `projectName` |
+
+- Different parameters combine with **AND**. Status, risk and stage parameters accept several
+  comma-separated values, which combine with **OR** (`riskLevel=ORTA,YUKSEK`).
+- `weekNumber` is a reference point: each project is evaluated on its latest report up to that
+  week. On the dashboard, projects with no report by then are still listed with `hasReport: false`,
+  unless a report-based filter (`overallStatus`, `riskLevel`, `delayed`) is also given.
+  The work item list shows only the items of that evaluated report, so the same task is not
+  repeated across weeks.
+- Paging: `page` starts at `0`, `size` is `1–100` (default `20`). The response is
+  `{ content, page, size, totalElements, totalPages }`. Sorting is `field` or `field,asc|desc`,
+  and `id` is always added as a tie-breaker so pages don't shift.
+- `assignee` is a case-insensitive "contains" search (`assignee=ayse` matches "Ayse Yilmaz").
+- **Delay rule:** a work item is delayed if its status is `GECIKTI`, or if its planned date is
+  before its report's date and it is not `TAMAMLANDI`. A project is delayed if its evaluated report
+  is `GECIKMELI` or contains a delayed work item. The report date is the reference, not today, so
+  past weeks keep their own result.
+- An empty result is `200` with an empty list (and zero counters), never `404`. Invalid values
+  (unknown enum, wrong type, out-of-range number, reversed range, unknown sort field) return `400`
+  in the shared error format.
+- **Unknown parameter names are ignored** (Spring's default): a typo such as `?risk=YUKSEK`
+  returns the unfiltered result instead of an error.
 
 ## Demo data
 
@@ -179,7 +215,8 @@ values come from the responses of the previous steps.
 
 1. **CTO opens the dashboard** — see every project's latest status in one view:
    `GET /api/dashboard/summary` → 200, portfolio counters + per-project rows
-2. **Filter high-risk projects:** `GET /api/dashboard/summary?riskLevel=YUKSEK` → only e-Belge
+2. **Filter the portfolio:** `GET /api/dashboard/summary?riskLevel=YUKSEK` → only e-Belge;
+   `?delayed=true` → only Atlas IK, and `GET /api/work-items?delayed=true` shows the overdue item
 3. **Drill into a project:** `GET /api/projects/3` and `GET /api/projects/3/reports`
    (Nova POS has no report yet)
 4. **PM files a weekly report** for Nova POS (id 3):
@@ -200,13 +237,16 @@ stage on update → **400**, deleting a project that still has reports → **409
 com.kolaysoft.ctotracker
 ├── config/           Application configuration (OpenAPI/Swagger)
 ├── controller/       HTTP layer: request handling, DTO exchange
-├── service/          Business rules (stage transitions, uniqueness)
+├── service/          Business rules (stage transitions, uniqueness, delay rule)
 ├── repository/       Database access via Spring Data JPA
+│   └── spec/         Filter conditions as JPA Specifications
 ├── entity/           JPA data model and enums
 ├── dto/              Request/response contracts (entities are not exposed directly)
+│   └── filter/       Filter records passed from controllers to services
 └── common/
     ├── error/        ApiError, ErrorCode, GlobalExceptionHandler
-    └── exception/    ResourceNotFoundException, DuplicateResourceException, BusinessRuleException
+    ├── exception/    ResourceNotFoundException, DuplicateResourceException, BusinessRuleException
+    └── web/          SortParameter (sort allow-list and validation)
 ```
 
 Layering rule: `controller → service → repository`. Controllers contain no business rules, services
@@ -258,10 +298,17 @@ Validation errors additionally include a `fieldErrors` array:
 ./mvnw test
 ```
 
-Current tests (47 in total):
+Current tests (100 in total):
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
   (project → report → work item → dashboard), 404 / 400 / 409, stage skip, dashboard filter
+- `FilterIntegrationTest` — T13 filters over HTTP (MockMvc): dashboard filters and counters, week
+  reference, report paging and sorting, work item filters, null-last default sort, and the error
+  cases of the filter contract
+- `WeeklyReportQueryTest` / `WorkItemQueryTest` — filter queries against the database
+  (@DataJpaTest): inclusive ranges, AND/OR combination, evaluated-report selection, case-insensitive
+  assignee search, and the delay condition matching the in-memory delay rule
+- `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
 - `HealthControllerTest` — health endpoint and DB connection
 - `GlobalExceptionHandlerTest` — the error-format contract (400 / 404 / 405 / 409 / 500), including
   invalid enum/type request parameters
@@ -269,7 +316,8 @@ Current tests (47 in total):
   percentage derivation, not-found (404)
 - `ProjectServiceTest` — project create/update/mapping, owner-not-found (404), delete-with-reports (409)
 - `WorkItemServiceTest` — work item CRUD, report-not-found (404), delete
-- `DashboardServiceTest` — portfolio aggregation, latest-report selection, risk filter, empty portfolio
+- `DashboardServiceTest` — portfolio aggregation, latest-report selection, risk and multi-value
+  filters, week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
 ## Known gaps
@@ -279,6 +327,4 @@ Not yet implemented at this stage:
 
 - Authentication (login) and role-based authorization — out of MVP scope; `User.password` is
   omitted for now and will arrive with authentication
-- Dashboard filtering is partial: a **risk-level filter** is implemented; project/week/status
-  filters are planned for a later extension (T13)
 - Report locking, audit log, export — out of MVP scope
