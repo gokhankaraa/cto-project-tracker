@@ -97,13 +97,13 @@ T13 bu soruların her birine tek bir istekle cevap verebilmeyi hedefliyor.
 
 ## 8. Kabul kriterleri
 
-Örnekler mevcut seed verisine dayanıyor: PEYK (sorumlu Ayse, hafta 29 ORTA ve hafta 30 DUSUK
-raporları), e-Donusum (sorumlu Mehmet, hafta 30 YUKSEK raporu) ve EczaciPOS (sorumlu Ayse, raporu yok).
+Örnekler mevcut seed verisine dayanıyor: Atlas IK (sorumlu Ayse, hafta 29 ORTA, hafta 30 DUSUK ve
+hafta 31 ORTA raporları), e-Belge (sorumlu Mehmet, hafta 30 YUKSEK raporu) ve Nova POS (sorumlu Ayse, raporu yok).
 
 1. **KK-01:** Filtresiz `GET /api/dashboard/summary` bugünkü yanıtın aynısını döner ve mevcut 47 test geçer.
-2. **KK-02:** `riskLevel=ORTA,YUKSEK` yalnızca e-Donusum'u döner. PEYK'in son raporu DUSUK, EczaciPOS'un raporu yok.
-3. **KK-03:** `weekNumber=29` PEYK'i hafta 29 değerleriyle (ORTA, GELISTIRME) döner. e-Donusum ve EczaciPOS `hasReport=false` olarak görünür.
-4. **KK-04:** Sorumlu filtresi Ayse'nin id'siyle PEYK ve EczaciPOS'u döner, sayaçlar bu iki projeye göre hesaplanır.
+2. **KK-02:** `riskLevel=ORTA,YUKSEK` Atlas IK'yı (son raporu hafta 31, ORTA) ve e-Belge'yi döner. Nova POS'un raporu olmadığı için listelenmez.
+3. **KK-03:** `weekNumber=29` Atlas IK'yı hafta 29 değerleriyle (ORTA, GELISTIRME) döner. e-Belge ve Nova POS `hasReport=false` olarak görünür.
+4. **KK-04:** Sorumlu filtresi Ayse'nin id'siyle Atlas IK ve Nova POS'u döner, sayaçlar bu iki projeye göre hesaplanır.
 5. **KK-05:** Birden çok filtre VE ile birleşir (ör. sorumlu Ayse + risk YUKSEK → boş liste, `200`).
 6. **KK-06:** Gecikme kuralının üç koşulunun her biri tek başına projeyi "gecikmede" yapar. Planlanan tarihi geçmiş ama durumu `TAMAMLANDI` olan iş kalemi gecikme sayılmaz. Planlanan tarihi olmayan iş kalemi yalnızca durumu `GECIKTI` ise gecikmiş sayılır.
 7. **KK-07:** Rapor listesi tüm projelerin raporlarını döner. Proje, hafta/tarih aralığı, durum, risk ve sorumlu ile süzülebilir, varsayılan sıralamada en yeni rapor en üstte olur ve sonuç sayfalıdır.
@@ -117,12 +117,12 @@ raporları), e-Donusum (sorumlu Mehmet, hafta 30 YUKSEK raporu) ve EczaciPOS (so
 - **Yeni endpointler:** `GET /api/reports` (projeler arası rapor listesi) ve `GET /api/work-items`
   (projeler arası iş kalemi listesi).
 - **Şema:** yeni tablo veya kolon yok, tüm filtreler mevcut alanlardan çalışır.
-- **Örnek veri:** gecikme filtresini gösterebilmek için seed'deki bazı iş kalemlerine planlanan
-  tarih ve `GECIKTI` durumu eklenmeli.
+- **Örnek veri:** gecikme filtresini gösterebilmek için seed'e planlanan tarihli iş kalemleri
+  içeren yeni bir rapor eklenir (Atlas IK hafta 31). Mevcut kayıtlar değişmez.
 
 ## 10. Riskler ve açık sorular
 
-Analiz mentoruyla (Ayşenur Yaylacı) netleştirilecek konular:
+Netleştirilecek konular:
 
 1. **Gecikme tanımı (K-T13-01)** iş tarafının beklentisine uyuyor mu? Referans tarih olarak
    raporun tarihi mi, yoksa "bugün" mü kullanılmalı?

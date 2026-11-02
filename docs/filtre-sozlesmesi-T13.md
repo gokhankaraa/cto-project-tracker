@@ -65,12 +65,13 @@ raporun haftasını gösterir. Sayaçlar filtrelenmiş kümeye göre hesaplanır
 
 | İstek | Sonuç |
 |---|---|
-| `GET /api/dashboard/summary` | 3 proje, bugünkü yanıtın aynısı ve `delayedProjects: 0` (KK-01) |
-| `?riskLevel=YUKSEK` | Yalnızca e-Donusum (mevcut davranış) |
-| `?riskLevel=ORTA,YUKSEK` | Yalnızca e-Donusum (KK-02) |
-| `?weekNumber=29` | PEYK hafta 29 değerleriyle (`ORTA`, `GELISTIRME`); e-Donusum ve EczaciPOS `hasReport=false` (KK-03) |
-| `?ownerId=1` | PEYK ve EczaciPOS, `totalProjects: 2` (KK-04) |
+| `GET /api/dashboard/summary` | 3 proje, `totalLiveTasks: 2`, `delayedProjects: 1` (KK-01) |
+| `?riskLevel=YUKSEK` | Yalnızca e-Belge (mevcut davranış) |
+| `?riskLevel=ORTA,YUKSEK` | Atlas IK (son raporu hafta 31, `ORTA`) ve e-Belge (KK-02) |
+| `?weekNumber=29` | Atlas IK hafta 29 değerleriyle (`ORTA`, `GELISTIRME`); e-Belge ve Nova POS `hasReport=false` (KK-03) |
+| `?ownerId=1` | Atlas IK ve Nova POS, `totalProjects: 2` (KK-04) |
 | `?ownerId=1&riskLevel=YUKSEK` | Boş liste, tüm sayaçlar 0, `200` (KK-05) |
+| `?delayed=true` | Yalnızca Atlas IK: hafta 31'de planlanan tarihi geçmiş, bitmemiş bir iş kalemi var |
 
 ---
 
@@ -107,7 +108,7 @@ Tüm projelerin haftalık raporlarını filtreli ve sayfalı listeler. Projeye b
   "content": [ { "...": "WeeklyReportResponse" } ],
   "page": 0,
   "size": 20,
-  "totalElements": 3,
+  "totalElements": 4,
   "totalPages": 1
 }
 ```
@@ -120,11 +121,11 @@ rapor endpoint'lerinin yanıtında da yer alır.
 
 | İstek | Sonuç |
 |---|---|
-| `GET /api/reports` | 3 rapor, en yeni üstte: hafta 30 (PEYK ve e-Donusum, kendi aralarında id'ye göre), sonra hafta 29 |
-| `?projectId=1&weekFrom=29&weekTo=29` | PEYK hafta 29 |
-| `?riskLevel=YUKSEK&ownerId=2` | e-Donusum hafta 30 |
-| `?size=2` | 2 kayıt, `totalElements: 3`, `totalPages: 2` |
-| `?page=5` | `content: []`, `totalElements: 3` (`200`) |
+| `GET /api/reports` | 4 rapor, en yeni üstte: Atlas IK hafta 31, aynı tarihli hafta 30 raporları (id azalan: e-Belge, Atlas IK), sonra Atlas IK hafta 29 |
+| `?projectId=1&weekFrom=29&weekTo=29` | Atlas IK hafta 29 |
+| `?riskLevel=YUKSEK&ownerId=2` | e-Belge hafta 30 |
+| `?size=2` | 2 kayıt, `totalElements: 4`, `totalPages: 2` |
+| `?page=5` | `content: []`, `totalElements: 4` (`200`) |
 
 ---
 
@@ -160,14 +161,15 @@ Bölüm 3'teki sayfa yapısı kullanılır, `content` elemanları `WorkItemRespo
 | `weekNumber` | Integer | Bağlı olduğu raporun haftası |
 | `delayed` | boolean | K-T13-01'e göre gecikmiş mi |
 
-### Örnekler (seed verisi, gecikme demo verisi eklenmeden önce)
+### Örnekler (seed verisi)
 
 | İstek | Sonuç |
 |---|---|
-| `GET /api/work-items` | e-Donusum hafta 30'un 1 iş kalemi. PEYK'in son raporunda (hafta 30) iş kalemi yok, EczaciPOS'un raporu yok. |
-| `?weekNumber=29` | PEYK hafta 29'un 3 iş kalemi |
+| `GET /api/work-items` | 3 iş kalemi: Atlas IK hafta 31'in 2 kalemi, sonra planlanan tarihi olmayan e-Belge "Mevzuat analizi". Atlas IK'nın eski haftaları listelenmez (S-05), Nova POS'un raporu yok. |
+| `?weekNumber=29` | Atlas IK hafta 29'un 3 iş kalemi |
 | `?weekNumber=29&assignee=mehmet` | "Dashboard ozeti" |
-| `?status=DEVAM_EDIYOR` | "Mevzuat analizi" |
+| `?status=DEVAM_EDIYOR` | "Rapor ekrani entegrasyonu" ve "Mevzuat analizi" |
+| `?delayed=true` | "Rapor ekrani entegrasyonu" (`delayed: true`) |
 
 ---
 
@@ -216,8 +218,8 @@ gereği yok sayılır ve filtresiz sonuç döner. Bu davranış README'de belirt
   planlanan tarihi ile raporun tarihi karşılaştırılarak yazılır.
 - **Gecikme kuralı** tek bir sınıfta toplanır. Dashboard satırı, iş kalemi yanıtı ve sorgu
   koşulu aynı tanımı kullanır.
-- **Örnek veri:** gecikme filtresini gösterebilmek için seed'e planlanan tarihli ve `GECIKTI`
-  durumunda iş kalemleri eklenir.
+- **Örnek veri:** gecikme filtresini gösterebilmek için seed'e planlanan tarihli iş kalemleri
+  içeren yeni bir rapor eklenir (Atlas IK hafta 31). Mevcut kayıtlar değişmez.
 
 ## 8. Yetkilendirmeye (T14) hazırlık
 
