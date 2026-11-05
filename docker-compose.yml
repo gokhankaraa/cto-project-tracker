@@ -1,0 +1,26 @@
+# Gelistirme ortami icin PostgreSQL.
+# Kullanim:
+#   cp .env.example .env      (istege bagli; degerlerin hepsinin varsayilani var)
+#   docker compose up -d db
+#   docker compose down       (veri volume'da kalir; silmek icin: docker compose down -v)
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: ctotracker-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ctotracker}
+      POSTGRES_USER: ${DB_USER:-ctotracker}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ctotracker_dev}
+    ports:
+      # Makinede yerel bir PostgreSQL 5432'yi kullanabildigi icin varsayilan 5433.
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - ctotracker-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  ctotracker-db-data:
