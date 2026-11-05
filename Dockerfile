@@ -8,9 +8,11 @@ COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
 RUN ./mvnw -q -B dependency:go-offline
 
-# Kaynaklari kopyala ve jar uret (testler build sirasinda calisir)
+# Kaynaklari kopyala ve jar uret.
+# Testler burada calismaz: Testcontainers icin Docker gerekir ve docker build icinden
+# Docker'a erisilemez. Testler imaj olusturmadan once ./mvnw test ile calistirilir.
 COPY src/ src/
-RUN ./mvnw -q -B clean package
+RUN ./mvnw -q -B clean package -DskipTests
 
 # --- 2. Asama: runtime ---
 # Sadece JRE iceren kucuk imaj; yalnizca uretilen jar calisir.

@@ -13,8 +13,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.domain.Specification;
 
+import com.kolaysoft.ctotracker.TestcontainersConfiguration;
 import com.kolaysoft.ctotracker.dto.filter.WorkItemFilter;
 import com.kolaysoft.ctotracker.entity.OverallStatus;
 import com.kolaysoft.ctotracker.entity.ProgressStage;
@@ -32,6 +34,7 @@ import com.kolaysoft.ctotracker.service.DelayPolicy;
  * (T13 filtre sozlesmesi bolum 4 ve S-05, analiz notu K-T13-01 ve K-T13-09).
  */
 @DataJpaTest
+@Import(TestcontainersConfiguration.class)
 class WorkItemQueryTest {
 
     @Autowired

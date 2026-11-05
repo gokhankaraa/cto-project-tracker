@@ -12,9 +12,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
+import com.kolaysoft.ctotracker.TestcontainersConfiguration;
 import com.kolaysoft.ctotracker.common.web.SortParameter;
 import com.kolaysoft.ctotracker.dto.filter.ReportFilter;
 import com.kolaysoft.ctotracker.entity.OverallStatus;
@@ -32,6 +34,7 @@ import com.kolaysoft.ctotracker.repository.spec.WeeklyReportSpecifications;
  * {@code @DataJpaTest} DataSeeder'i calistirmaz; veri her testte burada kurulur ve geri alinir.
  */
 @DataJpaTest
+@Import(TestcontainersConfiguration.class)
 class WeeklyReportQueryTest {
 
     @Autowired

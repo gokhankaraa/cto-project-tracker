@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.kolaysoft.ctotracker.TestcontainersConfiguration;
 import com.kolaysoft.ctotracker.common.exception.BusinessRuleException;
 import com.kolaysoft.ctotracker.common.exception.DuplicateResourceException;
 import com.kolaysoft.ctotracker.common.exception.ResourceNotFoundException;
@@ -37,7 +38,7 @@ import jakarta.validation.constraints.NotBlank;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(GlobalExceptionHandlerTest.TestEndpoints.class)
+@Import({GlobalExceptionHandlerTest.TestEndpoints.class, TestcontainersConfiguration.class})
 class GlobalExceptionHandlerTest {
 
     @Autowired

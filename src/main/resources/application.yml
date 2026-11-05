@@ -2,24 +2,24 @@ spring:
   application:
     name: cto-project-tracker-backend
 
-  # Gelistirme asamasinda gomulu H2 kullaniliyor (teknik karar notu 2.3).
-  # Uretimde PostgreSQL'e gecis yalnizca bu bloktaki degerlerin degismesini gerektirir.
+  # Veritabani PostgreSQL. Varsayilanlar docker-compose.yml'deki gelistirme veritabanini gosterir
+  # (docker compose up -d db). Baska bir ortamda DB_HOST, DB_PORT, DB_NAME, DB_USER,
+  # DB_PASSWORD ortam degiskenleriyle degistirilir.
   datasource:
-    url: jdbc:h2:mem:ctotracker;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:ctotracker}
+    username: ${DB_USER:ctotracker}
+    password: ${DB_PASSWORD:ctotracker_dev}
 
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+  # Semayi Flyway yonetir (src/main/resources/db/migration).
+  flyway:
+    enabled: true
 
   jpa:
     hibernate:
-      # Bellekteki H2 her baslatmada sifirlandigi icin semayi entity'lerden uretiyoruz.
-      ddl-auto: create-drop
-    show-sql: true
+      # Hibernate semayi degistirmez; yalnizca entity'lerin Flyway semasiyla uyustugunu dogrular.
+      ddl-auto: validate
+    # SQL loglari gerektiginde: logging.level.org.hibernate.SQL=DEBUG
+    show-sql: false
     open-in-view: false
     properties:
       hibernate:
