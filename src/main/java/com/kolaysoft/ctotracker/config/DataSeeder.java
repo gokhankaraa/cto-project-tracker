@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import com.kolaysoft.ctotracker.entity.OverallStatus;
@@ -23,17 +24,21 @@ import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
 import com.kolaysoft.ctotracker.repository.WorkItemRepository;
 
 /**
- * Gelistirme/demo icin ornek veri yukler. Bellekteki H2 her baslatmada bos geldigi
- * icin uygulama acilisinda birkac kullanici, proje ve haftalik rapor olusturur.
- * Idempotent: veri zaten varsa tekrar eklemez.
+ * Gelistirme/demo icin ornek veri yukler: birkac kullanici, proje, haftalik rapor ve is kalemi.
+ * Idempotent: veritabaninda kullanici varsa hicbir sey eklemez (veritabani kalici oldugu icin
+ * yalnizca ilk acilista, bos veritabaninda calisir).
+ *
+ * <p>Yalnizca {@code demo} profilinde calisir. Hicbir profil secilmezse {@code demo} varsayilandir
+ * (application.yml, {@code spring.profiles.default}); baska bir profille calistirilan ortamda
+ * (or. {@code SPRING_PROFILES_ACTIVE=prod}) ornek veri yuklenmez. Testler varsayilan olarak
+ * bos veritabaniyla baslar; ornek veriye dayanan test {@code @ActiveProfiles("demo")} ile ister.
  *
  * <p>Veriler kurgusaldir (proje, musteri ve kisi adlari uydurma, e-postalar {@code example.com}); repository
  * herkese acik oldugu icin gercek sirket/musteri verisi kullanilmaz (staj yonetmeligi 8.2).
  * Testler ve README demo senaryosu kayit id'lerine dayandigi icin yeni kayitlar yalnizca SONA eklenir.
- *
- * <p>Gercek/uretim ortaminda calismasi istenmiyorsa profile ile sinirlandirilabilir.
  */
 @Component
+@Profile("demo")
 public class DataSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);

@@ -14,6 +14,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,10 +28,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * is kalemi -> dashboard akisi ve kritik negatif senaryolar. Her test {@code @Transactional}
  * ile izole edilir; olusturulan veriler test sonunda geri alinir (seed verisi korunur).
  *
- * <p>Seed verisine dayanir (DataSeeder): kullanici id 1 = Ayse (PM), proje id 1 = Atlas IK
- * (hafta 29, 30 ve 31 raporlu), proje id 3 = Nova POS (raporsuz).
+ * <p>Seed verisine dayanir (DataSeeder), bu yuzden {@code demo} profilini acikca ister:
+ * kullanici id 1 = Ayse (PM), proje id 1 = Atlas IK (hafta 29, 30 ve 31 raporlu),
+ * proje id 3 = Nova POS (raporsuz).
  */
 @SpringBootTest
+@ActiveProfiles("demo")
 @Import(TestcontainersConfiguration.class)
 @AutoConfigureMockMvc
 @Transactional

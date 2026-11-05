@@ -2,6 +2,11 @@ spring:
   application:
     name: cto-project-tracker-backend
 
+  # Profil secilmezse "demo" calisir ve bos veritabanina ornek veri yuklenir (DataSeeder).
+  # Ornek veri istenmeyen ortamda baska bir profil secilir: SPRING_PROFILES_ACTIVE=prod
+  profiles:
+    default: demo
+
   # Veritabani PostgreSQL. Varsayilanlar docker-compose.yml'deki gelistirme veritabanini gosterir
   # (docker compose up -d db). Baska bir ortamda DB_HOST, DB_PORT, DB_NAME, DB_USER,
   # DB_PASSWORD ortam degiskenleriyle degistirilir.
