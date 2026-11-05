@@ -122,20 +122,28 @@ hafta 31 ORTA raporları), e-Belge (sorumlu Mehmet, hafta 30 YUKSEK raporu) ve N
 
 ## 10. Riskler ve açık sorular
 
-Netleştirilecek konular:
+Netleştirilecek konular ve kararlar (kararlar 5 Kasım 2026'da verildi):
 
 1. **Gecikme tanımı (K-T13-01)** iş tarafının beklentisine uyuyor mu? Referans tarih olarak
    raporun tarihi mi, yoksa "bugün" mü kullanılmalı?
+   **Karar:** Raporun tarihi kalır. Rapor o haftanın anlık görüntüsüdür, sonuç saate bağlı olmaz
+   ve geçmiş haftalar kendi tarihlerine göre değerlendirilir. Bilinen sınır: yeni rapor girilmezse
+   sonradan oluşan gecikme görünmez. Bunu T17'deki "bu hafta raporu girilmemiş" göstergesi karşılar.
 2. **Hafta numarasında yıl bilgisi yok.** `(project_id, week_number)` benzersizlik kısıtı yıl
    değişiminde çakışır: bir proje 2027'nin 30. haftası için rapor giremez, hafta filtresi de
-   hangi yılın haftası olduğunu bilemez. T13'ün kapsamı dışında, ama staj sonuna kadar
+   hangi yılın haftası olduğunu bilemez. T13'ün kapsamı dışında, ama proje sonuna kadar
    çözülmesi gereken bir risk. Öneri: rapora yıl bilgisi eklemek veya haftayı rapor tarihinden türetmek.
+   **Karar:** PostgreSQL geçişinden hemen sonra ayrı bir adımda rapora yıl kolonu eklenir (Flyway
+   V2). Benzersizlik kısıtı `(project_id, year, week_number)` olur, hafta filtrelerine yıl eklenir.
 3. **Yazım hatalı parametreler sessizce yok sayılıyor.** Örneğin `?risk=YUKSEK` hata vermez,
    filtresiz sonuç döner. Bu Spring'in standart davranışı; reddedilmesi gerekir mi, yoksa
    dokümante etmek yeterli mi?
+   **Karar:** Dokümante etmek yeterli. Davranış README'de yazılı, test senaryolarında
+   `E6-SC2-TC-Filter-10` olarak kayıtlı.
 4. **Performans:** dashboard her proje için ayrı sorgu atıyor (en son rapor ve canlı task
    sayısı). Hafta ve gecikme filtreleri buna yeni sorgular ekleyecek. Proje sayısı küçükken
    sorun değil; T17'deki performans kontrolünde ele alınacak.
+   **Karar:** T17'de ölçülüp ele alınır.
 
 ## 11. Öncelik
 
@@ -148,3 +156,26 @@ Netleştirilecek konular:
 | Rol bazlı filtre kapsamı | T14 |
 | "Bu hafta raporu girilmemiş" göstergesi, haftalık trend | Sonra (T17) |
 | Serbest metin araması, kayıtlı filtreler | Opsiyonel |
+
+## 12. Kapanış kontrolü (5 Kasım 2026)
+
+Mentor kontrolünün yerine öz değerlendirme yapıldı. Kanıt kaynakları: `./mvnw test` (100 test,
+0 hata), test senaryoları xlsx'indeki E6 bölümü (23 senaryo, çalışan uygulamaya karşı hepsi PASS)
+ve Swagger şeması (`/v3/api-docs`).
+
+| Kriter | Durum | Kanıt |
+|---|---|---|
+| KK-01 | Sağlandı | MVP'den kalan testler (`MvpIntegrationTest` dahil) değişmeden geçiyor. Filtresiz yanıta yalnızca yeni alan eklendi (S-06). |
+| KK-02 | Sağlandı | `E6-SC1-TC-Filter-1`, `DashboardServiceTest` |
+| KK-03 | Sağlandı | `E6-SC1-TC-Filter-2`, `FilterIntegrationTest.dashboardWeekReference` |
+| KK-04 | Sağlandı | `E6-SC1-TC-Filter-3`, `FilterIntegrationTest.dashboardOwnerFilterAndCounters` |
+| KK-05 | Sağlandı | `E6-SC1-TC-Filter-4` |
+| KK-06 | Sağlandı | `WorkItemQueryTest` (`delayedConditionCoversAllCases`, `reportLevelDelay`, `queryConditionMatchesDelayPolicy`), `DashboardServiceTest.delayedFilterAndCounter` |
+| KK-07 | Sağlandı | `E6-SC1-TC-Filter-6`–`10`, `WeeklyReportQueryTest` |
+| KK-08 | Sağlandı | `E6-SC1-TC-Filter-11`–`13`, `WorkItemQueryTest.filtersCombine` |
+| KK-09 | Sağlandı | `FilterIntegrationTest.invalidRequestsReturn400` (17 hatalı istek), `E6-SC2`. Hiçbir durumda `500` dönmüyor. |
+| KK-10 | Sağlandı | Üç endpoint'teki 27 parametrenin hepsinde Swagger açıklaması ve örneği var. README'deki "Known gaps" bölümünden T13 maddesi kaldırıldı. |
+
+**Yönetmelik teslim satırı** ("Filtreli dashboard/rapor listesi + test kanıtı + güncel README"):
+filtreli dashboard ile rapor ve iş kalemi listeleri, otomatik testler ve xlsx senaryoları, güncel README.
+T13 bu haliyle kapanır.
