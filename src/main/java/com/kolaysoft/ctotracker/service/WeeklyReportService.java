@@ -94,9 +94,9 @@ public class WeeklyReportService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proje", projectId));
 
-        if (weeklyReportRepository.existsByProjectIdAndWeekNumber(projectId, request.weekNumber())) {
-            throw new DuplicateResourceException(
-                    "Bu proje ve hafta icin rapor zaten mevcut (hafta %d).".formatted(request.weekNumber()));
+        Integer year = WeeklyReport.yearOf(request.reportDate());
+        if (weeklyReportRepository.existsByProjectIdAndYearAndWeekNumber(projectId, year, request.weekNumber())) {
+            throw duplicateWeek(year, request.weekNumber());
         }
 
         WeeklyReport report = new WeeklyReport();
@@ -108,12 +108,12 @@ public class WeeklyReportService {
     public WeeklyReportResponse update(Long reportId, WeeklyReportRequest request) {
         WeeklyReport report = getReportOrThrow(reportId);
 
-        // Hafta numarasi degistiyse, yeni hafta ayni projede baska bir raporla cakismasin.
-        boolean weekChanged = !report.getWeekNumber().equals(request.weekNumber());
-        if (weekChanged && weeklyReportRepository.existsByProjectIdAndWeekNumber(
-                report.getProject().getId(), request.weekNumber())) {
-            throw new DuplicateResourceException(
-                    "Bu proje ve hafta icin rapor zaten mevcut (hafta %d).".formatted(request.weekNumber()));
+        // Yil (rapor tarihinden) ya da hafta degistiyse, yeni yil + hafta ayni projede baska bir raporla cakismasin.
+        Integer year = WeeklyReport.yearOf(request.reportDate());
+        boolean weekChanged = !report.getYear().equals(year) || !report.getWeekNumber().equals(request.weekNumber());
+        if (weekChanged && weeklyReportRepository.existsByProjectIdAndYearAndWeekNumber(
+                report.getProject().getId(), year, request.weekNumber())) {
+            throw duplicateWeek(year, request.weekNumber());
         }
 
         validateStageTransition(report.getProgressStage(), request.progressStage());
@@ -154,6 +154,11 @@ public class WeeklyReportService {
         }
     }
 
+    private static DuplicateResourceException duplicateWeek(Integer year, Integer weekNumber) {
+        return new DuplicateResourceException(
+                "Bu proje icin %d yilinin %d. haftasina ait rapor zaten mevcut.".formatted(year, weekNumber));
+    }
+
     private void applyRequest(WeeklyReport report, WeeklyReportRequest request) {
         report.setWeekNumber(request.weekNumber());
         report.setReportDate(request.reportDate());
@@ -185,6 +190,7 @@ public class WeeklyReportService {
                 r.getId(),
                 r.getProject().getId(),
                 r.getProject().getName(),
+                r.getYear(),
                 r.getWeekNumber(),
                 r.getReportDate(),
                 r.getProgressStage(),

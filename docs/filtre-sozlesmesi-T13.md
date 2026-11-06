@@ -5,6 +5,9 @@
 **Hazırlayan:** Gökhan Kara
 **Tarih:** 22 Ekim 2026
 **Dayandığı doküman:** [analiz-notu-T13.md](analiz-notu-T13.md) (K-T13-xx kararları ve KK-xx kabul kriterleri oradadır)
+**Güncelleme (6 Kasım 2026):** Raporlara yıl eklendi (Flyway V2). Yıl istekte gönderilmez; rapor
+tarihinin ISO hafta-yılından türetilir. Yanıtlara `year` / `lastYear` alanları eklendi ve "en son rapor"
+artık önce yıla, sonra haftaya göre seçilir.
 
 Bu doküman üç endpoint'in filtre parametrelerini, doğrulama kurallarını, yanıt yapısını ve hata
 davranışını tanımlar. 22–24. günlerdeki geliştirme ve testler bu sözleşmeye göre yapılacak.
@@ -57,6 +60,7 @@ davranışını tanımlar. 22–24. günlerdeki geliştirme ve testler bu sözle
 |---|---|---|---|
 | `DashboardSummaryResponse` | `delayedProjects` | long | Filtrelenmiş kümedeki geciken proje sayısı |
 | `DashboardProjectSummary` | `delayed` | boolean | Değerlendirilen rapora göre proje gecikmede mi (raporu yoksa `false`) |
+| `DashboardProjectSummary` | `lastYear` | Integer | Değerlendirilen raporun yılı (V2; raporu yoksa `null`) |
 
 Mevcut alanlarda değişiklik yok: `lastWeekNumber`, `weekNumber` verildiğinde değerlendirilen
 raporun haftasını gösterir. Sayaçlar filtrelenmiş kümeye göre hesaplanır (K-T13-06).
@@ -113,9 +117,9 @@ Tüm projelerin haftalık raporlarını filtreli ve sayfalı listeler. Projeye b
 }
 ```
 
-`WeeklyReportResponse` aynen kullanılır, tek ek alan `projectName` (String). Projeler arası
-listede raporun hangi projeye ait olduğu id'ye bakmadan görünsün diye eklenir. Ek alan diğer
-rapor endpoint'lerinin yanıtında da yer alır.
+`WeeklyReportResponse` aynen kullanılır, ek alanlar `projectName` (String) ve `year` (Integer, V2).
+`projectName`, projeler arası listede raporun hangi projeye ait olduğu id'ye bakmadan görünsün diye
+eklenir. Ek alanlar diğer rapor endpoint'lerinin yanıtında da yer alır.
 
 ### Örnekler (seed verisi)
 
@@ -158,6 +162,7 @@ Bölüm 3'teki sayfa yapısı kullanılır, `content` elemanları `WorkItemRespo
 |---|---|---|
 | `projectId` | Long | İş kaleminin projesi |
 | `projectName` | String | Proje adı |
+| `year` | Integer | Bağlı olduğu raporun yılı (V2) |
 | `weekNumber` | Integer | Bağlı olduğu raporun haftası |
 | `delayed` | boolean | K-T13-01'e göre gecikmiş mi |
 

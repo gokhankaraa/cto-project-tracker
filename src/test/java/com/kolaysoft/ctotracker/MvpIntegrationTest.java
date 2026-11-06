@@ -130,7 +130,29 @@ class MvpIntegrationTest {
         mockMvc.perform(post("/api/projects/1/reports")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("DUPLICATE_RESOURCE"));
+                .andExpect(jsonPath("$.code").value("DUPLICATE_RESOURCE"))
+                .andExpect(jsonPath("$.message").value("Bu proje icin 2026 yilinin 29. haftasina ait rapor zaten mevcut."));
+    }
+
+    @Test
+    @DisplayName("Is kurali: ayni hafta numarasi farkli yilda yeni rapor olarak kabul edilir (V2)")
+    void sameWeekInAnotherYearIsAllowed() throws Exception {
+        // Proje 1 (Atlas IK) 2026 hafta 29 seed'de mevcut; 2027 hafta 29 ayri bir rapordur
+        String body = """
+                { "weekNumber": 29, "reportDate": "2027-07-19", "progressStage": "ANALIZ",
+                  "overallStatus": "YOLUNDA", "riskLevel": "DUSUK" }
+                """;
+        mockMvc.perform(post("/api/projects/1/reports")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.year").value(2027))
+                .andExpect(jsonPath("$.weekNumber").value(29));
+
+        // Dashboard'da en son rapor artik 2027 hafta 29 (2026 hafta 31'den daha yeni)
+        mockMvc.perform(get("/api/dashboard/summary").param("projectId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.projects[0].lastYear").value(2027))
+                .andExpect(jsonPath("$.projects[0].lastWeekNumber").value(29));
     }
 
     @Test

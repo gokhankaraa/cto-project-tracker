@@ -25,6 +25,10 @@ public record WeeklyReportResponse(
                 example = "Atlas IK")
         String projectName,
 
+        @Schema(description = "Yil: rapor tarihinin ISO hafta-yili; istekte gonderilmez, tarihten turetilir",
+                example = "2026")
+        Integer year,
+
         @Schema(description = "Hafta numarasi", example = "30")
         Integer weekNumber,
 

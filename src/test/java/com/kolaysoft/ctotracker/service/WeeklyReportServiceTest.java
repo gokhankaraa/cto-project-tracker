@@ -56,7 +56,11 @@ class WeeklyReportServiceTest {
     }
 
     private WeeklyReportRequest request(int week, ProgressStage stage) {
-        return new WeeklyReportRequest(week, LocalDate.of(2026, 7, 27), stage,
+        return request(week, LocalDate.of(2026, 7, 27), stage);
+    }
+
+    private WeeklyReportRequest request(int week, LocalDate reportDate, ProgressStage stage) {
+        return new WeeklyReportRequest(week, reportDate, stage,
                 OverallStatus.YOLUNDA, RiskLevel.ORTA, "yapilanlar", "yapilacaklar", "riskler", "not");
     }
 
@@ -76,7 +80,7 @@ class WeeklyReportServiceTest {
     @DisplayName("Olusturma: yuzde ilerleme kademesinden turer")
     void createDerivesPercentageFromStage() {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project()));
-        when(weeklyReportRepository.existsByProjectIdAndWeekNumber(1L, 30)).thenReturn(false);
+        when(weeklyReportRepository.existsByProjectIdAndYearAndWeekNumber(1L, 2026, 30)).thenReturn(false);
         when(weeklyReportRepository.save(any())).thenAnswer(inv -> {
             WeeklyReport r = inv.getArgument(0);
             r.setId(5L);
@@ -94,12 +98,26 @@ class WeeklyReportServiceTest {
     @DisplayName("Olusturma: ayni proje+hafta icin ikinci rapor 409 DuplicateResource")
     void createRejectsDuplicateProjectWeek() {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project()));
-        when(weeklyReportRepository.existsByProjectIdAndWeekNumber(1L, 30)).thenReturn(true);
+        when(weeklyReportRepository.existsByProjectIdAndYearAndWeekNumber(1L, 2026, 30)).thenReturn(true);
 
         assertThatThrownBy(() -> service.create(1L, request(30, ProgressStage.ANALIZ)))
-                .isInstanceOf(DuplicateResourceException.class);
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessage("Bu proje icin 2026 yilinin 30. haftasina ait rapor zaten mevcut.");
 
         verify(weeklyReportRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Olusturma: yil rapor tarihinin ISO hafta-yilindan turer (2027-01-01 Cuma -> 2026)")
+    void createDerivesYearFromIsoWeekYear() {
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project()));
+        when(weeklyReportRepository.existsByProjectIdAndYearAndWeekNumber(1L, 2026, 53)).thenReturn(false);
+        when(weeklyReportRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        WeeklyReportResponse response = service.create(1L, request(53, LocalDate.of(2027, 1, 1), ProgressStage.ANALIZ));
+
+        assertThat(response.year()).isEqualTo(2026);
+        assertThat(response.weekNumber()).isEqualTo(53);
     }
 
     @Test
@@ -152,10 +170,24 @@ class WeeklyReportServiceTest {
     @DisplayName("Guncelleme: hafta degisip cakisirsa 409 DuplicateResource")
     void updateRejectsWeekCollision() {
         when(weeklyReportRepository.findById(5L)).thenReturn(Optional.of(existingReport(5L, 30, ProgressStage.ANALIZ)));
-        when(weeklyReportRepository.existsByProjectIdAndWeekNumber(1L, 31)).thenReturn(true);
+        when(weeklyReportRepository.existsByProjectIdAndYearAndWeekNumber(1L, 2026, 31)).thenReturn(true);
 
         assertThatThrownBy(() -> service.update(5L, request(31, ProgressStage.ANALIZ)))
                 .isInstanceOf(DuplicateResourceException.class);
+
+        verify(weeklyReportRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Guncelleme: tarih baska yila tasinip ayni haftayla cakisirsa 409 DuplicateResource")
+    void updateRejectsYearCollision() {
+        // Mevcut rapor 2026 hafta 30; tarih 2027'ye tasiniyor, 2027 hafta 30 zaten var
+        when(weeklyReportRepository.findById(5L)).thenReturn(Optional.of(existingReport(5L, 30, ProgressStage.ANALIZ)));
+        when(weeklyReportRepository.existsByProjectIdAndYearAndWeekNumber(1L, 2027, 30)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.update(5L, request(30, LocalDate.of(2027, 7, 26), ProgressStage.ANALIZ)))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessageContaining("2027 yilinin 30. haftasina");
 
         verify(weeklyReportRepository, never()).save(any());
     }

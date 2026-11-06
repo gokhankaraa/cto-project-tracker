@@ -167,7 +167,10 @@ entity change.
 
 The full, interactive contract is in Swagger UI. Key business rules (see pre-analysis §H-03/H-04):
 
-- A project can have only **one report per week** — a duplicate `(project, week)` returns **409**.
+- A project can have only **one report per week of a year** — a duplicate `(project, year, week)`
+  returns **409**. The year is not sent in the request: it is derived from `reportDate` as the ISO
+  week-based year and returned as `year` (e.g. Friday 2027-01-01 still belongs to week 53 of 2026).
+  The same week number in another year is a separate report.
 - Progress is tracked as ordered stages `ANALIZ → GELISTIRME → TEST → TAMAMLANDI`; the percentage
   (`25 / 50 / 75 / 100`) is **derived from the stage, never entered by hand**.
 - On update a report's stage may stay the same or advance exactly one step; going backward or
@@ -176,7 +179,7 @@ The full, interactive contract is in Swagger UI. Key business rules (see pre-ana
   report's **live task count** is derived from the number of `DEVAM_EDIYOR` work items — not stored
   separately.
 - A project that still has weekly reports cannot be deleted (**409**); delete its reports first.
-- The dashboard summary reports each project's **latest** report (highest week number). Projects with
+- The dashboard summary reports each project's **latest** report (latest year, then highest week). Projects with
   no report are still listed, with empty/default progress. Portfolio counters (total, high-risk,
   without-report, total live tasks) accompany the per-project rows.
 
@@ -259,7 +262,7 @@ values come from the responses of the previous steps.
    `GET /api/reports/{reportId}` → `liveTaskCount: 1`
 7. **Back to the dashboard** — Nova POS now shows `hasReport: true` with the fresh status.
 
-Negative checks worth showing: a duplicate `(project, week)` report → **409**, skipping a progress
+Negative checks worth showing: a duplicate `(project, year, week)` report → **409**, skipping a progress
 stage on update → **400**, deleting a project that still has reports → **409**.
 
 ## Package and layer structure
@@ -334,7 +337,7 @@ the schema comes from the same Flyway scripts as the application. Each test cont
 empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; every other test
 creates its own data. Service tests use Mockito and need no database.
 
-Current tests (100 in total):
+Current tests (112 in total):
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
   (project → report → work item → dashboard), 404 / 400 / 409, stage skip, dashboard filter
@@ -344,6 +347,9 @@ Current tests (100 in total):
 - `WeeklyReportQueryTest` / `WorkItemQueryTest` — filter queries against the database
   (@DataJpaTest): inclusive ranges, AND/OR combination, evaluated-report selection, case-insensitive
   assignee search, and the delay condition matching the Java delay rule (`DelayPolicy`)
+- `WeeklyReportYearTest` — report year (Flyway V2) on PostgreSQL: the Java year rule matches
+  PostgreSQL's `ISOYEAR` at year boundaries, the year follows the report date, uniqueness is per
+  project + year + week, and the latest report compares the year before the week
 - `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
 - `HealthControllerTest` — health endpoint and DB connection (reports PostgreSQL)
 - `GlobalExceptionHandlerTest` — the error-format contract (400 / 404 / 405 / 409 / 500), including

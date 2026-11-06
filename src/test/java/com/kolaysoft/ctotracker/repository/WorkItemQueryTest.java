@@ -126,6 +126,21 @@ class WorkItemQueryTest {
     }
 
     @Test
+    @DisplayName("Degerlendirilen rapor: yil sinirinda en son rapor yila gore secilir (2027 h1 > 2026 h52)")
+    void defaultListComparesYearBeforeWeek() {
+        Project p3 = project("P3");
+        WeeklyReport december = report(p3, 52, LocalDate.of(2026, 12, 21));
+        WeeklyReport january = report(p3, 1, LocalDate.of(2027, 1, 4));
+        item(december, "aralik isi", null, WorkItemStatus.TAMAMLANDI, null);
+        item(january, "ocak isi", null, WorkItemStatus.PLANLANDI, null);
+        em.flush();
+        em.clear();
+
+        assertThat(titles(new WorkItemFilter(p3.getId(), null, null, null, null)))
+                .containsExactly("ocak isi");
+    }
+
+    @Test
     @DisplayName("Referans hafta: her proje icin o haftaya kadarki en son rapor; oncesinde rapor yoksa bos")
     void weekNumberUsesLatestReportUpToThatWeek() {
         assertThat(titles(new WorkItemFilter(null, 10, null, null, null))).containsExactlyInAnyOrder("eski hafta", "p2 isi");

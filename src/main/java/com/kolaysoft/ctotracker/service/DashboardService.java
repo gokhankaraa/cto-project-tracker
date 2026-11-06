@@ -97,7 +97,7 @@ public class DashboardService {
         if (evaluatedReport.isEmpty()) {
             return new DashboardProjectSummary(
                     project.getId(), project.getName(), project.getCustomer(), ownerName,
-                    project.getStatus(), false, null, null, 0, null, null, 0, false);
+                    project.getStatus(), false, null, null, null, 0, null, null, 0, false);
         }
 
         WeeklyReport r = evaluatedReport.get();
@@ -106,7 +106,7 @@ public class DashboardService {
 
         return new DashboardProjectSummary(
                 project.getId(), project.getName(), project.getCustomer(), ownerName,
-                project.getStatus(), true, r.getWeekNumber(),
+                project.getStatus(), true, r.getYear(), r.getWeekNumber(),
                 r.getProgressStage(), r.getProgressStage().getPercentage(),
                 r.getOverallStatus(), r.getRiskLevel(), liveTaskCount, delayPolicy.isDelayed(r));
     }
@@ -114,9 +114,9 @@ public class DashboardService {
     /** Referans hafta yoksa en guncel rapor, varsa o haftaya kadarki (dahil) en son rapor. */
     private Optional<WeeklyReport> findEvaluatedReport(Long projectId, Integer weekNumber) {
         if (weekNumber == null) {
-            return weeklyReportRepository.findTopByProjectIdOrderByWeekNumberDesc(projectId);
+            return weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(projectId);
         }
-        return weeklyReportRepository.findTopByProjectIdAndWeekNumberLessThanEqualOrderByWeekNumberDesc(
+        return weeklyReportRepository.findTopByProjectIdAndWeekNumberLessThanEqualOrderByYearDescWeekNumberDesc(
                 projectId, weekNumber);
     }
 }

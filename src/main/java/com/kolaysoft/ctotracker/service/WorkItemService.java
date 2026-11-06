@@ -127,6 +127,7 @@ public class WorkItemService {
                 report.getId(),
                 project.getId(),
                 project.getName(),
+                report.getYear(),
                 report.getWeekNumber(),
                 w.getTitle(),
                 w.getDescription(),

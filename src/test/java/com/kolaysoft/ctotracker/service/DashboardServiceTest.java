@@ -87,9 +87,9 @@ class DashboardServiceTest {
         when(projectRepository.findAll(anySpec(), any(Sort.class))).thenReturn(List.of(atlas, bos));
 
         WeeklyReport atlasLast = report(10L, 1L, 30, ProgressStage.TEST, RiskLevel.YUKSEK);
-        when(weeklyReportRepository.findTopByProjectIdOrderByWeekNumberDesc(1L))
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(1L))
                 .thenReturn(Optional.of(atlasLast));
-        when(weeklyReportRepository.findTopByProjectIdOrderByWeekNumberDesc(2L))
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(2L))
                 .thenReturn(Optional.empty());
         when(workItemRepository.countByWeeklyReportIdAndStatus(10L, WorkItemStatus.DEVAM_EDIYOR))
                 .thenReturn(2L);
@@ -124,9 +124,9 @@ class DashboardServiceTest {
 
         WeeklyReport atlasLast = report(10L, 1L, 30, ProgressStage.TEST, RiskLevel.DUSUK);
         WeeklyReport ebelgeLast = report(20L, 2L, 30, ProgressStage.ANALIZ, RiskLevel.YUKSEK);
-        when(weeklyReportRepository.findTopByProjectIdOrderByWeekNumberDesc(1L))
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(1L))
                 .thenReturn(Optional.of(atlasLast));
-        when(weeklyReportRepository.findTopByProjectIdOrderByWeekNumberDesc(2L))
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(2L))
                 .thenReturn(Optional.of(ebelgeLast));
         lenient().when(workItemRepository.countByWeeklyReportIdAndStatus(any(), eq(WorkItemStatus.DEVAM_EDIYOR)))
                 .thenReturn(0L);
@@ -169,9 +169,9 @@ class DashboardServiceTest {
         when(projectRepository.findAll(anySpec(), any(Sort.class))).thenReturn(List.of(atlas, ebelge));
 
         WeeklyReport atlasW29 = report(10L, 1L, 29, ProgressStage.GELISTIRME, RiskLevel.ORTA);
-        when(weeklyReportRepository.findTopByProjectIdAndWeekNumberLessThanEqualOrderByWeekNumberDesc(1L, 29))
+        when(weeklyReportRepository.findTopByProjectIdAndWeekNumberLessThanEqualOrderByYearDescWeekNumberDesc(1L, 29))
                 .thenReturn(Optional.of(atlasW29));
-        when(weeklyReportRepository.findTopByProjectIdAndWeekNumberLessThanEqualOrderByWeekNumberDesc(2L, 29))
+        when(weeklyReportRepository.findTopByProjectIdAndWeekNumberLessThanEqualOrderByYearDescWeekNumberDesc(2L, 29))
                 .thenReturn(Optional.empty());
 
         DashboardSummaryResponse summary = service.getSummary(
@@ -193,13 +193,13 @@ class DashboardServiceTest {
         Project raporsuz = project(4L, "Raporsuz", null);
         when(projectRepository.findAll(anySpec(), any(Sort.class)))
                 .thenReturn(List.of(dusuk, orta, yuksek, raporsuz));
-        when(weeklyReportRepository.findTopByProjectIdOrderByWeekNumberDesc(1L))
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(1L))
                 .thenReturn(Optional.of(report(10L, 1L, 30, ProgressStage.TEST, RiskLevel.DUSUK)));
-        when(weeklyReportRepository.findTopByProjectIdOrderByWeekNumberDesc(2L))
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(2L))
                 .thenReturn(Optional.of(report(20L, 2L, 30, ProgressStage.TEST, RiskLevel.ORTA)));
-        when(weeklyReportRepository.findTopByProjectIdOrderByWeekNumberDesc(3L))
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(3L))
                 .thenReturn(Optional.of(report(30L, 3L, 30, ProgressStage.TEST, RiskLevel.YUKSEK)));
-        when(weeklyReportRepository.findTopByProjectIdOrderByWeekNumberDesc(4L)).thenReturn(Optional.empty());
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(4L)).thenReturn(Optional.empty());
         lenient().when(workItemRepository.countByWeeklyReportIdAndStatus(any(), eq(WorkItemStatus.DEVAM_EDIYOR)))
                 .thenReturn(0L);
 
@@ -221,9 +221,9 @@ class DashboardServiceTest {
                 .thenReturn(List.of(geciken, zamaninda, raporsuz));
         WeeklyReport gecikenRapor = report(10L, 1L, 30, ProgressStage.TEST, RiskLevel.ORTA);
         WeeklyReport zamanindaRapor = report(20L, 2L, 30, ProgressStage.TEST, RiskLevel.DUSUK);
-        when(weeklyReportRepository.findTopByProjectIdOrderByWeekNumberDesc(1L)).thenReturn(Optional.of(gecikenRapor));
-        when(weeklyReportRepository.findTopByProjectIdOrderByWeekNumberDesc(2L)).thenReturn(Optional.of(zamanindaRapor));
-        when(weeklyReportRepository.findTopByProjectIdOrderByWeekNumberDesc(3L)).thenReturn(Optional.empty());
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(1L)).thenReturn(Optional.of(gecikenRapor));
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(2L)).thenReturn(Optional.of(zamanindaRapor));
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(3L)).thenReturn(Optional.empty());
         when(delayPolicy.isDelayed(gecikenRapor)).thenReturn(true);
         when(delayPolicy.isDelayed(zamanindaRapor)).thenReturn(false);
         lenient().when(workItemRepository.countByWeeklyReportIdAndStatus(any(), eq(WorkItemStatus.DEVAM_EDIYOR)))

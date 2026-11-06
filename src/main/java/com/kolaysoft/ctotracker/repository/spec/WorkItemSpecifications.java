@@ -11,6 +11,8 @@ import com.kolaysoft.ctotracker.entity.WeeklyReport;
 import com.kolaysoft.ctotracker.entity.WorkItem;
 import com.kolaysoft.ctotracker.entity.WorkItemStatus;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -39,24 +41,32 @@ public final class WorkItemSpecifications {
     /**
      * Yalnızca her projenin değerlendirilen raporundaki iş kalemleri (filtre sözleşmesi, S-05):
      * {@code weekNumber} yoksa projenin en son raporu, varsa hafta numarası ≤ weekNumber olan
-     * en son raporu. Aynı projenin en yüksek haftası alt sorguyla bulunur.
+     * en son raporu. "En son" yıl ve hafta birlikte karşılaştırılarak bulunur (bkz. {@link #weekKey}).
      */
     public static Specification<WorkItem> inEvaluatedReport(Integer weekNumber) {
         return (root, query, cb) -> {
             Path<WeeklyReport> report = root.get("weeklyReport");
 
-            Subquery<Integer> latestWeek = query.subquery(Integer.class);
-            Root<WeeklyReport> candidate = latestWeek.from(WeeklyReport.class);
-            Path<Integer> candidateWeek = candidate.get("weekNumber");
+            Subquery<Integer> latestKey = query.subquery(Integer.class);
+            Root<WeeklyReport> candidate = latestKey.from(WeeklyReport.class);
             Predicate sameProject = cb.equal(
                     candidate.get("project").get("id"), report.get("project").get("id"));
             Predicate withinWeek = weekNumber == null
                     ? cb.conjunction()
-                    : cb.le(candidateWeek, weekNumber);
-            latestWeek.select(cb.max(candidateWeek)).where(sameProject, withinWeek);
+                    : cb.le(candidate.get("weekNumber"), weekNumber);
+            latestKey.select(cb.max(weekKey(cb, candidate))).where(sameProject, withinWeek);
 
-            return cb.equal(report.get("weekNumber"), latestWeek);
+            return cb.equal(weekKey(cb, report), latestKey);
         };
+    }
+
+    /**
+     * Raporun yıl ve haftasını tek sayıda birleştirir: {@code year * 100 + weekNumber} (or. 2026 h30 = 202630).
+     * Hafta en fazla 53 olduğu için bu sayının sırası (yıl, hafta) sırasıyla aynıdır; böylece
+     * "en son rapor" tek bir MAX ile bulunur.
+     */
+    static Expression<Integer> weekKey(CriteriaBuilder cb, Path<WeeklyReport> report) {
+        return cb.sum(cb.prod(report.<Integer>get("year"), 100), report.<Integer>get("weekNumber"));
     }
 
     public static Specification<WorkItem> inReport(Long reportId) {
