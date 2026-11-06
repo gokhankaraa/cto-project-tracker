@@ -17,7 +17,7 @@ public record HealthResponse(
         @Schema(description = "Veritabani baglantisinin durumu", example = "UP", allowableValues = {"UP", "DOWN"})
         String databaseStatus,
 
-        @Schema(description = "Bagli veritabani urunu ve surumu", example = "H2 2.4.240")
+        @Schema(description = "Bagli veritabani urunu ve surumu", example = "PostgreSQL 17.11")
         String database,
 
         @Schema(description = "Kontrolun yapildigi an", example = "2026-07-22T14:30:00+03:00")

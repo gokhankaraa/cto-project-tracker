@@ -46,11 +46,12 @@ public final class SortParameter {
                 : Sort.Direction.fromOptionalString(parts[1].strip())
                         .orElseThrow(() -> invalid(effective, allowed));
 
-        // ignoreCase: metin alanlari (or. projectName) buyuk/kucuk harfe duyarsiz siralanir; aksi halde H2
-        // buyuk harfle baslayan "Nova POS"u kucuk harfle baslayan "e-Belge"den once getirir ve sonuc veritabanina gore degisir. Spring Data bunu yalnizca
-        // String tipindeki alanlara uygular; tarih/sayi alanlari etkilenmez.
-        // nullsLast: tarihsiz kayitlar (or. plannedDate) her zaman sonda. Varsayilanlar farkli: H2 artan
-        // siralamada NULL'lari basa, PostgreSQL sona koyar; acikca belirterek iki veritabaninda da ayni sonuc.
+        // ignoreCase: metin alanlari (or. projectName) buyuk/kucuk harfe duyarsiz siralanir; aksi halde sonuc
+        // veritabaninin collation ayarina baglidir (or. "C" collation'da buyuk harfle baslayan "Nova POS",
+        // kucuk harfle baslayan "e-Belge"den once gelir). Spring Data bunu yalnizca String tipindeki alanlara
+        // uygular; tarih/sayi alanlari etkilenmez.
+        // nullsLast: tarihsiz kayitlar (or. plannedDate) her iki yonde de sonda. PostgreSQL'in varsayilani
+        // artan siralamada NULL'lari sona, azalan siralamada ise basa koymaktir; acikca belirtilir.
         Sort.Order primary = new Sort.Order(direction, path).ignoreCase().nullsLast();
         return Sort.by(primary, new Sort.Order(direction, "id"));
     }

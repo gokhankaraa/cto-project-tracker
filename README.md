@@ -7,7 +7,9 @@ Track: **Backend (Java + Spring Boot)** · Author: Gökhan Kara
 
 > **Status:** MVP (T01–T12) complete. T13 (days 21–24) adds filtering on the CTO dashboard and two
 > cross-project list endpoints for reports and work items, with paging, sorting and a shared delay
-> rule. Next: PostgreSQL migration, then role-based authorization (T14).
+> rule. Data now lives in PostgreSQL, with the schema managed by Flyway and tests running against a
+> real PostgreSQL via Testcontainers. Next: a report year column (Flyway V2), then role-based
+> authorization (T14).
 
 Project documents (in [`docs/`](docs/)):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, scope, user stories, acceptance criteria)
@@ -27,10 +29,12 @@ Project documents (in [`docs/`](docs/)):
 | Language | Java 21 (LTS) | LTS release; compatibility with the libraries used is verified |
 | Framework | Spring Boot 4.1 | Start a new project on a current version; natural support for layered architecture |
 | Data access | Spring Data JPA (Hibernate) | Entity–table mapping, repository abstraction |
-| Database | H2 (embedded, in-memory) | Zero setup; portable to PostgreSQL thanks to the repository abstraction |
+| Database | PostgreSQL 17 (Docker Compose for development) | Production-grade relational DB; same engine in development, tests and deployment |
+| Schema migrations | Flyway | Versioned SQL scripts (`db/migration`); Hibernate only validates the schema |
 | Validation | Spring Validation (Bean Validation) | Field-level required/format/range checks |
 | API docs | springdoc-openapi 3.0.3 (Swagger UI) | Test endpoints from the browser and show the API in the demo |
 | Helper | Lombok | Reduce boilerplate getter/setter/constructor code |
+| Tests | JUnit 5, Mockito, Testcontainers | Integration tests run against a throwaway PostgreSQL container |
 
 > springdoc's 2.x line targets Spring Boot 3; with Boot 4 the **3.x** line must be used.
 
@@ -38,7 +42,8 @@ Project documents (in [`docs/`](docs/)):
 
 - JDK 21 or newer (`java -version`)
 - No need to install Maven — the bundled Maven Wrapper (`./mvnw`) is used
-- No separate database setup needed; H2 runs in memory alongside the application
+- Docker with Compose (e.g. Docker Desktop) — runs PostgreSQL, and is needed by the tests
+  (Testcontainers). No local PostgreSQL installation is required.
 
 ## Setup and run
 
@@ -46,7 +51,17 @@ Project documents (in [`docs/`](docs/)):
 git clone <repository-url>
 cd cto-project-tracker-backend
 
+docker compose up -d db         # starts PostgreSQL (host port 5433)
 ./mvnw spring-boot:run          # starts the application (http://localhost:8080)
+```
+
+On first start Flyway creates the schema and the demo data is loaded (see [Demo data](#demo-data)).
+The database lives in a Docker volume, so **data survives restarts**. To start over with an empty
+database (demo data is loaded again on the next start):
+
+```bash
+docker compose down -v          # removes the container and its data volume
+docker compose up -d db
 ```
 
 Alternatively, build and run a jar:
@@ -56,26 +71,21 @@ Alternatively, build and run a jar:
 java -jar target/cto-project-tracker-backend-0.0.1-SNAPSHOT.jar
 ```
 
-### Run with Docker
+### Run everything with Docker
 
 The app ships with a multi-stage `Dockerfile` (builds the jar inside the image, then runs it on a
-JRE), so it runs anywhere Docker is installed — no local Java/Maven needed:
+JRE). `docker-compose.yml` starts it together with PostgreSQL, so no local Java/Maven is needed:
 
 ```bash
-docker build -t cto-tracker:1.0 .
-docker run -d --name cto-demo -p 8080:8080 cto-tracker:1.0
+docker compose up -d --build            # PostgreSQL + application
 
 curl http://localhost:8080/api/health   # {"status":"UP","databaseStatus":"UP", ...}
+
+docker compose down                     # stop (add -v to also delete the data)
 ```
 
-Stop and remove the container:
-
-```bash
-docker rm -f cto-demo
-```
-
-The in-memory H2 database is seeded on startup, so the dashboard and endpoints are usable
-immediately inside the container (no external database required).
+The image is built with `-DskipTests`: Testcontainers needs Docker, which is not reachable inside
+`docker build`. Run `./mvnw test` before building an image.
 
 ### Verifying it runs
 
@@ -84,7 +94,6 @@ immediately inside the container (no external database required).
 | Health endpoint | http://localhost:8080/api/health | `status: UP`, `databaseStatus: UP` |
 | Swagger UI | http://localhost:8080/swagger-ui.html | API documentation opens |
 | OpenAPI JSON | http://localhost:8080/v3/api-docs | Returns the OpenAPI schema |
-| H2 console | http://localhost:8080/h2-console | JDBC URL: `jdbc:h2:mem:ctotracker`, user: `sa`, empty password |
 
 ```bash
 curl http://localhost:8080/api/health
@@ -95,7 +104,7 @@ curl http://localhost:8080/api/health
   "status": "UP",
   "application": "cto-project-tracker-backend",
   "databaseStatus": "UP",
-  "database": "H2 2.4.240 (2025-09-22)",
+  "database": "PostgreSQL 17.11",
   "timestamp": "2026-07-22T15:49:49.528096+03:00"
 }
 ```
@@ -106,19 +115,40 @@ not just that the application is up, but that the DB connection works.
 ## Configuration
 
 All settings live in [`src/main/resources/application.yml`](src/main/resources/application.yml).
-The development environment contains no secret values (H2 user `sa`, empty password). When moving to
-PostgreSQL, connection details will be supplied via environment variables and never committed.
+Database connection details come from environment variables; the defaults point at the development
+database in `docker-compose.yml`. The defaults are development-only values — any other environment
+must supply its own through environment variables, never through committed files.
+[`.env.example`](.env.example) lists the values `docker compose` reads; copy it to `.env` (ignored by
+git) to change them.
 
-The MVP runs in a single environment (local H2), so no separate Spring profile was needed. For
-production (e.g. PostgreSQL), a `prod` profile with env-supplied connection details can be added
-without touching the code.
+| Environment variable | Default | Description |
+|---|---|---|
+| `DB_HOST` | `localhost` | PostgreSQL host |
+| `DB_PORT` | `5433` | PostgreSQL port (5433 avoids clashing with a locally installed PostgreSQL on 5432) |
+| `DB_NAME` | `ctotracker` | Database name |
+| `DB_USER` | `ctotracker` | Database user |
+| `DB_PASSWORD` | `ctotracker_dev` | Database password (development only) |
+| `SPRING_PROFILES_ACTIVE` | *(none → `demo`)* | Active Spring profile, see below |
 
-| Setting | Default | Description |
+**Profiles:** when no profile is chosen, the `demo` profile is used and `DataSeeder` loads the demo
+data into an empty database. Choosing any other profile (e.g. `SPRING_PROFILES_ACTIVE=prod`) starts
+without demo data.
+
+Other notable settings:
+
+| Setting | Value | Description |
 |---|---|---|
 | `server.port` | `8080` | Application port |
-| `spring.datasource.url` | `jdbc:h2:mem:ctotracker` | In-memory H2; data is dropped when the app stops |
-| `spring.jpa.hibernate.ddl-auto` | `create-drop` | Schema is generated from entities on each startup |
-| `spring.h2.console.enabled` | `true` | H2 web console (development only) |
+| `spring.flyway.enabled` | `true` | Flyway applies the migrations in `src/main/resources/db/migration` on startup |
+| `spring.jpa.hibernate.ddl-auto` | `validate` | Hibernate never changes the schema; startup fails if entities and tables don't match |
+
+### Database migrations
+
+The schema is created and changed **only** by Flyway scripts in
+[`src/main/resources/db/migration`](src/main/resources/db/migration) (`V1__init.sql`, `V2__...`).
+Flyway records each applied script with a checksum, so an applied script is never edited — not even
+a comment. A schema change is a new script with the next version number, together with the matching
+entity change.
 
 ## API endpoints
 
@@ -189,8 +219,9 @@ Swagger UI with an example value.
 
 ## Demo data
 
-On startup, `DataSeeder` loads sample data into the in-memory H2 (only when the DB is empty), so
-Swagger and the endpoints are usable immediately without manual setup:
+Under the `demo` profile (the default), `DataSeeder` loads sample data on startup when the database
+is empty, so Swagger and the endpoints are usable immediately without manual setup. Records already
+in the database are kept; reset with `docker compose down -v` to get the original demo data back.
 
 **Sample users** (no password — authentication is out of MVP scope):
 
@@ -235,7 +266,7 @@ stage on update → **400**, deleting a project that still has reports → **409
 
 ```
 com.kolaysoft.ctotracker
-├── config/           Application configuration (OpenAPI/Swagger)
+├── config/           Application configuration (OpenAPI/Swagger, demo data seeder)
 ├── controller/       HTTP layer: request handling, DTO exchange
 ├── service/          Business rules (stage transitions, uniqueness, delay rule)
 ├── repository/       Database access via Spring Data JPA
@@ -295,8 +326,13 @@ Validation errors additionally include a `fieldErrors` array:
 ## Tests
 
 ```bash
-./mvnw test
+./mvnw test        # Docker must be running
 ```
+
+Spring tests run against a real PostgreSQL 17 started by Testcontainers (`TestcontainersConfiguration`);
+the schema comes from the same Flyway scripts as the application. Each test context starts with an
+empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; every other test
+creates its own data. Service tests use Mockito and need no database.
 
 Current tests (100 in total):
 
@@ -307,9 +343,9 @@ Current tests (100 in total):
   cases of the filter contract
 - `WeeklyReportQueryTest` / `WorkItemQueryTest` — filter queries against the database
   (@DataJpaTest): inclusive ranges, AND/OR combination, evaluated-report selection, case-insensitive
-  assignee search, and the delay condition matching the in-memory delay rule
+  assignee search, and the delay condition matching the Java delay rule (`DelayPolicy`)
 - `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
-- `HealthControllerTest` — health endpoint and DB connection
+- `HealthControllerTest` — health endpoint and DB connection (reports PostgreSQL)
 - `GlobalExceptionHandlerTest` — the error-format contract (400 / 404 / 405 / 409 / 500), including
   invalid enum/type request parameters
 - `WeeklyReportServiceTest` — business rules: uniqueness (409), stage skip/backward (400),
