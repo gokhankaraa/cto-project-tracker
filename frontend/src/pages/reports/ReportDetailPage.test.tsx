@@ -3,9 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { Route, Routes, useParams } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
+import { report } from '../../test/fixtures'
 import { mockApi, requests } from '../../test/mockApi'
 import { renderWithProviders } from '../../test/render'
-import { report } from '../projects/testData'
 import { ReportDetailPage } from './ReportDetailPage'
 
 const REPORT = report(4, 31, {

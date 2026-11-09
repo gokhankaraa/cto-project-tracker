@@ -2,10 +2,10 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
+import { PROJECTS } from '../../test/fixtures'
 import { mockApi } from '../../test/mockApi'
 import { renderWithProviders } from '../../test/render'
 import { ProjectListPage } from './ProjectListPage'
-import { PROJECTS } from './testData'
 
 describe('ProjectListPage', () => {
   it('projeleri detay baglantisiyla listeler', async () => {

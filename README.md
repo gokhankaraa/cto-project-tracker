@@ -11,9 +11,9 @@ Track: **Full Stack (Java + Spring Boot, React + TypeScript)** · Author: Gökha
 > rule. Data now lives in PostgreSQL, with the schema managed by Flyway and tests running against a
 > real PostgreSQL via Testcontainers. Reports carry a year derived from the report date (Flyway V2),
 > and the filters accept a `year`. The repository now also holds the frontend: phase 0 (skeleton,
-> API client, CORS) is in place, and phase 1 (the MVP screens) has the CTO dashboard, project
-> management and the weekly report form; work items and the report list come next, then
-> role-based authorization (T14).
+> API client, CORS) is in place, and phase 1 (the MVP screens) has the CTO dashboard, projects,
+> weekly reports and work items; the cross-project report list comes next, then role-based
+> authorization (T14).
 
 Project documents (in [`docs/`](docs/)):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, scope, user stories, acceptance criteria)
@@ -179,8 +179,9 @@ Screens:
 | `/projects` | Project list with search by project, customer or owner (Turkish letters and case ignored) |
 | `/projects/:id` | Project details and its weekly reports, newest week first; delete with confirmation (blocked while the project has reports) |
 | `/projects/new`, `/projects/:id/edit` | Project form; checks the backend's rules before sending and shows the backend's `fieldErrors` under the matching input |
-| `/reports/:id` | Weekly report: stage, progress, status, risk, live tasks and the four text fields; delete with confirmation (its work items are deleted too) |
+| `/reports/:id` | Weekly report: stage, progress, status, risk, live tasks and the four text fields; delete with confirmation (its work items are deleted too). Below it, the report's work items with add / edit in a dialog and delete with confirmation |
 | `/projects/:id/reports/new`, `/reports/:id/edit` | Weekly report form (see below) |
+| `/work-items` | Work items across projects, from each project's latest report (or the report up to a chosen year / week); filters for project, owner name, status and delay, paging and sorting, all kept in the address |
 
 Weekly report form:
 
@@ -468,8 +469,8 @@ Backend tests (128 in total):
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (82, Vitest + Testing Library on jsdom; component tests never reach the real backend,
-`src/test/mockApi.ts` stands in for it):
+Frontend tests (98, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+`src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
   with commas) and error handling (`ApiError` body, non-JSON error, network failure)
@@ -496,6 +497,13 @@ Frontend tests (82, Vitest + Testing Library on jsdom; component tests never rea
   choices checked before sending, `409` under the week, only the current and next stage selectable
   when editing, `PUT`, stage rule error under the stage
 - `ReportDetailPage.test.tsx` — report fields and texts, delete and return to the project
+- `WorkItemsSection.test.tsx` — the report's work items, add in a dialog (request body), title
+  checked before sending and backend `fieldErrors` in the dialog, edit with `PUT`, delete
+- `workItems/filters.test.ts` — work item list state from the address: filters, page, sort,
+  defaults left out of the address, invalid values dropped
+- `WorkItemListPage.test.tsx` — links to project and report, address state sent to the API (page
+  is 1-based in the address, 0-based for the backend), next page, clearing filters returns to page 1,
+  owner search sends one request after typing stops, empty result
 
 ## Known gaps
 

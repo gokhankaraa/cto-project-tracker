@@ -3,10 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { Route, Routes, useParams } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
+import { ATLAS, USERS } from '../../test/fixtures'
 import { mockApi, requests, validationError } from '../../test/mockApi'
 import { renderWithProviders } from '../../test/render'
 import { EditProjectPage, NewProjectPage } from './ProjectFormPage'
-import { ATLAS, USERS } from './testData'
 
 function DetailStub() {
   return <p>Proje detayı {useParams().id}</p>

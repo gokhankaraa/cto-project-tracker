@@ -14,6 +14,7 @@ import { QueryState } from '../../components/QueryState'
 import { formatDate, formatWeek, parseId } from '../../lib/format'
 import { OVERALL_STATUS_LABELS, PROGRESS_STAGE_LABELS, RISK_LEVEL_LABELS } from '../../lib/labels'
 import { NotFoundPage } from '../NotFoundPage'
+import { WorkItemsSection } from './WorkItemsSection'
 
 /** /reports/:id */
 export function ReportDetailPage() {
@@ -48,6 +49,7 @@ function ReportDetail({ id }: { id: number }) {
             <TextSection title="Riskler / engeller" text={data.risks} />
             <TextSection title="Genel not" text={data.note} />
           </SimpleGrid>
+          <WorkItemsSection report={data} />
         </Stack>
       )}
     </QueryState>

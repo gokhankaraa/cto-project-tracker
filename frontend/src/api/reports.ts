@@ -58,7 +58,10 @@ export function useReport(id: number) {
   })
 }
 
-/** Rapor degisince projenin rapor gecmisi, rapor sorgulari ve dashboard (son durum) eskir. */
+/**
+ * Rapor degisince projenin rapor gecmisi, rapor sorgulari, dashboard (son durum) ve is kalemleri listesi
+ * (her projenin son raporundaki kalemler) eskir.
+ */
 function useInvalidateReports() {
   const queryClient = useQueryClient()
   return (projectId: number) =>
@@ -66,6 +69,7 @@ function useInvalidateReports() {
       queryClient.invalidateQueries({ queryKey: reportKeys.all }),
       queryClient.invalidateQueries({ queryKey: projectKeys.reports(projectId) }),
       queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+      queryClient.invalidateQueries({ queryKey: ['work-items'] }),
     ])
 }
 
@@ -95,6 +99,7 @@ export function useDeleteReport(report: WeeklyReport) {
       // Silinen raporun kendi sorgusuna dokunulmaz (bkz. useDeleteProject): yenilense 404 alirdi.
       void queryClient.invalidateQueries({ queryKey: projectKeys.reports(report.projectId) })
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      void queryClient.invalidateQueries({ queryKey: ['work-items'] })
     },
   })
 }

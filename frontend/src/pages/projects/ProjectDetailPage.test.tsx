@@ -3,10 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
+import { ATLAS, report } from '../../test/fixtures'
 import { mockApi, requests } from '../../test/mockApi'
 import { renderWithProviders } from '../../test/render'
 import { ProjectDetailPage } from './ProjectDetailPage'
-import { ATLAS, report } from './testData'
 
 function renderDetail(route = '/projects/1') {
   renderWithProviders(

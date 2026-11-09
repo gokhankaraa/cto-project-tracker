@@ -15,7 +15,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', ready: true },
   { to: '/projects', label: 'Projeler', ready: true },
   { to: '/reports', label: 'Raporlar', ready: false },
-  { to: '/work-items', label: 'İş kalemleri', ready: false },
+  { to: '/work-items', label: 'İş kalemleri', ready: true },
 ]
 
 /** Menu ogesi, adresi kendisiyle ya da alt sayfasiyla (/projects/3) eslesince aktif gorunur. */

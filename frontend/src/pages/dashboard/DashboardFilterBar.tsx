@@ -3,6 +3,14 @@ import { Button, Group, MultiSelect, Paper, Select, SimpleGrid } from '@mantine/
 import { NO_DASHBOARD_FILTERS, type DashboardFilters } from '../../api/dashboard'
 import { OVERALL_STATUSES, PROJECT_STATUSES, RISK_LEVELS } from '../../api/types'
 import { useUsers } from '../../api/users'
+import {
+  booleanToValue,
+  DELAYED_OPTIONS,
+  toNumber,
+  valueToBoolean,
+  WEEK_OPTIONS,
+  yearOptions,
+} from '../../lib/filterOptions'
 import { enumOptions, OVERALL_STATUS_LABELS, PROJECT_STATUS_LABELS, RISK_LEVEL_LABELS } from '../../lib/labels'
 import { hasActiveFilters } from './filters'
 
@@ -10,23 +18,6 @@ interface DashboardFilterBarProps {
   filters: DashboardFilters
   onChange: (filters: DashboardFilters) => void
 }
-
-const WEEK_OPTIONS = Array.from({ length: 53 }, (_, i) => ({ value: String(i + 1), label: `${i + 1}. hafta` }))
-
-const DELAYED_OPTIONS = [
-  { value: 'true', label: 'Yalnızca gecikenler' },
-  { value: 'false', label: 'Gecikmeyenler' },
-]
-
-/** Son bes yil; adreste daha eski bir yil varsa o da listeye eklenir ki secili gorunsun. */
-function yearOptions(selected: number | null) {
-  const current = new Date().getFullYear()
-  const years = Array.from({ length: 5 }, (_, i) => current - i)
-  if (selected !== null && !years.includes(selected)) years.push(selected)
-  return years.sort((a, b) => b - a).map(String)
-}
-
-const toNumber = (value: string | null) => (value === null ? null : Number(value))
 
 /**
  * Dashboard filtreleri. Yil ve hafta serbest metin yerine listeden secilir: yazarken olusan "2", "20"
@@ -95,8 +86,8 @@ export function DashboardFilterBar({ filters, onChange }: DashboardFilterBarProp
           label="Gecikme"
           placeholder="Tümü"
           data={DELAYED_OPTIONS}
-          value={filters.delayed === null ? null : String(filters.delayed)}
-          onChange={(value) => set({ delayed: value === null ? null : value === 'true' })}
+          value={booleanToValue(filters.delayed)}
+          onChange={(value) => set({ delayed: valueToBoolean(value) })}
           clearable
         />
         <Group align="flex-end">

@@ -4,9 +4,9 @@ import { Route, Routes, useParams } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
 import type { WeeklyReport } from '../../api/types'
+import { ATLAS, report } from '../../test/fixtures'
 import { mockApi, requests } from '../../test/mockApi'
 import { renderWithProviders } from '../../test/render'
-import { ATLAS, report } from '../projects/testData'
 import { EditReportPage, NewReportPage } from './ReportFormPage'
 
 function ReportStub() {

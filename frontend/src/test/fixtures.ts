@@ -1,6 +1,6 @@
-import type { Project, User, WeeklyReport } from '../../api/types'
+import type { Project, User, WeeklyReport, WorkItem } from '../api/types'
 
-/** Proje ekrani testlerinin ortak verisi (seed verisinin kisaltilmisi). */
+/** Ekran testlerinin ortak verisi (seed verisinin kisaltilmisi). */
 export const USERS: User[] = [
   { id: 1, fullName: 'Ayse Yilmaz', role: 'PROJECT_MANAGER' },
   { id: 2, fullName: 'Mehmet Kaya', role: 'PROJECT_MANAGER' },
@@ -39,6 +39,25 @@ export function report(id: number, weekNumber: number, overrides: Partial<Weekly
     planned: null,
     risks: null,
     note: null,
+    ...overrides,
+  }
+}
+
+export function workItem(id: number, overrides: Partial<WorkItem> = {}): WorkItem {
+  return {
+    id,
+    weeklyReportId: 4,
+    projectId: 1,
+    projectName: 'Atlas IK',
+    year: 2026,
+    weekNumber: 31,
+    title: `Is kalemi ${id}`,
+    description: null,
+    assignee: 'Mehmet Kaya',
+    status: 'DEVAM_EDIYOR',
+    plannedDate: '2026-07-30',
+    completedDate: null,
+    delayed: false,
     ...overrides,
   }
 }

@@ -29,18 +29,21 @@ export function parseBoolean(raw: string | null): boolean | null {
 
 type FilterValue = string | number | boolean | null | undefined | readonly string[]
 
+const encode = (value: string) => encodeURIComponent(value).replaceAll('%2C', ',')
+
 /**
- * Filtre nesnesini "?a=1&b=X,Y" bicimine cevirir. Bos degerler yazilmaz. Liste ayiraci virgul
- * kodlanmadan birakilir (riskLevel=ORTA,YUKSEK); adres okunur kalir ve backend'in bicimiyle aynidir.
+ * Filtre nesnesini "?a=1&b=X,Y" bicimine cevirir. Bos degerler yazilmaz. Virgul kodlanmadan birakilir
+ * (riskLevel=ORTA,YUKSEK, sort=title,asc): sorgu metninde gecerli bir karakterdir, adres okunur kalir ve
+ * backend'in bicimiyle aynidir.
  */
 export function toSearchString(filters: Record<string, FilterValue>): string {
   const parts: string[] = []
   for (const [key, value] of Object.entries(filters)) {
     if (value === null || value === undefined || value === '') continue
     if (Array.isArray(value)) {
-      if (value.length > 0) parts.push(`${key}=${value.map(encodeURIComponent).join(',')}`)
+      if (value.length > 0) parts.push(`${key}=${value.map(encode).join(',')}`)
     } else {
-      parts.push(`${key}=${encodeURIComponent(String(value))}`)
+      parts.push(`${key}=${encode(String(value))}`)
     }
   }
   return parts.length > 0 ? `?${parts.join('&')}` : ''
