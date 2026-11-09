@@ -1,0 +1,67 @@
+# Her push ve pull request'te: backend testleri, frontend kontrolleri ve Docker imajlarinin derlenmesi.
+# Uc is paralel calisir; biri kirilirsa hangi katmanin bozuldugu dogrudan gorunur.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Ayni dala art arda push edilince eski calisma iptal edilir.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (Maven, Testcontainers)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      # Testcontainers PostgreSQL'i runner'daki Docker'da baslatir; ayrica veritabani kurulmaz.
+      - name: Test
+        run: ./mvnw -B test
+      - name: Test raporlari
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports/
+
+  frontend:
+    name: Frontend (lint, test, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # docker-compose.yml'deki app (backend) ve web (frontend + nginx) imajlari derlenir.
+      - name: Build
+        run: docker compose build

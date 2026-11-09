@@ -27,6 +27,7 @@ Project documents (in [`docs/`](docs/), Turkish):
 ├── backend/             Spring Boot REST API (Maven project, Dockerfile)
 ├── frontend/            React + TypeScript web app (Vite; Dockerfile + nginx.conf)
 ├── docs/                Analysis notes and the filter API contract
+├── .github/workflows/   CI: backend tests, frontend checks, Docker image builds
 ├── docker-compose.yml   PostgreSQL, backend and frontend containers
 └── .env.example         Values docker compose reads
 ```
@@ -542,6 +543,12 @@ cd backend
 cd frontend
 npm test           # frontend unit tests, no backend needed
 ```
+
+**Continuous integration:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push
+to `main` and every pull request, in three parallel jobs: backend tests (`./mvnw test`, Java 21,
+Testcontainers on the runner's Docker), frontend checks (`npm ci`, lint, tests, build, Node 24) and
+`docker compose build` (both images still build). If backend tests fail, the Surefire reports are
+attached to the run.
 
 Spring tests run against a real PostgreSQL 17 started by Testcontainers (`TestcontainersConfiguration`);
 the schema comes from the same Flyway scripts as the application. Each test context starts with an
