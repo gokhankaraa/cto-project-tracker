@@ -25,7 +25,7 @@ public record WorkItemResponse(
         @Schema(description = "Raporun ait olduğu projenin adı (T13)", example = "Atlas IK")
         String projectName,
 
-        @Schema(description = "Bağlı olduğu raporun yılı (ISO hafta-yılı)", example = "2026")
+        @Schema(description = "Bağlı olduğu raporun yılı (raporun anlattığı haftanın ISO yılı)", example = "2026")
         Integer year,
 
         @Schema(description = "Bağlı olduğu raporun hafta numarası (T13)", example = "29")

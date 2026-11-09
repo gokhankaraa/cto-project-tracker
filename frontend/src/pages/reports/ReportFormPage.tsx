@@ -26,8 +26,8 @@ import {
 } from '../../api/types'
 import { PageHeader } from '../../components/PageHeader'
 import { QueryState } from '../../components/QueryState'
-import { formatWeek, parseId } from '../../lib/format'
-import { isoWeekOf, todayIso } from '../../lib/isoWeek'
+import { formatDate, formatWeek, parseId } from '../../lib/format'
+import { addDays, checkReportWeek, isoWeekOf, todayIso } from '../../lib/isoWeek'
 import { enumOptions, OVERALL_STATUS_LABELS, PROGRESS_STAGE_LABELS, RISK_LEVEL_LABELS } from '../../lib/labels'
 import { NotFoundPage } from '../NotFoundPage'
 
@@ -50,7 +50,7 @@ function NewReport({ projectId }: { projectId: number }) {
             description={projectData.name}
             back={{ to: `/projects/${projectId}`, label: projectData.name }}
           />
-          {/* Varsayilan hafta ve kademe son rapordan gelir; form raporlar yuklenince acilir. */}
+          {/* Varsayilan kademe ve "son rapor" ipucu son rapordan gelir; form raporlar yuklenince acilir. */}
           <QueryState query={reports}>
             {(list) => <ReportForm latest={list[0]} mutation={mutation} cancelTo={`/projects/${projectId}`} />}
           </QueryState>
@@ -127,10 +127,20 @@ function toRequest(values: FormValues): WeeklyReportRequest {
   }
 }
 
-/** Yeni raporun varsayilan haftasi: son raporun bir sonraki haftasi; ilk raporsa bugunun ISO haftasi. */
-function defaultWeek(latest: WeeklyReport | undefined, today: string): number {
-  if (latest) return latest.weekNumber >= 53 ? 1 : latest.weekNumber + 1
-  return isoWeekOf(today)?.week ?? 1
+/**
+ * Yeni raporun varsayilan haftasi: bugunden bir onceki hafta. Rapor, anlattigi haftanin ertesi gunlerinde
+ * yazildigi icin (seed verisinde ertesi pazartesi) bugunun tarihiyle her zaman gecerli bir ciftir.
+ */
+function defaultWeek(today: string): number {
+  return isoWeekOf(addDays(today, -7))!.week
+}
+
+/** Hafta ve tarih ikisi de bicimce gecerliyse aralarindaki kurali denetler (backend ile ayni mesajlar). */
+function weekCheck(values: FormValues) {
+  const week = Number(values.weekNumber)
+  if (values.weekNumber === '' || !Number.isInteger(week) || week < 1 || week > 53) return null
+  if (isoWeekOf(values.reportDate) === null) return null
+  return checkReportWeek(week, values.reportDate)
 }
 
 /**
@@ -173,9 +183,10 @@ interface ReportFormProps {
 }
 
 /**
- * Haftalik rapor formu. Hafta, rapor tarihinden otomatik turetilmez: backend iki alani bagimsiz tutar
- * (seed verisinde rapor, anlattigi haftanin ertesi pazartesi tarihlidir). Tarihin ISO haftasi ipucu olarak
- * gosterilir; yil her zaman rapor tarihinden alinir.
+ * Haftalik rapor formu. Hafta, anlatilan haftadir; rapor tarihi o haftanin icinde ya da en gec ertesi
+ * haftasinda olmalidir (seed verisinde ertesi pazartesi). Yil girilmez: anlatilan haftanin yilidir ve
+ * formda "Bu rapor 2026 / 31. hafta olarak kaydedilir" diye gosterilir; yil sinirinda rapor tarihinin
+ * yilindan farkli olabilir (53. haftanin raporu ocakta yazilir).
  */
 function ReportForm({ report, latest, mutation, cancelTo }: ReportFormProps) {
   const navigate = useNavigate()
@@ -184,7 +195,7 @@ function ReportForm({ report, latest, mutation, cancelTo }: ReportFormProps) {
   const form = useForm<FormValues>({
     initialValues: {
       reportDate: report?.reportDate ?? today,
-      weekNumber: report?.weekNumber ?? defaultWeek(latest, today),
+      weekNumber: report?.weekNumber ?? defaultWeek(today),
       progressStage: report?.progressStage ?? latest?.progressStage ?? 'ANALIZ',
       overallStatus: report?.overallStatus ?? null,
       riskLevel: report?.riskLevel ?? null,
@@ -194,12 +205,18 @@ function ReportForm({ report, latest, mutation, cancelTo }: ReportFormProps) {
       note: report?.note ?? '',
     },
     validate: {
-      reportDate: (value) =>
-        value === '' ? 'Rapor tarihi zorunludur.' : isoWeekOf(value) === null ? 'Geçerli bir tarih girin.' : null,
-      weekNumber: (value) => {
+      reportDate: (value, values) => {
+        if (value === '') return 'Rapor tarihi zorunludur.'
+        if (isoWeekOf(value) === null) return 'Geçerli bir tarih girin.'
+        const check = weekCheck(values)
+        return check && !check.ok && check.field === 'reportDate' ? check.message : null
+      },
+      weekNumber: (value, values) => {
         if (value === '') return 'Hafta numarası zorunludur.'
         const week = Number(value)
-        return Number.isInteger(week) && week >= 1 && week <= 53 ? null : 'Hafta numarası 1 ile 53 arasında olmalıdır.'
+        if (!Number.isInteger(week) || week < 1 || week > 53) return 'Hafta numarası 1 ile 53 arasında olmalıdır.'
+        const check = weekCheck(values)
+        return check && !check.ok && check.field === 'weekNumber' ? check.message : null
       },
       progressStage: required('İlerleme aşaması zorunludur.'),
       overallStatus: required('Genel durum zorunludur.'),
@@ -219,10 +236,11 @@ function ReportForm({ report, latest, mutation, cancelTo }: ReportFormProps) {
     disabled: !allowed.includes(stage),
   }))
 
-  const dateWeek = isoWeekOf(form.values.reportDate)
-  const weekHint = dateWeek
-    ? `Rapor yılı tarihten alınır: ${dateWeek.year}. Tarih, ISO ${dateWeek.week}. haftada.`
-    : 'Rapor yılı tarihten alınır.'
+  const check = weekCheck(form.values)
+  const weekHint =
+    check?.ok === true
+      ? `Bu rapor ${formatWeek(check.year, Number(form.values.weekNumber))} olarak kaydedilir (${formatDate(check.monday)} haftası).`
+      : 'Anlatılan hafta. Rapor bu hafta ya da ertesi hafta yazılabilir.'
   const stageHint = report
     ? 'Aşama aynı kalabilir ya da bir sonrakine geçebilir.'
     : latest

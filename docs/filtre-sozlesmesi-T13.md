@@ -11,6 +11,12 @@ artık önce yıla, sonra haftaya göre seçilir.
 **Güncelleme (9 Kasım 2026):** Üç endpoint'e `year` parametresi eklendi. Hafta parametreleri
 (`weekNumber`, `weekFrom`, `weekTo`) artık yalnızca `year` ile birlikte verilebilir; yılsız hafta
 `400 VALIDATION_ERROR` döner (bölüm 1 ve 5).
+**Güncelleme (9 Kasım 2026, Flyway V3):** Raporun yılı artık rapor tarihinin değil, **anlattığı
+haftanın** ISO yılıdır: hafta numarası ve rapor tarihinden türetilir (o haftanın rapor tarihine en
+yakın olduğu yıl). Rapor, anlattığı haftanın içinde ya da ertesi haftasında yazılır; aksi halde rapor
+oluşturma/güncelleme `400 VALIDATION_ERROR` döner. Seed verisinde yıl değişmedi; filtre parametreleri ve
+bu dokümandaki örnekler aynen geçerlidir. Değişen tek durum yıl sınırıdır: 53. haftanın 4 Ocak 2027'de
+yazılan raporu artık 2027 değil 2026 yılındadır.
 
 Bu doküman üç endpoint'in filtre parametrelerini, doğrulama kurallarını, yanıt yapısını ve hata
 davranışını tanımlar. 22–24. günlerdeki geliştirme ve testler bu sözleşmeye göre yapılacak.
@@ -28,7 +34,7 @@ davranışını tanımlar. 22–24. günlerdeki geliştirme ve testler bu sözle
 | Enum değerleri | Büyük harf ve koddaki adıyla yazılır (`YUKSEK`, `DEVAM_EDIYOR`). |
 | Tarih biçimi | ISO 8601, `yyyy-MM-dd` (ör. `2026-07-27`) |
 | Hafta numarası | 1–53 (rapor oluştururken kullanılan kuralla aynı). Yıl olmadan anlamsız olduğu için hafta parametreleri yalnızca `year` ile birlikte verilebilir. |
-| Yıl | 2000–2100. Raporun yılı, rapor tarihinin ISO hafta-yılıdır (ör. 2027-01-01 Cuma → 2026). |
+| Yıl | 2000–2100. Raporun yılı, anlattığı haftanın ISO yılıdır (ör. 53. hafta, rapor tarihi 2027-01-04 → 2026). |
 | Var olmayan id | Hata dönmez, boş sonuç döner (K-T13-07). |
 | Gecikme | Analiz notundaki K-T13-01 tanımı kullanılır. Hesaplama tek bir yerde yapılır, üç endpoint de aynı kuralı kullanır. |
 

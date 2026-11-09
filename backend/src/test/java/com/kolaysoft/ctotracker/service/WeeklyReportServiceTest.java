@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.kolaysoft.ctotracker.common.exception.BusinessRuleException;
 import com.kolaysoft.ctotracker.common.exception.DuplicateResourceException;
+import com.kolaysoft.ctotracker.common.exception.InvalidParameterException;
 import com.kolaysoft.ctotracker.common.exception.ResourceNotFoundException;
 import com.kolaysoft.ctotracker.dto.WeeklyReportRequest;
 import com.kolaysoft.ctotracker.dto.WeeklyReportResponse;
@@ -108,16 +109,63 @@ class WeeklyReportServiceTest {
     }
 
     @Test
-    @DisplayName("Olusturma: yil rapor tarihinin ISO hafta-yilindan turer (2027-01-01 Cuma -> 2026)")
-    void createDerivesYearFromIsoWeekYear() {
+    @DisplayName("Olusturma: yil anlatilan haftanin yilidir (53. haftanin raporu 2027-01-04'te -> 2026)")
+    void createDerivesYearFromReportedWeek() {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project()));
         when(weeklyReportRepository.existsByProjectIdAndYearAndWeekNumber(1L, 2026, 53)).thenReturn(false);
         when(weeklyReportRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        WeeklyReportResponse response = service.create(1L, request(53, LocalDate.of(2027, 1, 1), ProgressStage.ANALIZ));
+        WeeklyReportResponse response = service.create(1L, request(53, LocalDate.of(2027, 1, 4), ProgressStage.ANALIZ));
 
         assertThat(response.year()).isEqualTo(2026);
         assertThat(response.weekNumber()).isEqualTo(53);
+    }
+
+    @Test
+    @DisplayName("Olusturma: rapor tarihi anlattigi haftadan once olamaz (reportDate alan hatasi)")
+    void createRejectsReportDateBeforeWeek() {
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project()));
+
+        assertThatThrownBy(() -> service.create(1L, request(35, LocalDate.of(2026, 7, 27), ProgressStage.ANALIZ)))
+                .isInstanceOf(InvalidParameterException.class)
+                .hasMessage("Rapor tarihi, anlattigi haftadan (2026 / 35. hafta, 24.08.2026) once olamaz.")
+                .extracting("parameter").isEqualTo("reportDate");
+
+        verify(weeklyReportRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Olusturma: rapor en gec ertesi hafta yazilabilir (reportDate alan hatasi)")
+    void createRejectsReportDateAfterNextWeek() {
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project()));
+
+        assertThatThrownBy(() -> service.create(1L, request(29, LocalDate.of(2026, 7, 27), ProgressStage.ANALIZ)))
+                .isInstanceOf(InvalidParameterException.class)
+                .hasMessage("Rapor en gec anlattigi haftanin ertesi haftasinda yazilabilir "
+                        + "(2026 / 29. hafta icin son gun 26.07.2026).")
+                .extracting("parameter").isEqualTo("reportDate");
+    }
+
+    @Test
+    @DisplayName("Olusturma: 53 haftalik olmayan yillarda 53. hafta reddedilir (weekNumber alan hatasi)")
+    void createRejectsMissingWeek53() {
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project()));
+
+        // 2022, 2023 ve 2024 52 haftalik yillar.
+        assertThatThrownBy(() -> service.create(1L, request(53, LocalDate.of(2023, 6, 5), ProgressStage.ANALIZ)))
+                .isInstanceOf(InvalidParameterException.class)
+                .hasMessage("Rapor tarihinin yilinda ve komsu yillarda 53. hafta yok.")
+                .extracting("parameter").isEqualTo("weekNumber");
+    }
+
+    @Test
+    @DisplayName("Guncelleme: hafta ile tarih uyumsuzsa kademe kontrolunden once reddedilir")
+    void updateRejectsMismatchedWeekAndDate() {
+        when(weeklyReportRepository.findById(5L)).thenReturn(Optional.of(existingReport(5L, 30, ProgressStage.TEST)));
+
+        assertThatThrownBy(() -> service.update(5L, request(30, LocalDate.of(2026, 8, 10), ProgressStage.ANALIZ)))
+                .isInstanceOf(InvalidParameterException.class)
+                .extracting("parameter").isEqualTo("reportDate");
     }
 
     @Test

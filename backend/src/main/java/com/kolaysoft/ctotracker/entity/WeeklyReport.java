@@ -1,9 +1,13 @@
 package com.kolaysoft.ctotracker.entity;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.IsoFields;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -31,8 +35,10 @@ import lombok.Setter;
  * uzerinde benzersizlik kisiti tanimlidir. Bu kural veritabani duzeyinde garanti edilir;
  * servis katmani da ayni durumu onceden kontrol edip anlamli 409 hatasi dondurur.
  *
- * <p>Yil disaridan girilmez; rapor tarihinin ISO hafta-yilidir ve {@link #setReportDate} ile
- * birlikte hesaplanir (bkz. {@link #yearOf}). Boylece tarih ile yil birbirinden kopamaz.
+ * <p>Yil disaridan girilmez; raporun anlattigi haftanin ISO yilidir ve hafta ile rapor tarihinden
+ * birlikte hesaplanir (bkz. {@link #yearOf(Integer, LocalDate)}). Rapor, anlattigi haftanin ertesi gunlerinde
+ * yazilabildigi icin (seed verisinde ertesi pazartesi) yil, rapor tarihinin yili olmayabilir: 2026'nin
+ * 53. haftasinin 4 Ocak 2027'de yazilan raporu 2026 yilina aittir.
  */
 @Entity
 @Table(name = "weekly_reports",
@@ -52,14 +58,16 @@ public class WeeklyReport {
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
 
+    @Setter(AccessLevel.NONE)
     @Column(nullable = false)
     private LocalDate reportDate;
 
-    /** Rapor tarihinin ISO hafta-yili; yalnizca {@link #setReportDate} ile degisir. */
+    /** Anlatilan haftanin ISO yili; hafta ya da rapor tarihi degisince yeniden hesaplanir. */
     @Setter(AccessLevel.NONE)
     @Column(nullable = false)
     private Integer year;
 
+    @Setter(AccessLevel.NONE)
     @Column(name = "week_number", nullable = false)
     private Integer weekNumber;
 
@@ -92,19 +100,49 @@ public class WeeklyReport {
     @Column(length = 2000)
     private String note;
 
-    /** Rapor tarihini ve ondan turetilen yili birlikte ayarlar. */
+    /** Hafta numarasini ayarlar; yil yeniden hesaplanir (sira onemsiz, bkz. {@link #setReportDate}). */
+    public void setWeekNumber(Integer weekNumber) {
+        this.weekNumber = weekNumber;
+        this.year = yearOf(weekNumber, reportDate);
+    }
+
+    /** Rapor tarihini ayarlar; yil yeniden hesaplanir. */
     public void setReportDate(LocalDate reportDate) {
         this.reportDate = reportDate;
-        this.year = yearOf(reportDate);
+        this.year = yearOf(weekNumber, reportDate);
     }
 
     /**
-     * Bir tarihin ISO hafta-yili: haftanin ait oldugu yil. Yil sinirinda takvim yilindan farkli olabilir
-     * (or. 2027-01-01 Cuma, 2026'nin 53. haftasindadir, sonuc 2026). V2 migration'indaki
-     * {@code EXTRACT(ISOYEAR FROM report_date)} ile ayni kuraldir.
+     * Raporun anlattigi haftanin yili: verilen hafta numarasinin rapor tarihine en yakin oldugu yil (tarihin
+     * ISO yili, bir oncesi ve bir sonrasi arasindan; o yilda bu hafta yoksa aday degildir). Gecerli bir raporda
+     * (tarih haftanin icinde ya da ertesi haftada, bkz. WeeklyReportService) bu tam olarak anlatilan haftadir;
+     * adaylar arasinda yaklasik bir yil fark oldugu icin sonuc tektir. Hicbir adayda hafta yoksa (53. hafta)
+     * tarihin ISO yili doner; servis bu durumu ayrica reddeder. V3 migration'i ayni kurali SQL'de uygular.
      */
-    public static Integer yearOf(LocalDate date) {
-        return date == null ? null : date.get(IsoFields.WEEK_BASED_YEAR);
+    public static Integer yearOf(Integer weekNumber, LocalDate reportDate) {
+        if (weekNumber == null || reportDate == null) {
+            return null;
+        }
+        int dateYear = reportDate.get(IsoFields.WEEK_BASED_YEAR);
+        return IntStream.of(dateYear, dateYear - 1, dateYear + 1)
+                .filter(year -> hasWeek(year, weekNumber))
+                .boxed()
+                .min(Comparator.comparingLong(
+                        year -> Math.abs(ChronoUnit.DAYS.between(mondayOf(year, weekNumber), reportDate))))
+                .orElse(dateYear);
+    }
+
+    /** ISO yilinda bu hafta var mi: 1-52 her yilda, 53 yalnizca 53 haftalik yillarda (28 Aralik'in haftasi). */
+    public static boolean hasWeek(int year, int weekNumber) {
+        int weeksInYear = LocalDate.of(year, 12, 28).get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+        return weekNumber >= 1 && weekNumber <= weeksInYear;
+    }
+
+    /** ISO yilinin verilen haftasinin pazartesisi (2026, 31 -> 2026-07-27). */
+    public static LocalDate mondayOf(int year, int weekNumber) {
+        return LocalDate.of(year, 1, 4)
+                .with(IsoFields.WEEK_OF_WEEK_BASED_YEAR, weekNumber)
+                .with(DayOfWeek.MONDAY);
     }
 
     /**

@@ -1,5 +1,7 @@
 package com.kolaysoft.ctotracker.service;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -52,6 +54,11 @@ public class WeeklyReportService {
     /** Varsayilan siralama: en yeni rapor en ustte. */
     private static final String DEFAULT_SORT = "reportDate,desc";
 
+    /** Rapor, anlattigi haftanin pazartesisinden itibaren 14 gun icinde (o hafta ya da ertesi hafta) yazilir. */
+    static final int REPORT_WINDOW_DAYS = 14;
+
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
     private final WeeklyReportRepository weeklyReportRepository;
     private final ProjectRepository projectRepository;
     private final WorkItemRepository workItemRepository;
@@ -94,7 +101,7 @@ public class WeeklyReportService {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Proje", projectId));
 
-        Integer year = WeeklyReport.yearOf(request.reportDate());
+        int year = validateReportWeek(request);
         if (weeklyReportRepository.existsByProjectIdAndYearAndWeekNumber(projectId, year, request.weekNumber())) {
             throw duplicateWeek(year, request.weekNumber());
         }
@@ -108,9 +115,9 @@ public class WeeklyReportService {
     public WeeklyReportResponse update(Long reportId, WeeklyReportRequest request) {
         WeeklyReport report = getReportOrThrow(reportId);
 
-        // Yil (rapor tarihinden) ya da hafta degistiyse, yeni yil + hafta ayni projede baska bir raporla cakismasin.
-        Integer year = WeeklyReport.yearOf(request.reportDate());
-        boolean weekChanged = !report.getYear().equals(year) || !report.getWeekNumber().equals(request.weekNumber());
+        // Yil ya da hafta degistiyse, yeni yil + hafta ayni projede baska bir raporla cakismasin.
+        int year = validateReportWeek(request);
+        boolean weekChanged = report.getYear() != year || !report.getWeekNumber().equals(request.weekNumber());
         if (weekChanged && weeklyReportRepository.existsByProjectIdAndYearAndWeekNumber(
                 report.getProject().getId(), year, request.weekNumber())) {
             throw duplicateWeek(year, request.weekNumber());
@@ -138,6 +145,34 @@ public class WeeklyReportService {
             throw new InvalidParameterException("dateTo",
                     "Bitis tarihi (dateTo) baslangic tarihinden (dateFrom) once olamaz.");
         }
+    }
+
+    /**
+     * Hafta ile rapor tarihinin birbirine uydugunu dogrular ve anlatilan haftanin yilini doner. Rapor,
+     * anlattigi haftanin icinde ya da en gec ertesi haftasinda yazilir (seed verisinde ertesi pazartesi);
+     * boylece yil sinirinda bile hangi yilin haftasi oldugu tektir. Hatalar alana bagli 400 VALIDATION_ERROR olur.
+     */
+    private int validateReportWeek(WeeklyReportRequest request) {
+        int week = request.weekNumber();
+        LocalDate reportDate = request.reportDate();
+        int year = WeeklyReport.yearOf(week, reportDate);
+        if (!WeeklyReport.hasWeek(year, week)) {
+            throw new InvalidParameterException("weekNumber",
+                    "Rapor tarihinin yilinda ve komsu yillarda %d. hafta yok.".formatted(week));
+        }
+        LocalDate monday = WeeklyReport.mondayOf(year, week);
+        if (reportDate.isBefore(monday)) {
+            throw new InvalidParameterException("reportDate",
+                    "Rapor tarihi, anlattigi haftadan (%d / %d. hafta, %s) once olamaz."
+                            .formatted(year, week, DATE_FORMAT.format(monday)));
+        }
+        LocalDate lastDay = monday.plusDays(REPORT_WINDOW_DAYS - 1);
+        if (reportDate.isAfter(lastDay)) {
+            throw new InvalidParameterException("reportDate",
+                    "Rapor en gec anlattigi haftanin ertesi haftasinda yazilabilir (%d / %d. hafta icin son gun %s)."
+                            .formatted(year, week, DATE_FORMAT.format(lastDay)));
+        }
+        return year;
     }
 
     /** Kademe ayni kalabilir ya da tam bir adim ilerleyebilir; geriye/atlayarak gecis reddedilir. */

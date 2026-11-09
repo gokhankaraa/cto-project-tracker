@@ -55,7 +55,7 @@ public class DashboardController {
             @Parameter(description = "Sorumlu proje yoneticisinin kullanici id'si", example = "1")
             @RequestParam(required = false) Long ownerId,
 
-            @Parameter(description = "Referans yil (rapor tarihinin ISO hafta-yili). Yalnizca yil verilirse her proje "
+            @Parameter(description = "Referans yil (raporun anlattigi haftanin ISO yili). Yalnizca yil verilirse her proje "
                     + "icin o yilin sonuna kadarki en son rapor esas alinir", example = "2026")
             @RequestParam(required = false)
             @Min(value = 2000, message = "Yil en az 2000 olmalidir.")

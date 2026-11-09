@@ -13,7 +13,8 @@ import {
 
 /**
  * POST /api/projects/{projectId}/reports ve PUT /api/reports/{id} govdesi (dto/WeeklyReportRequest.java).
- * Yil gonderilmez; backend rapor tarihinin ISO hafta-yilindan turetir. Ilerleme yuzdesi kademeden gelir.
+ * Yil gonderilmez; backend anlatilan haftanin yilini hafta ve rapor tarihinden turetir (lib/isoWeek.ts,
+ * reportYearOf). Rapor tarihi haftanin icinde ya da ertesi haftasinda olmalidir. Ilerleme yuzdesi kademeden gelir.
  */
 export interface WeeklyReportRequest {
   weekNumber: number

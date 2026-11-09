@@ -57,9 +57,9 @@ class MvpIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.projects[?(@.projectId==3)].hasReport").value(org.hamcrest.Matchers.hasItem(false)));
 
-        // Rapora ekle (hafta 25, ANALIZ)
+        // Rapora ekle (hafta 31, ANALIZ; rapor ertesi pazartesi yazilir)
         String reportBody = """
-                { "weekNumber": 25, "reportDate": "2026-08-03", "progressStage": "ANALIZ",
+                { "weekNumber": 31, "reportDate": "2026-08-03", "progressStage": "ANALIZ",
                   "overallStatus": "YOLUNDA", "riskLevel": "DUSUK" }
                 """;
         MvcResult reportRes = mockMvc.perform(post("/api/projects/3/reports")
@@ -156,11 +156,26 @@ class MvpIntegrationTest {
     }
 
     @Test
+    @DisplayName("Validasyon: rapor tarihi anlattigi haftaya uymuyorsa 400, hata reportDate alaninda")
+    void reportDateOutsideWeekReturns400() throws Exception {
+        // 29. hafta 13-19 Temmuz; rapor en gec 26 Temmuz yazilabilir.
+        String body = """
+                { "weekNumber": 29, "reportDate": "2026-08-03", "progressStage": "ANALIZ",
+                  "overallStatus": "YOLUNDA", "riskLevel": "DUSUK" }
+                """;
+        mockMvc.perform(post("/api/projects/3/reports")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("reportDate"));
+    }
+
+    @Test
     @DisplayName("Is kurali: kademe atlama 400")
     void stageSkipReturns400() throws Exception {
         // Yeni rapor olustur (ANALIZ), sonra TAMAMLANDI'ya atlamayi dene
         String reportBody = """
-                { "weekNumber": 26, "reportDate": "2026-08-03", "progressStage": "ANALIZ",
+                { "weekNumber": 32, "reportDate": "2026-08-03", "progressStage": "ANALIZ",
                   "overallStatus": "YOLUNDA", "riskLevel": "DUSUK" }
                 """;
         MvcResult res = mockMvc.perform(post("/api/projects/3/reports")
@@ -169,7 +184,7 @@ class MvpIntegrationTest {
         long reportId = idOf(res);
 
         String skipBody = """
-                { "weekNumber": 26, "reportDate": "2026-08-03", "progressStage": "TAMAMLANDI",
+                { "weekNumber": 32, "reportDate": "2026-08-03", "progressStage": "TAMAMLANDI",
                   "overallStatus": "YOLUNDA", "riskLevel": "DUSUK" }
                 """;
         mockMvc.perform(put("/api/reports/" + reportId)

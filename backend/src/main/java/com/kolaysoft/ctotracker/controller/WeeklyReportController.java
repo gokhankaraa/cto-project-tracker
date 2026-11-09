@@ -74,7 +74,7 @@ public class WeeklyReportController {
             @Parameter(description = "Sorumlu proje yoneticisinin kullanici id'si", example = "1")
             @RequestParam(required = false) Long ownerId,
 
-            @Parameter(description = "Raporun yili (rapor tarihinin ISO hafta-yili)", example = "2026")
+            @Parameter(description = "Raporun yili (anlattigi haftanin ISO yili)", example = "2026")
             @RequestParam(required = false)
             @Min(value = 2000, message = "Yil en az 2000 olmalidir.")
             @Max(value = 2100, message = "Yil en fazla 2100 olmalidir.") Integer year,

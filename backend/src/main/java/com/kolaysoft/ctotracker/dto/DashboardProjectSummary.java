@@ -35,7 +35,7 @@ public record DashboardProjectSummary(
                 example = "true")
         boolean hasReport,
 
-        @Schema(description = "Son raporun yili: rapor tarihinin ISO hafta-yili (rapor yoksa null)",
+        @Schema(description = "Son raporun yili: anlattigi haftanin ISO yili (rapor yoksa null)",
                 example = "2026")
         Integer lastYear,
 

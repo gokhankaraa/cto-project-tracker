@@ -69,7 +69,7 @@ public class WorkItemController {
             @Parameter(description = "Yalnızca bu proje", example = "1")
             @RequestParam(required = false) Long projectId,
 
-            @Parameter(description = "Referans yıl (rapor tarihinin ISO hafta-yılı). Yalnızca yıl verilirse her proje "
+            @Parameter(description = "Referans yıl (raporun anlattığı haftanın ISO yılı). Yalnızca yıl verilirse her proje "
                     + "için o yılın sonuna kadarki en son rapor", example = "2026")
             @RequestParam(required = false)
             @Min(value = 2000, message = "Yil en az 2000 olmalidir.")

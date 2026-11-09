@@ -9,8 +9,8 @@ Track: **Full Stack (Java + Spring Boot, React + TypeScript)** · Author: Gökha
 > **Status:** MVP (T01–T12) complete. T13 (days 21–24) adds filtering on the CTO dashboard and two
 > cross-project list endpoints for reports and work items, with paging, sorting and a shared delay
 > rule. Data now lives in PostgreSQL, with the schema managed by Flyway and tests running against a
-> real PostgreSQL via Testcontainers. Reports carry a year derived from the report date (Flyway V2),
-> and the filters accept a `year`. The repository now also holds the frontend: phase 0 (skeleton,
+> real PostgreSQL via Testcontainers. Reports carry the year of the week they describe (Flyway V2,
+> corrected at year boundaries in V3), and the filters accept a `year`. The repository now also holds the frontend: phase 0 (skeleton,
 > API client, CORS) is in place, and phase 1 (the MVP screens) is complete: CTO dashboard,
 > projects, weekly reports, work items and the cross-project report and work item lists.
 > Role-based authorization (T14) comes next.
@@ -187,11 +187,13 @@ Screens:
 
 Weekly report form:
 
-- The year is not entered; the backend takes it from the report date (ISO week-based year). The
-  form shows that year and the ISO week of the date as a hint.
-- The week number is a separate field and does not follow the date automatically: the backend keeps
-  the two independent (in the demo data a report is dated the Monday after the week it describes).
-  A new report starts with the week after the project's latest report and that report's stage.
+- The week is the week the report describes; the report date must fall in that week or the week
+  after (in the demo data a report is dated the Monday after its week). The form checks this before
+  sending, with the backend's messages, and shows "Bu rapor 2026 / 31. hafta olarak kaydedilir".
+- The year is not entered: it is the year of the described week, which can differ from the report
+  date's year at the turn of the year (week 53 of 2026 reported on 4 January 2027 is 2026).
+- A new report starts with today's date, last week as the week (always a valid pair) and the
+  stage of the project's latest report.
 - When editing, only the current stage and the next one can be chosen (the backend rejects going
   back or skipping a stage); the others are shown disabled.
 - Backend errors land where they belong: a second report for the same week (`409`) under the week,
@@ -237,7 +239,7 @@ Other notable settings:
 ### Database migrations
 
 The schema is created and changed **only** by Flyway scripts in
-[`backend/src/main/resources/db/migration`](backend/src/main/resources/db/migration) (`V1__init.sql`, `V2__...`).
+[`backend/src/main/resources/db/migration`](backend/src/main/resources/db/migration) (`V1__init.sql`, `V2__...`, `V3__...`).
 Flyway records each applied script with a checksum, so an applied script is never edited — not even
 a comment. A schema change is a new script with the next version number, together with the matching
 entity change.
@@ -261,9 +263,15 @@ entity change.
 The full, interactive contract is in Swagger UI. Key business rules (see pre-analysis §H-03/H-04):
 
 - A project can have only **one report per week of a year** — a duplicate `(project, year, week)`
-  returns **409**. The year is not sent in the request: it is derived from `reportDate` as the ISO
-  week-based year and returned as `year` (e.g. Friday 2027-01-01 still belongs to week 53 of 2026).
-  The same week number in another year is a separate report.
+  returns **409**. The same week number in another year is a separate report.
+- The year is not sent in the request. It is the ISO year of the **week the report describes**,
+  derived from `weekNumber` and `reportDate` and returned as `year`: the year in which that week
+  is nearest to the report date. A report is written during its week or the week after, so
+  `reportDate` must be between that week's Monday and the Sunday after it; otherwise **400**
+  `VALIDATION_ERROR` with `reportDate` in `fieldErrors`. Week 53 exists only in 53-week years
+  (otherwise `weekNumber` in `fieldErrors`). Example: week 53, report date Monday 2027-01-04 →
+  `year: 2026`. Flyway V3 recalculated existing years with this rule (V2 had used the report date's
+  ISO year, which put such a report in 2027).
 - Progress is tracked as ordered stages `ANALIZ → GELISTIRME → TEST → TAMAMLANDI`; the percentage
   (`25 / 50 / 75 / 100`) is **derived from the stage, never entered by hand**.
 - On update a report's stage may stay the same or advance exactly one step; going backward or
@@ -442,10 +450,11 @@ the schema comes from the same Flyway scripts as the application. Each test cont
 empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; every other test
 creates its own data. Service tests use Mockito and need no database.
 
-Backend tests (128 in total):
+Backend tests (140 in total):
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
-  (project → report → work item → dashboard), 404 / 400 / 409, stage skip, dashboard filter
+  (project → report → work item → dashboard), 404 / 400 / 409, stage skip, a report date outside
+  its week (400 on `reportDate`), dashboard filter
 - `FilterIntegrationTest` — T13 filters over HTTP (MockMvc): dashboard filters and counters, year and
   week reference (including across years), report paging and sorting, work item filters, null-last default sort, and the error
   cases of the filter contract (such as a week parameter without `year`)
@@ -453,9 +462,10 @@ Backend tests (128 in total):
   (@DataJpaTest): inclusive ranges, AND/OR combination, the year filter, evaluated-report selection
   by year and week (also at the year boundary), case-insensitive
   assignee search, and the delay condition matching the Java delay rule (`DelayPolicy`)
-- `WeeklyReportYearTest` — report year (Flyway V2) on PostgreSQL: the Java year rule matches
-  PostgreSQL's `ISOYEAR` at year boundaries, the year follows the report date, uniqueness is per
-  project + year + week, and the latest report compares the year before the week
+- `WeeklyReportYearTest` — report year on PostgreSQL: the year of the described week at year
+  boundaries, and the V3 migration SQL (re-run on rows stored with the V2 rule) gives the same year
+  as the Java rule; the year follows both week and report date, week 53 only in 53-week years,
+  uniqueness is per project + year + week, and the latest report compares the year before the week
 - `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
 - `HealthControllerTest` — health endpoint and DB connection (reports PostgreSQL)
 - `UserControllerTest` — user list sorted by name, role filter, e-mail not exposed, unknown role (400)
@@ -464,14 +474,15 @@ Backend tests (128 in total):
 - `GlobalExceptionHandlerTest` — the error-format contract (400 / 404 / 405 / 409 / 500), including
   invalid enum/type request parameters
 - `WeeklyReportServiceTest` — business rules: uniqueness (409), stage skip/backward (400),
-  percentage derivation, not-found (404)
+  report date before its week or after the following week and a missing week 53 (400 with the
+  field), year of the described week, percentage derivation, not-found (404)
 - `ProjectServiceTest` — project create/update/mapping, owner-not-found (404), delete-with-reports (409)
 - `WorkItemServiceTest` — work item CRUD, report-not-found (404), delete
 - `DashboardServiceTest` — portfolio aggregation, latest-report selection, risk and multi-value
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (112, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (130, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
@@ -495,9 +506,11 @@ Frontend tests (112, Vitest + Testing Library on jsdom; component tests never re
   fields sent as `null`), backend `fieldErrors` under the input, other errors above the form, edit
   with current values and `PUT`
 - `isoWeek.test.ts` — ISO week and week-based year, including year boundaries (2027-01-01 is week 53
-  of 2026); invalid dates
-- `ReportFormPage.test.tsx` — defaults from the latest report, create with the request body, required
-  choices checked before sending, `409` under the week, only the current and next stage selectable
+  of 2026); invalid dates; week 53, Mondays, and the report week rule with the same table and
+  messages as the backend
+- `ReportFormPage.test.tsx` — defaults (last week, today, latest stage; the date is fixed in the
+  test), create with the request body, required choices and the week / date rule checked before
+  sending, `409` under the week, only the current and next stage selectable
   when editing, `PUT`, stage rule error under the stage
 - `ReportDetailPage.test.tsx` — report fields and texts, delete and return to the project
 - `WorkItemsSection.test.tsx` — the report's work items, add in a dialog (request body), title

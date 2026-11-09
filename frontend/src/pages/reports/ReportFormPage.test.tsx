@@ -1,7 +1,7 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useParams } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { WeeklyReport } from '../../api/types'
 import { ATLAS, report } from '../../test/fixtures'
@@ -31,7 +31,17 @@ async function choose(label: RegExp, option: string) {
   await userEvent.click(await screen.findByRole('option', { name: option }))
 }
 
-const LATEST = report(4, 31, { progressStage: 'TEST', progressPercentage: 75 })
+const LATEST = report(4, 31, { progressStage: 'TEST', progressPercentage: 75, reportDate: '2026-08-03' })
+
+// Varsayilan tarih ve hafta bugune bagli: testler pazartesi 10 Agustos 2026'da calisiyormus gibi.
+// Yalnizca Date sahtelenir; zamanlayicilar gercek kalir (userEvent ve Mantine onlara dayanir).
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 7, 10, 9, 0))
+})
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 function apiForNew(post: Parameters<typeof mockApi>[0][string]) {
   return mockApi({
@@ -42,7 +52,7 @@ function apiForNew(post: Parameters<typeof mockApi>[0][string]) {
 }
 
 describe('NewReportPage', () => {
-  it('son rapordan sonraki hafta ve son kademeyle acilir; raporu olusturup detayina gider', async () => {
+  it('bugunden onceki hafta ve son kademeyle acilir; raporu olusturup detayina gider', async () => {
     const fetchMock = apiForNew(({ body }) => ({ status: 201, body: { ...LATEST, ...(body as object), id: 9 } }))
     renderForm('/projects/1/reports/new')
 
@@ -51,8 +61,8 @@ describe('NewReportPage', () => {
     expect(screen.getByRole('combobox', { name: /İlerleme aşaması/ })).toHaveValue('Test (%75)')
     expect(screen.getByText('Son rapor: 2026 / 31. hafta, Test.')).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText(/Rapor tarihi/), { target: { value: '2026-08-10' } })
-    expect(screen.getByText('Rapor yılı tarihten alınır: 2026. Tarih, ISO 33. haftada.')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Rapor tarihi/)).toHaveValue('2026-08-10')
+    expect(screen.getByText('Bu rapor 2026 / 32. hafta olarak kaydedilir (03.08.2026 haftası).')).toBeInTheDocument()
     await choose(/Genel durum/, 'Riskli')
     await choose(/Risk/, 'Yüksek')
     await userEvent.type(screen.getByRole('textbox', { name: 'Bu hafta yapılanlar' }), '  Entegrasyon bitti.  ')
@@ -83,6 +93,25 @@ describe('NewReportPage', () => {
     expect(writes(fetchMock)).toEqual([])
   })
 
+  it('hafta ile tarih uyusmazsa istek atmadan mesaji tarih alaninda gosterir', async () => {
+    const fetchMock = apiForNew(() => ({ status: 201 }))
+    renderForm('/projects/1/reports/new')
+
+    const week = await screen.findByRole('textbox', { name: /Hafta/ })
+    await userEvent.clear(week)
+    await userEvent.type(week, '29')
+    await choose(/Genel durum/, 'Yolunda')
+    await choose(/Risk/, 'Düşük')
+    await userEvent.click(screen.getByRole('button', { name: 'Oluştur' }))
+
+    expect(
+      await screen.findByText(
+        'Rapor en geç anlattığı haftanın ertesi haftasında yazılabilir (2026 / 29. hafta için son gün 26.07.2026).',
+      ),
+    ).toBeInTheDocument()
+    expect(writes(fetchMock)).toEqual([])
+  })
+
   it('ayni hafta icin rapor varsa (409) mesaji hafta alaninin altinda gosterir', async () => {
     const message = 'Bu proje icin 2026 yilinin 32. haftasina ait rapor zaten mevcut.'
     apiForNew(() => ({ status: 409, body: { status: 409, code: 'DUPLICATE_RESOURCE', message } }))
@@ -101,7 +130,7 @@ describe('NewReportPage', () => {
 })
 
 describe('EditReportPage', () => {
-  const CURRENT: WeeklyReport = report(4, 31, { progressStage: 'TEST', done: 'Testler yazildi.' })
+  const CURRENT: WeeklyReport = report(4, 31, { progressStage: 'TEST', done: 'Testler yazildi.', reportDate: '2026-08-03' })
 
   function apiForEdit(put: Parameters<typeof mockApi>[0][string]) {
     return mockApi({ '/api/reports/4': CURRENT, 'PUT /api/reports/4': put })
@@ -132,7 +161,7 @@ describe('EditReportPage', () => {
     expect(await screen.findByText('Rapor detayı 4')).toBeInTheDocument()
     expect(writes(fetchMock)[0]).toMatchObject({
       method: 'PUT',
-      body: { weekNumber: 31, reportDate: '2026-07-20', progressStage: 'TAMAMLANDI', done: 'Testler yazildi.' },
+      body: { weekNumber: 31, reportDate: '2026-08-03', progressStage: 'TAMAMLANDI', done: 'Testler yazildi.' },
     })
   })
 

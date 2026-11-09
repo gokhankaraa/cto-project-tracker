@@ -59,7 +59,10 @@ public class GlobalExceptionHandler {
                 "Gonderilen parametreler dogrulama kurallarina uymuyor.", request, fieldErrors);
     }
 
-    /** Birlikte gecersiz parametreler: ters aralik (weekFrom > weekTo), tanimsiz siralama alani. */
+    /**
+     * Birlikte gecersiz parametreler ya da alanlar: ters aralik (weekFrom > weekTo), tanimsiz siralama alani,
+     * birbirine uymayan rapor haftasi ve rapor tarihi.
+     */
     @ExceptionHandler(InvalidParameterException.class)
     public ResponseEntity<ApiError> handleInvalidParameter(InvalidParameterException ex,
                                                            HttpServletRequest request) {

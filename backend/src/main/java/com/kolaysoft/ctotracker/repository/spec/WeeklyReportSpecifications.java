@@ -50,7 +50,7 @@ public final class WeeklyReportSpecifications {
         return (root, query, cb) -> cb.equal(root.get("project").get("owner").get("id"), ownerId);
     }
 
-    /** Raporun yılı (rapor tarihinin ISO hafta-yılı, bkz. {@code WeeklyReport#yearOf}). */
+    /** Raporun yılı (anlattığı haftanın ISO yılı, bkz. {@code WeeklyReport#yearOf}). */
     public static Specification<WeeklyReport> inYear(Integer year) {
         if (year == null) {
             return Specification.unrestricted();

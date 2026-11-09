@@ -91,7 +91,7 @@ export interface Project {
   ownerFullName: string | null
 }
 
-/** dto/WeeklyReportResponse.java; year istekte gonderilmez, rapor tarihinden turetilir. */
+/** dto/WeeklyReportResponse.java; year istekte gonderilmez, anlatilan haftanin yilidir (hafta + rapor tarihinden). */
 export interface WeeklyReport {
   id: number
   projectId: number
