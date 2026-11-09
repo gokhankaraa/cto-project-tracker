@@ -52,6 +52,7 @@ git clone <repository-url>
 cd cto-project-tracker-backend
 
 docker compose up -d db         # starts PostgreSQL (host port 5433)
+cd backend
 ./mvnw spring-boot:run          # starts the application (http://localhost:8080)
 ```
 
@@ -64,7 +65,7 @@ docker compose down -v          # removes the container and its data volume
 docker compose up -d db
 ```
 
-Alternatively, build and run a jar:
+Alternatively, build and run a jar (from `backend/`):
 
 ```bash
 ./mvnw clean package
@@ -73,7 +74,7 @@ java -jar target/cto-project-tracker-backend-0.0.1-SNAPSHOT.jar
 
 ### Run everything with Docker
 
-The app ships with a multi-stage `Dockerfile` (builds the jar inside the image, then runs it on a
+The app ships with a multi-stage [`backend/Dockerfile`](backend/Dockerfile) (builds the jar inside the image, then runs it on a
 JRE). `docker-compose.yml` starts it together with PostgreSQL, so no local Java/Maven is needed:
 
 ```bash
@@ -85,7 +86,7 @@ docker compose down                     # stop (add -v to also delete the data)
 ```
 
 The image is built with `-DskipTests`: Testcontainers needs Docker, which is not reachable inside
-`docker build`. Run `./mvnw test` before building an image.
+`docker build`. Run `./mvnw test` (in `backend/`) before building an image.
 
 ### Verifying it runs
 
@@ -114,7 +115,7 @@ not just that the application is up, but that the DB connection works.
 
 ## Configuration
 
-All settings live in [`src/main/resources/application.yml`](src/main/resources/application.yml).
+All settings live in [`backend/src/main/resources/application.yml`](backend/src/main/resources/application.yml).
 Database connection details come from environment variables; the defaults point at the development
 database in `docker-compose.yml`. The defaults are development-only values — any other environment
 must supply its own through environment variables, never through committed files.
@@ -139,13 +140,13 @@ Other notable settings:
 | Setting | Value | Description |
 |---|---|---|
 | `server.port` | `8080` | Application port |
-| `spring.flyway.enabled` | `true` | Flyway applies the migrations in `src/main/resources/db/migration` on startup |
+| `spring.flyway.enabled` | `true` | Flyway applies the migrations in `backend/src/main/resources/db/migration` on startup |
 | `spring.jpa.hibernate.ddl-auto` | `validate` | Hibernate never changes the schema; startup fails if entities and tables don't match |
 
 ### Database migrations
 
 The schema is created and changed **only** by Flyway scripts in
-[`src/main/resources/db/migration`](src/main/resources/db/migration) (`V1__init.sql`, `V2__...`).
+[`backend/src/main/resources/db/migration`](backend/src/main/resources/db/migration) (`V1__init.sql`, `V2__...`).
 Flyway records each applied script with a checksum, so an applied script is never edited — not even
 a comment. A schema change is a new script with the next version number, together with the matching
 entity change.
@@ -337,6 +338,7 @@ Validation errors additionally include a `fieldErrors` array:
 ## Tests
 
 ```bash
+cd backend
 ./mvnw test        # Docker must be running
 ```
 

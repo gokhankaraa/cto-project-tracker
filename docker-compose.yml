@@ -1,7 +1,7 @@
 # Gelistirme ortami: PostgreSQL (db) ve istege bagli olarak uygulamanin kendisi (app).
 # Kullanim:
 #   cp .env.example .env          (istege bagli; degerlerin hepsinin varsayilani var)
-#   docker compose up -d db       (yalnizca veritabani; uygulama ./mvnw spring-boot:run ile)
+#   docker compose up -d db       (yalnizca veritabani; uygulama: cd backend && ./mvnw spring-boot:run)
 #   docker compose up -d --build  (veritabani + uygulama, http://localhost:8080)
 #   docker compose down           (veri volume'da kalir; silmek icin: docker compose down -v)
 services:
@@ -24,7 +24,7 @@ services:
       retries: 10
 
   app:
-    build: .
+    build: ./backend
     image: cto-tracker:latest
     container_name: ctotracker-app
     depends_on:
