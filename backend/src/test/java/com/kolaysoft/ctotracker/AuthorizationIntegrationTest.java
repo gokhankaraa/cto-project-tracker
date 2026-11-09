@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -183,6 +184,26 @@ class AuthorizationIntegrationTest {
         as("cto", delete("/api/reports/4")).andExpect(status().isForbidden());
         as("cto", json(post("/api/reports/4/work-items"), WORK_ITEM)).andExpect(status().isForbidden());
         as("cto", delete("/api/work-items/" + ebelgeWorkItemId())).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Rol yetmiyorsa istek govdesine bakilmaz: gecersiz govde ya da olmayan kayit da 403, alan hatasi sizmaz")
+    void roleIsCheckedBeforeTheRequestBody() throws Exception {
+        as("cto", json(post("/api/projects"), "{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.fieldErrors").doesNotExist());
+        as("cto", json(put("/api/reports/4"), "{}")).andExpect(status().isForbidden());
+        as("cto", json(post("/api/reports/4/work-items"), "json degil")).andExpect(status().isForbidden());
+        as("cto", json(post("/api/projects/999999/reports"), "{}")).andExpect(status().isForbidden());
+        as("ayse", json(put("/api/projects/1"), "{}")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Kurali tanimlanmamis yazma istegi herkese kapali (Admin dahil): yeni endpoint kuralsiz acik kalmaz")
+    void unlistedWritesAreDenied() throws Exception {
+        as("admin", json(patch("/api/projects/1"), PROJECT)).andExpect(status().isForbidden());
+        as("admin", json(post("/api/work-items"), WORK_ITEM)).andExpect(status().isForbidden());
     }
 
     @Test

@@ -343,9 +343,12 @@ curl -s http://localhost:8080/api/projects -H "Authorization: Bearer <token>"
 | Write / delete weekly reports and work items | ✓ | ✗ | **only in projects they own** |
 | User list, `/api/auth/me` | ✓ | ✓ | ✓ |
 
-- **Role** (who may write what) is checked on the write endpoints (`@PreAuthorize`, rules in
-  `security/Permissions`); a role that is not allowed gets **403** `FORBIDDEN`. The CTO reads
-  everything and changes nothing.
+- **Role** (who may write what) is checked by method and path in the security filter, before the
+  request reaches a controller (rules in `security/Permissions`). A role that is not allowed gets
+  **403** `FORBIDDEN` without its body being read, so an invalid body or a missing record does not
+  turn it into a 400 or 404. The CTO reads everything and changes nothing.
+- A write request (`POST` / `PUT` / `PATCH` / `DELETE`) to a path without a rule is denied for
+  everyone, so a new write endpoint does not work until its rule is added.
 - **Ownership** (whose data) is part of every query: a project manager's lists, dashboard rows,
   counters and page totals only cover their own projects, combined with the filters by AND
   (`?ownerId=` of someone else returns an empty result, not an error).
@@ -528,7 +531,7 @@ empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; ev
 creates its own data. Service tests use Mockito and need no database; they run as an Admin
 (a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
-Backend tests (159 in total). The HTTP tests of business rules run as an Admin
+Backend tests (161 in total). The HTTP tests of business rules run as an Admin
 (`@WithMockUser`); login, tokens and permissions are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
@@ -550,8 +553,9 @@ Backend tests (159 in total). The HTTP tests of business rules run as an Admin
 - `AuthorizationIntegrationTest` — the permission matrix end to end with the demo users logging in:
   lists, dashboard (rows and counters), cross-project lists scoped to the project manager's own
   projects; someone else's records 404 with the same message as a missing one; the CTO gets 403 on
-  every write; project managers can't manage projects (403) and write only into their own (404
-  elsewhere); the Admin can do everything
+  every write, also with an invalid body or a missing record (no `fieldErrors` leak); a write
+  without a rule is denied even for the Admin; project managers can't manage projects (403) and
+  write only into their own (404 elsewhere); the Admin can do everything
 - `AuthControllerTest` — login returns a token that works on protected endpoints and `/me`; wrong
   password, unknown e-mail and a user without a password get the same 401; empty fields (400); no
   token, a tampered token and an expired token (401, `ApiError` + `WWW-Authenticate`); a deleted

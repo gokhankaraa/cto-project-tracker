@@ -10,7 +10,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -34,11 +33,11 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
  * {@code ROLE_PROJECT_MANAGER} / {@code ROLE_CTO} / {@code ROLE_ADMIN} yetkisine cevrilir.
  *
  * <p>Acik yollar: saglik kontrolu, giris ve API dokumantasyonu. Geri kalan her {@code /api/**} istegi
- * giris ister; yoksa 401, rol yetmiyorsa 403 doner (ikisi de {@code ApiError} bicimindedir).
+ * giris ister; yoksa 401, rol yetmiyorsa 403 doner (ikisi de {@code ApiError} bicimindedir). Yazma
+ * isteklerinin rol kurallari {@link Permissions}'tadir.
  * Token tarayicida cerezle degil baslikla tasindigi icin CSRF korumasi gerekmez.
  */
 @Configuration
-@EnableMethodSecurity
 public class SecurityConfig {
 
     /** Rol bilgisinin token'daki alan adi. */
@@ -58,8 +57,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Spring'in hata yonlendirmesi; asil istegin 401/403'u onceden yazilmis olur.
-                        .requestMatchers("/error").permitAll()
-                        .anyRequest().authenticated())
+                        .requestMatchers("/error").permitAll())
+                // Rol kurallari acik yollardan sonra: once eslesen kural gecerlidir (giris POST'u acik kalir).
+                .authorizeHttpRequests(Permissions::writeRules)
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                         .authenticationEntryPoint(entryPoint)

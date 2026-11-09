@@ -139,8 +139,8 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Metot duzeyi yetki kontrolu (@PreAuthorize) reddetti. Bu handler olmasa hata genel Exception
-     * handler'ina duser ve 500 donerdi.
+     * Controller'a kadar gelen bir yetki reddi. Rol kurallari guvenlik filtresinde uygulandigi icin
+     * (security/Permissions) normalde buraya dusmez; dusse de genel Exception handler'i 500 yerine 403 doner.
      */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {

@@ -12,7 +12,7 @@ import com.kolaysoft.ctotracker.entity.Role;
  *       Baskasinin kaydina id ile gitmek 404 doner: kaydin var oldugu bile disari sizmaz.</li>
  * </ul>
  *
- * Kimin ne yazabilecegi (rol) controller'lardaki {@code @PreAuthorize} ile, neyi gorebilecegi (sahiplik)
+ * Kimin ne yazabilecegi (rol) guvenlik filtresinde ({@link Permissions}), neyi gorebilecegi (sahiplik)
  * burada belirlenir; yazma islemleri de once kaydi "gorebilmeyi" ister.
  *
  * @param userId kullanicinin id'si; kimligi token disindan gelen (test) bir oturumda null olabilir

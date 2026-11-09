@@ -4,7 +4,6 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,7 +20,6 @@ import com.kolaysoft.ctotracker.dto.WorkItemResponse;
 import com.kolaysoft.ctotracker.dto.filter.WorkItemFilter;
 import com.kolaysoft.ctotracker.entity.WorkItemStatus;
 import com.kolaysoft.ctotracker.service.WorkItemService;
-import com.kolaysoft.ctotracker.security.Permissions;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -54,7 +52,6 @@ public class WorkItemController {
     }
 
     @Operation(summary = "Rapora iş kalemi oluştur")
-    @PreAuthorize(Permissions.REPORT_WRITERS)
     @PostMapping(value = "/api/reports/{reportId}/work-items",
             consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<WorkItemResponse> create(@PathVariable Long reportId,
@@ -120,7 +117,6 @@ public class WorkItemController {
     }
 
     @Operation(summary = "İş kalemi güncelle")
-    @PreAuthorize(Permissions.REPORT_WRITERS)
     @PutMapping(value = "/api/work-items/{id}",
             consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public WorkItemResponse update(@PathVariable Long id, @Valid @RequestBody WorkItemRequest request) {
@@ -128,7 +124,6 @@ public class WorkItemController {
     }
 
     @Operation(summary = "İş kalemi sil")
-    @PreAuthorize(Permissions.REPORT_WRITERS)
     @DeleteMapping("/api/work-items/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         workItemService.delete(id);
