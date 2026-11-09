@@ -30,6 +30,19 @@ describe('QueryState', () => {
     expect(await screen.findByText('Proje yok.')).toBeInTheDocument()
   })
 
+  it('404 te "Kayit bulunamadi" gosterir; tekrar dene yerine ana sayfa baglantisi', async () => {
+    renderWithProviders(
+      <Example
+        queryFn={() => Promise.reject(new ApiRequestError(404, 'RESOURCE_NOT_FOUND', 'Haftalık rapor bulunamadı: 5'))}
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Kayıt bulunamadı' })).toBeInTheDocument()
+    expect(screen.getByText('Haftalık rapor bulunamadı: 5')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ana sayfaya dön' })).toHaveAttribute('href', '/')
+    expect(screen.queryByRole('button', { name: 'Tekrar dene' })).not.toBeInTheDocument()
+  })
+
   it("hatada backend'in mesajini gosterir; Tekrar dene sorguyu yeniler", async () => {
     const queryFn = vi
       .fn<() => Promise<string[]>>()

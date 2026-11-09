@@ -1,4 +1,4 @@
-import { Anchor, Badge, Paper, Table, Text } from '@mantine/core'
+import { Anchor, Badge, Paper, Stack, Table, Text } from '@mantine/core'
 import { Link } from 'react-router'
 
 import type { DashboardProjectSummary } from '../../api/types'
@@ -29,8 +29,8 @@ export function ProjectSummaryTable({ projects }: { projects: DashboardProjectSu
               <Table.Th>Sorumlu</Table.Th>
               <Table.Th>Proje durumu</Table.Th>
               <Table.Th>Rapor haftası</Table.Th>
-              <Table.Th>Aşama</Table.Th>
-              <Table.Th>İlerleme</Table.Th>
+              {/* Ilerleme yuzdesi asamadan turetilir; ikisi tek sutunda (1280 px'de tablo yana kaymaz). */}
+              <Table.Th>Aşama / ilerleme</Table.Th>
               <Table.Th>Genel durum</Table.Th>
               <Table.Th>Risk</Table.Th>
               <Table.Th ta="right">Canlı task</Table.Th>
@@ -40,7 +40,7 @@ export function ProjectSummaryTable({ projects }: { projects: DashboardProjectSu
           <Table.Tbody>
             {projects.length === 0 ? (
               <Table.Tr>
-                <Table.Td colSpan={10}>
+                <Table.Td colSpan={9}>
                   <Text c="dimmed" ta="center" py="md">
                     Filtreye uyan proje yok.
                   </Text>
@@ -83,11 +83,11 @@ function ProjectRow({ project }: { project: DashboardProjectSummary }) {
         )}
       </Table.Td>
       <Table.Td>
-        <EnumBadge value={project.progressStage} labels={PROGRESS_STAGE_LABELS} />
-      </Table.Td>
-      <Table.Td>
         {project.hasReport ? (
-          <ProgressValue value={project.progressPercentage} label={`İlerleme ${project.name}`} />
+          <Stack gap={4} align="flex-start">
+            <EnumBadge value={project.progressStage} labels={PROGRESS_STAGE_LABELS} />
+            <ProgressValue value={project.progressPercentage} label={`İlerleme ${project.name}`} />
+          </Stack>
         ) : (
           <Dash />
         )}

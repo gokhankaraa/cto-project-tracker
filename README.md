@@ -197,7 +197,8 @@ Login (`src/auth/`, `src/pages/LoginPage.tsx`):
 
 Shared building blocks for the screens: `src/api/types.ts` (response types and enum values, same
 names as the backend), `src/lib/labels.ts` (Turkish labels and badge colors for every enum),
-`EnumBadge` and `QueryState` (one way to show loading, empty and error states), `PageHeader`,
+`EnumBadge` and `QueryState` (one way to show loading, empty and error states; a record that is
+not found or not visible to the user gets its own "Kayıt bulunamadı" state, since retrying cannot help), `PageHeader`,
 `ProgressValue`, and `ListControls` (result count, sorting and paging for the paged lists).
 
 Screens:
@@ -591,7 +592,7 @@ Backend tests (161 in total). The HTTP tests of business rules run as an Admin
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (165, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (166, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
@@ -611,7 +612,8 @@ Frontend tests (165, Vitest + Testing Library on jsdom; component tests never re
 - Page tests run as an Admin by default; each screen with write actions also checks what the CTO
   and a project manager see (no "Yeni proje" for either, project edit / delete only for the Admin,
   report and work item actions for the project manager, none for the CTO)
-- `QueryState.test.tsx` — the shared loading / empty / error (with retry) states
+- `QueryState.test.tsx` — the shared loading / empty / error (with retry) states; a 404 shows
+  "Kayıt bulunamadı" with a link home instead of a retry
 - `EnumBadge.test.tsx` — enum values shown with their Turkish label, a dash when there is no value
 - `AppLayout.test.tsx` — every screen is a menu link; the current page's item is active, also on
   sub-pages (`/projects/3`, `/reports/4`, `/work-items?page=2`); the user's name and role in the top

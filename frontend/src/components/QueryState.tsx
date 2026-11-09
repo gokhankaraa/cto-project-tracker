@@ -1,8 +1,9 @@
-import { Alert, Button, Center, Loader, Stack, Text } from '@mantine/core'
+import { Alert, Anchor, Button, Center, Loader, Stack, Text, Title } from '@mantine/core'
 import type { UseQueryResult } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
+import { Link } from 'react-router'
 
-import { errorMessage } from '../api/client'
+import { ApiRequestError, errorMessage } from '../api/client'
 
 interface QueryStateProps<T> {
   query: UseQueryResult<T>
@@ -16,6 +17,10 @@ interface QueryStateProps<T> {
 /**
  * Bir sorgunun yukleniyor / hata / bos / veri durumlarini tek bicimde gosterir; her ekran ayni
  * davranisi tekrar yazmaz. Hata mesaji backend'den gelir (ApiError.message).
+ *
+ * 404 ayri gosterilir: tekrar denemek kaydi geri getirmez. Metin kaydin silinmis olmasini da, kullanicinin
+ * goremedigi bir kayit olmasini da kapsar (proje yoneticisi baskasinin kaydinda da 404 alir); hangisi
+ * oldugu soylenmez, backend de soylemez.
  */
 export function QueryState<T>({ query, isEmpty, empty = 'Kayıt yok.', children }: QueryStateProps<T>) {
   if (query.isPending) {
@@ -23,6 +28,21 @@ export function QueryState<T>({ query, isEmpty, empty = 'Kayıt yok.', children 
       <Center py="xl">
         <Loader size="sm" aria-label="Yükleniyor" />
       </Center>
+    )
+  }
+
+  if (query.isError && query.error instanceof ApiRequestError && query.error.status === 404) {
+    return (
+      <Stack gap="sm" py="md">
+        <Title order={2}>Kayıt bulunamadı</Title>
+        <Text c="dimmed">Kayıt silinmiş olabilir ya da bu kaydı görüntüleme yetkiniz yok.</Text>
+        <Text size="sm" c="dimmed">
+          {query.error.message}
+        </Text>
+        <Anchor component={Link} to="/">
+          Ana sayfaya dön
+        </Anchor>
+      </Stack>
     )
   }
 

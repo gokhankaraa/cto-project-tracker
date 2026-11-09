@@ -86,10 +86,11 @@ describe('ProjectDetailPage', () => {
     expect(screen.queryByText('Proje listesi')).not.toBeInTheDocument()
   })
 
-  it('olmayan proje icin backend mesajini gosterir', async () => {
+  it('olmayan proje icin "Kayit bulunamadi" ve backend mesajini gosterir', async () => {
     mockApi({})
     renderDetail('/projects/99')
-    expect(await screen.findByText('Mock yok: GET /api/projects/99')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Kayıt bulunamadı' })).toBeInTheDocument()
+    expect(screen.getByText('Mock yok: GET /api/projects/99')).toBeInTheDocument()
   })
 
   it('gecersiz id istek atmadan bulunamadi sayfasi', () => {
