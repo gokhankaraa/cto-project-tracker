@@ -8,6 +8,9 @@
 **Güncelleme (6 Kasım 2026):** Raporlara yıl eklendi (Flyway V2). Yıl istekte gönderilmez; rapor
 tarihinin ISO hafta-yılından türetilir. Yanıtlara `year` / `lastYear` alanları eklendi ve "en son rapor"
 artık önce yıla, sonra haftaya göre seçilir.
+**Güncelleme (9 Kasım 2026):** Üç endpoint'e `year` parametresi eklendi. Hafta parametreleri
+(`weekNumber`, `weekFrom`, `weekTo`) artık yalnızca `year` ile birlikte verilebilir; yılsız hafta
+`400 VALIDATION_ERROR` döner (bölüm 1 ve 5).
 
 Bu doküman üç endpoint'in filtre parametrelerini, doğrulama kurallarını, yanıt yapısını ve hata
 davranışını tanımlar. 22–24. günlerdeki geliştirme ve testler bu sözleşmeye göre yapılacak.
@@ -24,14 +27,21 @@ davranışını tanımlar. 22–24. günlerdeki geliştirme ve testler bu sözle
 | Boş değer | `?ownerId=` gibi boş verilen parametre, verilmemiş sayılır. |
 | Enum değerleri | Büyük harf ve koddaki adıyla yazılır (`YUKSEK`, `DEVAM_EDIYOR`). |
 | Tarih biçimi | ISO 8601, `yyyy-MM-dd` (ör. `2026-07-27`) |
-| Hafta numarası | 1–53 (rapor oluştururken kullanılan kuralla aynı) |
+| Hafta numarası | 1–53 (rapor oluştururken kullanılan kuralla aynı). Yıl olmadan anlamsız olduğu için hafta parametreleri yalnızca `year` ile birlikte verilebilir. |
+| Yıl | 2000–2100. Raporun yılı, rapor tarihinin ISO hafta-yılıdır (ör. 2027-01-01 Cuma → 2026). |
 | Var olmayan id | Hata dönmez, boş sonuç döner (K-T13-07). |
 | Gecikme | Analiz notundaki K-T13-01 tanımı kullanılır. Hesaplama tek bir yerde yapılır, üç endpoint de aynı kuralı kullanır. |
 
 **Değerlendirilen rapor:** Dashboard ve iş kalemi listesi her proje için tek bir raporu esas alır:
 
-- `weekNumber` verilmezse projenin **en son** raporu (en yüksek hafta numarası; bugünkü davranış),
-- `weekNumber=X` verilirse projenin hafta numarası **≤ X olan en son** raporu (K-T13-05).
+- `year` verilmezse projenin **en son** raporu (en yeni yıl, o yıl içinde en yüksek hafta),
+- yalnızca `year=Y` verilirse projenin **Y yılının sonuna kadarki** en son raporu,
+- `year=Y&weekNumber=X` verilirse projenin **Y yılının X. haftasına kadarki (dahil)** en son raporu
+  (K-T13-05). Önceki yılların raporları da adaydır: `year=2027&weekNumber=1` için o haftada rapor
+  yoksa 2026'nın son raporu esas alınır.
+
+Karşılaştırma yıl ve haftayı birlikte taşıyan tek bir anahtarla yapılır: `year * 100 + weekNumber`
+(ör. 2026 hafta 29 → 202629; yalnızca yıl verilirse 202653).
 
 ---
 
@@ -44,14 +54,15 @@ davranışını tanımlar. 22–24. günlerdeki geliştirme ve testler bu sözle
 | `projectId` | Long | — | — | Proje |
 | `projectStatus` | `ProjectStatus` | ✓ | Tanımlı enum | Proje |
 | `ownerId` | Long | — | — | Proje (sorumlu PM) |
-| `weekNumber` | Integer | — | 1–53 | Referans hafta (değerlendirilen rapor) |
+| `year` | Integer | — | 2000–2100 | Referans yıl (değerlendirilen rapor) |
+| `weekNumber` | Integer | — | 1–53, yalnızca `year` ile | Referans hafta (değerlendirilen rapor) |
 | `overallStatus` | `OverallStatus` | ✓ | Tanımlı enum | Değerlendirilen rapor |
 | `riskLevel` | `RiskLevel` | ✓ | Tanımlı enum | Değerlendirilen rapor (mevcut parametre) |
 | `delayed` | Boolean | — | `true` / `false` | Değerlendirilen rapor: `true` yalnızca gecikenler, `false` yalnızca gecikmeyenler |
 
 - Proje parametreleri (`projectId`, `projectStatus`, `ownerId`) raporu olmayan projeleri de döndürür.
   Rapor parametreleri (`overallStatus`, `riskLevel`, `delayed`) verildiğinde bu projeler listelenmez (K-T13-04).
-- `weekNumber` tek başına hiçbir projeyi elemez. X. haftaya kadar raporu olmayan projeler `hasReport=false` ile döner.
+- `year` / `weekNumber` hiçbir projeyi elemez. O noktaya kadar raporu olmayan projeler `hasReport=false` ile döner.
 - Sayfalama yoktur (K-T13-08). Sıralama bugünkü gibi proje id'sine göre artan.
 
 ### Yanıt: mevcut alanlar aynen kalır, yeni alanlar eklenir
@@ -62,8 +73,8 @@ davranışını tanımlar. 22–24. günlerdeki geliştirme ve testler bu sözle
 | `DashboardProjectSummary` | `delayed` | boolean | Değerlendirilen rapora göre proje gecikmede mi (raporu yoksa `false`) |
 | `DashboardProjectSummary` | `lastYear` | Integer | Değerlendirilen raporun yılı (V2; raporu yoksa `null`) |
 
-Mevcut alanlarda değişiklik yok: `lastWeekNumber`, `weekNumber` verildiğinde değerlendirilen
-raporun haftasını gösterir. Sayaçlar filtrelenmiş kümeye göre hesaplanır (K-T13-06).
+Mevcut alanlarda değişiklik yok: `lastYear` / `lastWeekNumber`, `year` / `weekNumber` verildiğinde
+değerlendirilen raporun yılını ve haftasını gösterir. Sayaçlar filtrelenmiş kümeye göre hesaplanır (K-T13-06).
 
 ### Örnekler (seed verisi)
 
@@ -72,7 +83,10 @@ raporun haftasını gösterir. Sayaçlar filtrelenmiş kümeye göre hesaplanır
 | `GET /api/dashboard/summary` | 3 proje, `totalLiveTasks: 2`, `delayedProjects: 1` (KK-01) |
 | `?riskLevel=YUKSEK` | Yalnızca e-Belge (mevcut davranış) |
 | `?riskLevel=ORTA,YUKSEK` | Atlas IK (son raporu hafta 31, `ORTA`) ve e-Belge (KK-02) |
-| `?weekNumber=29` | Atlas IK hafta 29 değerleriyle (`ORTA`, `GELISTIRME`); e-Belge ve Nova POS `hasReport=false` (KK-03) |
+| `?year=2026&weekNumber=29` | Atlas IK hafta 29 değerleriyle (`ORTA`, `GELISTIRME`); e-Belge ve Nova POS `hasReport=false` (KK-03) |
+| `?year=2025` | 3 proje de `hasReport=false`, `projectsWithoutReport: 3` (2025'te rapor yok) |
+| `?year=2027&weekNumber=1` | En son rapor davranışıyla aynı: Atlas IK hafta 31, e-Belge hafta 30 (önceki yıl dahil) |
+| `?weekNumber=29` | `400 VALIDATION_ERROR`, `fieldErrors[0].field: weekNumber` (yıl yok) |
 | `?ownerId=1` | Atlas IK ve Nova POS, `totalProjects: 2` (KK-04) |
 | `?ownerId=1&riskLevel=YUKSEK` | Boş liste, tüm sayaçlar 0, `200` (KK-05) |
 | `?delayed=true` | Yalnızca Atlas IK: hafta 31'de planlanan tarihi geçmiş, bitmemiş bir iş kalemi var |
@@ -90,8 +104,9 @@ Tüm projelerin haftalık raporlarını filtreli ve sayfalı listeler. Projeye b
 |---|---|---|---|
 | `projectId` | Long | — | — |
 | `ownerId` | Long | — | — |
-| `weekFrom` | Integer | — | 1–53 |
-| `weekTo` | Integer | — | 1–53, `weekFrom` ≤ `weekTo` |
+| `year` | Integer | — | 2000–2100; raporun yılına eşitlik |
+| `weekFrom` | Integer | — | 1–53, yalnızca `year` ile |
+| `weekTo` | Integer | — | 1–53, yalnızca `year` ile, `weekFrom` ≤ `weekTo` |
 | `dateFrom` | LocalDate | — | ISO tarih |
 | `dateTo` | LocalDate | — | ISO tarih, `dateFrom` ≤ `dateTo` |
 | `overallStatus` | `OverallStatus` | ✓ | Tanımlı enum |
@@ -101,7 +116,9 @@ Tüm projelerin haftalık raporlarını filtreli ve sayfalı listeler. Projeye b
 | `size` | Integer | — | 1–100, varsayılan `20` |
 | `sort` | String | — | `alan` veya `alan,asc` / `alan,desc`. Varsayılan `reportDate,desc` |
 
-- Aralık uçları dahildir: `weekFrom=29&weekTo=30` → 29 ve 30.
+- Aralık uçları dahildir: `year=2026&weekFrom=29&weekTo=30` → 2026'nın 29 ve 30. haftaları.
+- Hafta aralığı `year` ile verilen yılın içinde uygulanır; yıllar arası bir aralık gerekiyorsa
+  `dateFrom` / `dateTo` kullanılır.
 - Sıralanabilir alanlar: `reportDate`, `weekNumber`, `projectName`. Sayfalar arası kayma olmaması
   için sıralamaya her zaman ikinci anahtar olarak `id` eklenir.
 
@@ -126,7 +143,9 @@ eklenir. Ek alanlar diğer rapor endpoint'lerinin yanıtında da yer alır.
 | İstek | Sonuç |
 |---|---|
 | `GET /api/reports` | 4 rapor, en yeni üstte: Atlas IK hafta 31, aynı tarihli hafta 30 raporları (id azalan: e-Belge, Atlas IK), sonra Atlas IK hafta 29 |
-| `?projectId=1&weekFrom=29&weekTo=29` | Atlas IK hafta 29 |
+| `?projectId=1&year=2026&weekFrom=29&weekTo=29` | Atlas IK hafta 29 |
+| `?year=2026` | 4 rapor (seed verisinin hepsi 2026'da) |
+| `?year=2027` | `content: []`, `totalElements: 0` (`200`) |
 | `?riskLevel=YUKSEK&ownerId=2` | e-Belge hafta 30 |
 | `?size=2` | 2 kayıt, `totalElements: 4`, `totalPages: 2` |
 | `?page=5` | `content: []`, `totalElements: 4` (`200`) |
@@ -144,7 +163,8 @@ eklenir. Ek alanlar diğer rapor endpoint'lerinin yanıtında da yer alır.
 | Parametre | Tip | Çoklu | Doğrulama |
 |---|---|---|---|
 | `projectId` | Long | — | — |
-| `weekNumber` | Integer | — | 1–53 (değerlendirilen rapor; bkz. bölüm 1) |
+| `year` | Integer | — | 2000–2100 (değerlendirilen rapor; bkz. bölüm 1) |
+| `weekNumber` | Integer | — | 1–53, yalnızca `year` ile (değerlendirilen rapor; bkz. bölüm 1) |
 | `assignee` | String | — | En fazla 255 karakter. Büyük/küçük harfe duyarsız, "içerir" araması (K-T13-09) |
 | `status` | `WorkItemStatus` | ✓ | Tanımlı enum |
 | `delayed` | Boolean | — | `true` / `false` |
@@ -171,8 +191,9 @@ Bölüm 3'teki sayfa yapısı kullanılır, `content` elemanları `WorkItemRespo
 | İstek | Sonuç |
 |---|---|
 | `GET /api/work-items` | 3 iş kalemi: Atlas IK hafta 31'in 2 kalemi, sonra planlanan tarihi olmayan e-Belge "Mevzuat analizi". Atlas IK'nın eski haftaları listelenmez (S-05), Nova POS'un raporu yok. |
-| `?weekNumber=29` | Atlas IK hafta 29'un 3 iş kalemi |
-| `?weekNumber=29&assignee=mehmet` | "Dashboard ozeti" |
+| `?year=2026&weekNumber=29` | Atlas IK hafta 29'un 3 iş kalemi |
+| `?year=2026&weekNumber=29&assignee=mehmet` | "Dashboard ozeti" |
+| `?year=2026` | `GET /api/work-items` ile aynı 3 iş kalemi (2026 sonuna kadarki en son raporlar) |
 | `?status=DEVAM_EDIYOR` | "Rapor ekrani entegrasyonu" ve "Mevzuat analizi" |
 | `?delayed=true` | "Rapor ekrani entegrasyonu" (`delayed: true`) |
 
@@ -185,9 +206,10 @@ Tüm hatalar mevcut `ApiError` gövdesiyle döner, yeni hata kodu eklenmez.
 | Durum | Örnek | HTTP | `code` | `fieldErrors` |
 |---|---|---|---|---|
 | Tanımsız enum değeri | `riskLevel=COK_YUKSEK` | 400 | `INVALID_REQUEST` | — (mesajda parametre adı geçer) |
-| Tip uyuşmazlığı | `projectId=abc`, `delayed=evet`, `dateFrom=27.07.2026` | 400 | `INVALID_REQUEST` | — |
-| Aralık dışı değer | `weekNumber=54`, `size=0`, `size=500`, `page=-1` | 400 | `VALIDATION_ERROR` | ilgili parametre |
-| Ters aralık | `weekFrom=30&weekTo=29`, `dateFrom` > `dateTo` | 400 | `VALIDATION_ERROR` | `weekTo` / `dateTo` |
+| Tip uyuşmazlığı | `projectId=abc`, `year=yirmi`, `delayed=evet`, `dateFrom=27.07.2026` | 400 | `INVALID_REQUEST` | — |
+| Aralık dışı değer | `weekNumber=54`, `year=1999`, `size=0`, `size=500`, `page=-1` | 400 | `VALIDATION_ERROR` | ilgili parametre |
+| Yılsız hafta | `weekNumber=29`, `weekFrom=29`, `weekTo=30` (`year` olmadan) | 400 | `VALIDATION_ERROR` | ilgili hafta parametresi |
+| Ters aralık | `year=2026&weekFrom=30&weekTo=29`, `dateFrom` > `dateTo` | 400 | `VALIDATION_ERROR` | `weekTo` / `dateTo` |
 | Uzun metin | `assignee` > 255 karakter | 400 | `VALIDATION_ERROR` | `assignee` |
 | Geçersiz sıralama | `sort=password`, `sort=reportDate,yukari` | 400 | `VALIDATION_ERROR` | `sort` (mesajda izin verilen alanlar listelenir) |
 | Sonuç yok | — | 200 | — | — |
@@ -219,7 +241,8 @@ gereği yok sayılır ve filtresiz sonuç döner. Bu davranış README'de belirt
 - **Rapor listesi:** `WeeklyReportRepository` `JpaSpecificationExecutor` ile genişletilir. Her
   parametre ayrı ve küçük bir `Specification` olur, verilen parametreler VE ile birleştirilir.
 - **İş kalemi listesi:** `Specification<WorkItem>`. Değerlendirilen rapor koşulu bir alt
-  sorguyla kurulur (projenin hafta ≤ X olan en yüksek haftalı raporu), gecikme koşulu iş kaleminin
+  sorguyla kurulur (projenin `year * 100 + hafta` anahtarı referansa eşit ya da küçük olan en yeni
+  raporu; V2 öncesinde yalnızca hafta ≤ X idi), gecikme koşulu iş kaleminin
   planlanan tarihi ile raporun tarihi karşılaştırılarak yazılır.
 - **Gecikme kuralı** tek bir sınıfta toplanır. Dashboard satırı, iş kalemi yanıtı ve sorgu
   koşulu aynı tanımı kullanır.

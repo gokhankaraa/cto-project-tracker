@@ -107,6 +107,16 @@ public class WeeklyReport {
         return date == null ? null : date.get(IsoFields.WEEK_BASED_YEAR);
     }
 
+    /**
+     * Yil ve haftayi tek sayida birlestirir: {@code year * 100 + weekNumber} (or. 2026 h30 = 202630).
+     * Hafta en fazla 53 oldugu icin bu sayinin sirasi (yil, hafta) sirasiyla aynidir; "o haftaya kadarki
+     * en son rapor" tek bir karsilastirma ile bulunur. Sorgu tarafindaki karsiligi
+     * {@code WorkItemSpecifications#weekKey} ve {@code WeeklyReportRepository#findLatestByProjectIdUpTo}'dur.
+     */
+    public static int weekKey(int year, int weekNumber) {
+        return year * 100 + weekNumber;
+    }
+
     /** Rapora bağlı iş kalemleri; rapor silinince bunlar da silinir. */
     @OneToMany(mappedBy = "weeklyReport", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<WorkItem> workItems = new ArrayList<>();

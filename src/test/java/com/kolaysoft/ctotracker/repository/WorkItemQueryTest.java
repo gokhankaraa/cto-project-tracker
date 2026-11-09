@@ -115,13 +115,13 @@ class WorkItemQueryTest {
     }
 
     private WorkItemFilter assigneeFilter(String assignee) {
-        return new WorkItemFilter(null, null, assignee, null, null);
+        return new WorkItemFilter(null, null, null, assignee, null, null);
     }
 
     @Test
     @DisplayName("Degerlendirilen rapor: varsayilan olarak her projenin yalnizca en son raporundaki is kalemleri")
     void defaultListUsesLatestReportPerProject() {
-        assertThat(titles(new WorkItemFilter(null, null, null, null, null)))
+        assertThat(titles(new WorkItemFilter(null, null, null, null, null, null)))
                 .containsExactlyInAnyOrder("geciken tarih", "bitmis eski", "sinir gunu", "gecikti", "tarihsiz", "p2 isi");
     }
 
@@ -136,16 +136,36 @@ class WorkItemQueryTest {
         em.flush();
         em.clear();
 
-        assertThat(titles(new WorkItemFilter(p3.getId(), null, null, null, null)))
+        assertThat(titles(new WorkItemFilter(p3.getId(), null, null, null, null, null)))
                 .containsExactly("ocak isi");
     }
 
     @Test
-    @DisplayName("Referans hafta: her proje icin o haftaya kadarki en son rapor; oncesinde rapor yoksa bos")
+    @DisplayName("Referans yil + hafta: her proje icin o haftaya kadarki en son rapor; oncesinde rapor yoksa bos")
     void weekNumberUsesLatestReportUpToThatWeek() {
-        assertThat(titles(new WorkItemFilter(null, 10, null, null, null))).containsExactlyInAnyOrder("eski hafta", "p2 isi");
-        assertThat(titles(new WorkItemFilter(null, 9, null, null, null))).isEmpty();
-        assertThat(titles(new WorkItemFilter(p1.getId(), 10, null, null, null))).containsExactly("eski hafta");
+        assertThat(titles(new WorkItemFilter(null, 2026, 10, null, null, null))).containsExactlyInAnyOrder("eski hafta", "p2 isi");
+        assertThat(titles(new WorkItemFilter(null, 2026, 9, null, null, null))).isEmpty();
+        assertThat(titles(new WorkItemFilter(p1.getId(), 2026, 10, null, null, null))).containsExactly("eski hafta");
+        // Referans nokta onceki yillari da kapsar: 2027 h5'e kadarki en son rapor 2026 h11'dir.
+        assertThat(titles(new WorkItemFilter(p1.getId(), 2027, 5, null, null, null)))
+                .containsExactlyInAnyOrder("geciken tarih", "bitmis eski", "sinir gunu", "gecikti", "tarihsiz");
+    }
+
+    @Test
+    @DisplayName("Referans yil sinirda: yalnizca yil o yilin sonu, yil + hafta o hafta demektir")
+    void yearReferenceAcrossYearBoundary() {
+        Project p3 = project("P3");
+        WeeklyReport december = report(p3, 52, LocalDate.of(2026, 12, 21));
+        WeeklyReport january = report(p3, 1, LocalDate.of(2027, 1, 4));
+        item(december, "aralik isi", null, WorkItemStatus.TAMAMLANDI, null);
+        item(january, "ocak isi", null, WorkItemStatus.PLANLANDI, null);
+        em.flush();
+        em.clear();
+
+        assertThat(titles(new WorkItemFilter(p3.getId(), 2026, null, null, null, null))).containsExactly("aralik isi");
+        assertThat(titles(new WorkItemFilter(p3.getId(), 2027, null, null, null, null))).containsExactly("ocak isi");
+        assertThat(titles(new WorkItemFilter(p3.getId(), 2027, 1, null, null, null))).containsExactly("ocak isi");
+        assertThat(titles(new WorkItemFilter(p3.getId(), 2026, 51, null, null, null))).isEmpty();
     }
 
     @Test
@@ -165,19 +185,19 @@ class WorkItemQueryTest {
     @Test
     @DisplayName("Gecikme kosulu: GECIKTI veya tarihi raporun tarihinden once olup tamamlanmamis is")
     void delayedConditionCoversAllCases() {
-        assertThat(titles(new WorkItemFilter(null, null, null, null, true)))
+        assertThat(titles(new WorkItemFilter(null, null, null, null, null, true)))
                 .containsExactlyInAnyOrder("geciken tarih", "gecikti");
         // Planlanan tarihi olmayan, GECIKTI olmayan kayit da 'false' sonucunda yer almali (NULL karsilastirmasi tuzagi).
-        assertThat(titles(new WorkItemFilter(null, null, null, null, false)))
+        assertThat(titles(new WorkItemFilter(null, null, null, null, null, false)))
                 .containsExactlyInAnyOrder("bitmis eski", "sinir gunu", "tarihsiz", "p2 isi");
     }
 
     @Test
     @DisplayName("Filtreler VE ile birlesir; durum filtresi cok degerli")
     void filtersCombine() {
-        assertThat(titles(new WorkItemFilter(p1.getId(), null, "ayse", List.of(WorkItemStatus.DEVAM_EDIYOR), true)))
+        assertThat(titles(new WorkItemFilter(p1.getId(), null, null, "ayse", List.of(WorkItemStatus.DEVAM_EDIYOR), true)))
                 .containsExactly("geciken tarih");
-        assertThat(titles(new WorkItemFilter(null, null, null,
+        assertThat(titles(new WorkItemFilter(null, null, null, null,
                 List.of(WorkItemStatus.GECIKTI, WorkItemStatus.PLANLANDI), null)))
                 .containsExactlyInAnyOrder("gecikti", "tarihsiz", "p2 isi");
     }

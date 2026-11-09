@@ -23,8 +23,9 @@ import com.kolaysoft.ctotracker.repository.spec.ProjectSpecifications;
 /**
  * CTO dashboard toplulastirma mantigi (on analiz H-06, T13 filtre sozlesmesi bolum 2).
  *
- * <p>Her proje icin degerlendirilen rapor bulunur: referans hafta verilmezse en guncel rapor (en yuksek
- * hafta numarasi), verilirse o haftaya kadarki en son rapor. Ilerleme, durum, risk, canli task ve
+ * <p>Her proje icin degerlendirilen rapor bulunur: referans verilmezse en guncel rapor (en yeni yil, o yil
+ * icinde en yuksek hafta), yalnizca yil verilirse o yilin sonuna kadarki, yil + hafta verilirse o haftaya
+ * kadarki en son rapor. Ilerleme, durum, risk, canli task ve
  * gecikme bilgisi bu rapordan turer. Raporu olmayan projeler de listelenir (ilerleme bilgisi bos/varsayilan).
  *
  * <p>Filtreler iki asamada uygulanir: proje filtreleri (proje, durum, sorumlu) veritabani sorgusunda,
@@ -59,7 +60,7 @@ public class DashboardService {
         List<DashboardProjectSummary> summaries = projectRepository
                 .findAll(ProjectSpecifications.matching(filter), Sort.by("id"))
                 .stream()
-                .map(project -> toSummary(project, filter.weekNumber()))
+                .map(project -> toSummary(project, filter.referenceKey()))
                 .filter(summary -> matchesReportCriteria(summary, filter))
                 .toList();
 
@@ -88,11 +89,11 @@ public class DashboardService {
                 && (filter.delayed() == null || filter.delayed() == summary.delayed());
     }
 
-    private DashboardProjectSummary toSummary(Project project, Integer weekNumber) {
+    private DashboardProjectSummary toSummary(Project project, Integer referenceKey) {
         User owner = project.getOwner();
         String ownerName = owner != null ? owner.getFullName() : null;
 
-        Optional<WeeklyReport> evaluatedReport = findEvaluatedReport(project.getId(), weekNumber);
+        Optional<WeeklyReport> evaluatedReport = findEvaluatedReport(project.getId(), referenceKey);
 
         if (evaluatedReport.isEmpty()) {
             return new DashboardProjectSummary(
@@ -111,12 +112,11 @@ public class DashboardService {
                 r.getOverallStatus(), r.getRiskLevel(), liveTaskCount, delayPolicy.isDelayed(r));
     }
 
-    /** Referans hafta yoksa en guncel rapor, varsa o haftaya kadarki (dahil) en son rapor. */
-    private Optional<WeeklyReport> findEvaluatedReport(Long projectId, Integer weekNumber) {
-        if (weekNumber == null) {
+    /** Referans yoksa en guncel rapor, varsa anahtari referansa kadar (dahil) olan en son rapor. */
+    private Optional<WeeklyReport> findEvaluatedReport(Long projectId, Integer referenceKey) {
+        if (referenceKey == null) {
             return weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(projectId);
         }
-        return weeklyReportRepository.findTopByProjectIdAndWeekNumberLessThanEqualOrderByYearDescWeekNumberDesc(
-                projectId, weekNumber);
+        return weeklyReportRepository.findLatestByProjectIdUpTo(projectId, referenceKey);
     }
 }

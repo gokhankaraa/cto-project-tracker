@@ -156,13 +156,20 @@ class FilterIntegrationTest {
     }
 
     @Test
-    @DisplayName("Dashboard: referans hafta gecmis haftayi kendi raporuna gore gosterir")
+    @DisplayName("Dashboard: referans yil + hafta gecmis haftayi kendi raporuna gore gosterir")
     void dashboardWeekReference() throws Exception {
-        getOk("/api/dashboard/summary?ownerId=" + ownerId + "&weekNumber=20")
+        getOk("/api/dashboard/summary?ownerId=" + ownerId + "&year=2026&weekNumber=20")
                 .andExpect(jsonPath("$.projectsWithoutReport").value(2))
                 .andExpect(jsonPath("$.delayedProjects").value(0))
                 .andExpect(jsonPath("$.projects[0].lastWeekNumber").value(20))
                 .andExpect(jsonPath("$.projects[0].delayed").value(false));
+        // Yalnizca yil: 2025'in sonuna kadar hicbir projenin raporu yok
+        getOk("/api/dashboard/summary?ownerId=" + ownerId + "&year=2025")
+                .andExpect(jsonPath("$.projectsWithoutReport").value(3));
+        // Referans sonraki yilda: onceki yilin en son raporu (2026 h21) esas alinir
+        getOk("/api/dashboard/summary?ownerId=" + ownerId + "&year=2027&weekNumber=1")
+                .andExpect(jsonPath("$.projects[0].lastYear").value(2026))
+                .andExpect(jsonPath("$.projects[0].lastWeekNumber").value(21));
     }
 
     // --- Rapor listesi (sozlesme bolum 3) ---
@@ -177,9 +184,11 @@ class FilterIntegrationTest {
                 .andExpect(jsonPath("$.size").value(2))
                 .andExpect(jsonPath("$.content[0].weekNumber").value(20))
                 .andExpect(jsonPath("$.content[0].projectName").value("Geciken Proje"));
-        getOk("/api/reports?ownerId=" + ownerId + "&weekFrom=21&weekTo=21&riskLevel=YUKSEK")
+        getOk("/api/reports?ownerId=" + ownerId + "&year=2026&weekFrom=21&weekTo=21&riskLevel=YUKSEK")
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].projectName").value("Riskli Proje"));
+        getOk("/api/reports?ownerId=" + ownerId + "&year=2027")
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     // --- Is kalemi listesi (sozlesme bolum 4) ---
@@ -224,9 +233,15 @@ class FilterIntegrationTest {
             "/api/dashboard/summary?riskLevel=ORTA&riskLevel=BITTI, INVALID_REQUEST,",
             "/api/dashboard/summary?delayed=evet,                   INVALID_REQUEST,",
             "/api/dashboard/summary?weekNumber=54,                  VALIDATION_ERROR, weekNumber",
+            "/api/dashboard/summary?weekNumber=29,                  VALIDATION_ERROR, weekNumber",
+            "/api/dashboard/summary?year=1999,                      VALIDATION_ERROR, year",
+            "/api/dashboard/summary?year=yirmi,                     INVALID_REQUEST,",
             "/api/reports?projectId=abc,                            INVALID_REQUEST,",
             "/api/reports?dateFrom=27.07.2026,                      INVALID_REQUEST,",
-            "/api/reports?weekFrom=30&weekTo=29,                    VALIDATION_ERROR, weekTo",
+            "/api/reports?year=2026&weekFrom=30&weekTo=29,          VALIDATION_ERROR, weekTo",
+            "/api/reports?weekFrom=29,                              VALIDATION_ERROR, weekFrom",
+            "/api/reports?weekTo=30,                                VALIDATION_ERROR, weekTo",
+            "/api/reports?year=2101,                                VALIDATION_ERROR, year",
             "/api/reports?dateFrom=2026-07-31&dateTo=2026-07-01,    VALIDATION_ERROR, dateTo",
             "/api/reports?weekTo=0,                                 VALIDATION_ERROR, weekTo",
             "/api/reports?size=0,                                   VALIDATION_ERROR, size",
@@ -236,6 +251,7 @@ class FilterIntegrationTest {
             "'/api/reports?sort=reportDate,yukari',                 VALIDATION_ERROR, sort",
             "/api/work-items?status=BITTI,                          INVALID_REQUEST,",
             "/api/work-items?weekNumber=54,                         VALIDATION_ERROR, weekNumber",
+            "/api/work-items?weekNumber=29,                         VALIDATION_ERROR, weekNumber",
             "/api/work-items?sort=assignee,                         VALIDATION_ERROR, sort"
     })
     @DisplayName("Hatali istekler sozlesmedeki kodla 400 doner; hicbiri 500 degil")

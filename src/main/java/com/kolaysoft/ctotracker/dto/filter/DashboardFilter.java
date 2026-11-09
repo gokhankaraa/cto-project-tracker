@@ -10,18 +10,22 @@ import com.kolaysoft.ctotracker.entity.RiskLevel;
  * CTO dashboard filtresi (filtre sözleşmesi T13, bölüm 2).
  *
  * <p>Tekil değerlerde null, çok değerli alanlarda boş liste "filtre yok" demektir.
- * {@code weekNumber} bir filtre değil, değerlendirilen raporu seçen referans haftadır (K-T13-05).
+ * {@code year} ve {@code weekNumber} bir filtre değil, değerlendirilen raporu seçen referans noktadır
+ * (K-T13-05, V2): her proje için bu noktaya kadarki en son rapor esas alınır. {@code weekNumber}
+ * yalnızca {@code year} ile birlikte verilebilir.
  */
 public record DashboardFilter(
         Long projectId,
         List<ProjectStatus> projectStatuses,
         Long ownerId,
+        Integer year,
         Integer weekNumber,
         List<OverallStatus> overallStatuses,
         List<RiskLevel> riskLevels,
         Boolean delayed) {
 
     public DashboardFilter {
+        FilterValues.requireYear(year, weekNumber, "weekNumber");
         projectStatuses = FilterValues.values(projectStatuses);
         overallStatuses = FilterValues.values(overallStatuses);
         riskLevels = FilterValues.values(riskLevels);
@@ -29,7 +33,15 @@ public record DashboardFilter(
 
     /** Hiç filtre içermeyen dashboard isteği (MVP'deki davranış). */
     public static DashboardFilter none() {
-        return new DashboardFilter(null, null, null, null, null, null, null);
+        return new DashboardFilter(null, null, null, null, null, null, null, null);
+    }
+
+    /**
+     * Referans noktanın anahtarı ({@code year * 100 + hafta}); referans yoksa null, yani en son rapor.
+     * Yalnızca yıl verildiyse o yılın sonuna kadarki en son rapor seçilir.
+     */
+    public Integer referenceKey() {
+        return FilterValues.referenceKey(year, weekNumber);
     }
 
     /**

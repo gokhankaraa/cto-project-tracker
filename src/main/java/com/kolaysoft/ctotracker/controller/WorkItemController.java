@@ -60,17 +60,23 @@ public class WorkItemController {
     }
 
     @Operation(summary = "İş kalemlerini projeler arası filtreli ve sayfalı listele",
-            description = "Her projenin değerlendirilen raporundaki iş kalemleri listelenir: weekNumber yoksa en son "
-                    + "rapor, varsa o haftaya kadarki en son rapor. Farklı filtreler VE ile, çok değerli bir "
-                    + "parametrenin değerleri VEYA ile birleşir. Varsayılan sıralama: plannedDate,asc "
-                    + "(tarihsiz kayıtlar sonda).")
+            description = "Her projenin değerlendirilen raporundaki iş kalemleri listelenir: year yoksa en son rapor, "
+                    + "yalnızca year varsa o yılın sonuna, year + weekNumber varsa o haftaya kadarki en son rapor. "
+                    + "Farklı filtreler VE ile, çok değerli bir parametrenin değerleri VEYA ile birleşir. "
+                    + "Varsayılan sıralama: plannedDate,asc (tarihsiz kayıtlar sonda).")
     @GetMapping(value = "/api/work-items", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageResponse<WorkItemResponse> search(
             @Parameter(description = "Yalnızca bu proje", example = "1")
             @RequestParam(required = false) Long projectId,
 
-            @Parameter(description = "Referans hafta (1-53): her proje için bu haftaya kadarki en son rapor",
-                    example = "29")
+            @Parameter(description = "Referans yıl (rapor tarihinin ISO hafta-yılı). Yalnızca yıl verilirse her proje "
+                    + "için o yılın sonuna kadarki en son rapor", example = "2026")
+            @RequestParam(required = false)
+            @Min(value = 2000, message = "Yil en az 2000 olmalidir.")
+            @Max(value = 2100, message = "Yil en fazla 2100 olmalidir.") Integer year,
+
+            @Parameter(description = "Referans hafta (1-53), yalnızca year ile birlikte: her proje için bu yıl ve "
+                    + "haftaya kadarki en son rapor (önceki yıllar dahil). year olmadan 400 döner", example = "29")
             @RequestParam(required = false)
             @Min(value = 1, message = "Hafta numarasi en az 1 olmalidir.")
             @Max(value = 53, message = "Hafta numarasi en fazla 53 olmalidir.") Integer weekNumber,
@@ -100,7 +106,7 @@ public class WorkItemController {
                     + "projectName. Varsayılan: plannedDate,asc", example = "title,asc")
             @RequestParam(required = false) String sort) {
 
-        WorkItemFilter filter = new WorkItemFilter(projectId, weekNumber, assignee, status, delayed);
+        WorkItemFilter filter = new WorkItemFilter(projectId, year, weekNumber, assignee, status, delayed);
         return workItemService.search(filter, page, size, sort);
     }
 

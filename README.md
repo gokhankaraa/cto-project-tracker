@@ -8,8 +8,8 @@ Track: **Backend (Java + Spring Boot)** · Author: Gökhan Kara
 > **Status:** MVP (T01–T12) complete. T13 (days 21–24) adds filtering on the CTO dashboard and two
 > cross-project list endpoints for reports and work items, with paging, sorting and a shared delay
 > rule. Data now lives in PostgreSQL, with the schema managed by Flyway and tests running against a
-> real PostgreSQL via Testcontainers. Next: a report year column (Flyway V2), then role-based
-> authorization (T14).
+> real PostgreSQL via Testcontainers. Reports carry a year derived from the report date (Flyway V2),
+> and the filters accept a `year`. Next: role-based authorization (T14).
 
 Project documents (in [`docs/`](docs/)):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, scope, user stories, acceptance criteria)
@@ -195,17 +195,25 @@ Swagger UI with an example value.
 
 | Endpoint | Filters | Paging / sorting |
 |---|---|---|
-| `GET /api/dashboard/summary` | `projectId`, `projectStatus`, `ownerId`, `weekNumber`, `overallStatus`, `riskLevel`, `delayed` | None; rows ordered by project id |
-| `GET /api/reports` | `projectId`, `ownerId`, `weekFrom`, `weekTo`, `dateFrom`, `dateTo`, `overallStatus`, `riskLevel`, `progressStage` | Default `reportDate,desc`; sortable by `reportDate`, `weekNumber`, `projectName` |
-| `GET /api/work-items` | `projectId`, `weekNumber`, `assignee`, `status`, `delayed` | Default `plannedDate,asc` (items without a date last); sortable by `plannedDate`, `title`, `projectName` |
+| `GET /api/dashboard/summary` | `projectId`, `projectStatus`, `ownerId`, `year`, `weekNumber`, `overallStatus`, `riskLevel`, `delayed` | None; rows ordered by project id |
+| `GET /api/reports` | `projectId`, `ownerId`, `year`, `weekFrom`, `weekTo`, `dateFrom`, `dateTo`, `overallStatus`, `riskLevel`, `progressStage` | Default `reportDate,desc`; sortable by `reportDate`, `weekNumber`, `projectName` |
+| `GET /api/work-items` | `projectId`, `year`, `weekNumber`, `assignee`, `status`, `delayed` | Default `plannedDate,asc` (items without a date last); sortable by `plannedDate`, `title`, `projectName` |
 
 - Different parameters combine with **AND**. Status, risk and stage parameters accept several
   comma-separated values, which combine with **OR** (`riskLevel=ORTA,YUKSEK`).
-- `weekNumber` is a reference point: each project is evaluated on its latest report up to that
-  week. On the dashboard, projects with no report by then are still listed with `hasReport: false`,
-  unless a report-based filter (`overallStatus`, `riskLevel`, `delayed`) is also given.
+- On the dashboard and the work item list, `year` and `weekNumber` are a reference point, not a
+  filter: each project is evaluated on its latest report up to that point. Without them that is the
+  latest report; `year=2026` alone means up to the end of 2026; `year=2026&weekNumber=29` means up to
+  week 29 of 2026, including earlier years. On the dashboard, projects with no report by then are
+  still listed with `hasReport: false`, unless a report-based filter (`overallStatus`, `riskLevel`,
+  `delayed`) is also given.
   The work item list shows only the items of that evaluated report, so the same task is not
   repeated across weeks.
+- On the report list, `year` is a plain filter on the report's year, and `weekFrom`/`weekTo` apply
+  within that year.
+- A week number means nothing without its year, so `weekNumber`, `weekFrom` and `weekTo` are only
+  accepted together with `year`; on their own they return **400** `VALIDATION_ERROR` with the week
+  parameter in `fieldErrors`. `year` must be between 2000 and 2100.
 - Paging: `page` starts at `0`, `size` is `1–100` (default `20`). The response is
   `{ content, page, size, totalElements, totalPages }`. Sorting is `field` or `field,asc|desc`,
   and `id` is always added as a tie-breaker so pages don't shift.
@@ -322,7 +330,7 @@ Validation errors additionally include a `fieldErrors` array:
 | `BUSINESS_RULE_VIOLATION` | 400 | Business-rule violation (e.g. skipping a progress stage) |
 | `RESOURCE_NOT_FOUND` | 404 | Record or endpoint not found |
 | `METHOD_NOT_ALLOWED` | 405 | Endpoint does not support this HTTP method |
-| `DUPLICATE_RESOURCE` | 409 | Uniqueness violation (project+week, email) |
+| `DUPLICATE_RESOURCE` | 409 | Uniqueness violation (project+year+week, email) |
 | `RESOURCE_IN_USE` | 409 | Resource can't be deleted because other records depend on it (e.g. a project that still has reports) |
 | `INTERNAL_ERROR` | 500 | Unexpected error; technical detail is logged, not leaked to the client |
 
@@ -337,15 +345,16 @@ the schema comes from the same Flyway scripts as the application. Each test cont
 empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; every other test
 creates its own data. Service tests use Mockito and need no database.
 
-Current tests (112 in total):
+Current tests (122 in total):
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
   (project → report → work item → dashboard), 404 / 400 / 409, stage skip, dashboard filter
-- `FilterIntegrationTest` — T13 filters over HTTP (MockMvc): dashboard filters and counters, week
-  reference, report paging and sorting, work item filters, null-last default sort, and the error
-  cases of the filter contract
+- `FilterIntegrationTest` — T13 filters over HTTP (MockMvc): dashboard filters and counters, year and
+  week reference (including across years), report paging and sorting, work item filters, null-last default sort, and the error
+  cases of the filter contract (such as a week parameter without `year`)
 - `WeeklyReportQueryTest` / `WorkItemQueryTest` — filter queries against the database
-  (@DataJpaTest): inclusive ranges, AND/OR combination, evaluated-report selection, case-insensitive
+  (@DataJpaTest): inclusive ranges, AND/OR combination, the year filter, evaluated-report selection
+  by year and week (also at the year boundary), case-insensitive
   assignee search, and the delay condition matching the Java delay rule (`DelayPolicy`)
 - `WeeklyReportYearTest` — report year (Flyway V2) on PostgreSQL: the Java year rule matches
   PostgreSQL's `ISOYEAR` at year boundaries, the year follows the report date, uniqueness is per
@@ -359,7 +368,7 @@ Current tests (112 in total):
 - `ProjectServiceTest` — project create/update/mapping, owner-not-found (404), delete-with-reports (409)
 - `WorkItemServiceTest` — work item CRUD, report-not-found (404), delete
 - `DashboardServiceTest` — portfolio aggregation, latest-report selection, risk and multi-value
-  filters, week reference, delay filter and counter, empty portfolio
+  filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
 ## Known gaps

@@ -31,7 +31,7 @@ public final class WorkItemSpecifications {
     /** İş kalemi filtresindeki tüm koşulların VE ile birleşimi; her zaman değerlendirilen rapora göre. */
     public static Specification<WorkItem> matching(WorkItemFilter filter) {
         return Specification.allOf(
-                inEvaluatedReport(filter.weekNumber()),
+                inEvaluatedReport(filter.referenceKey()),
                 forProject(filter.projectId()),
                 assigneeContains(filter.assignee()),
                 statusIn(filter.statuses()),
@@ -40,10 +40,13 @@ public final class WorkItemSpecifications {
 
     /**
      * Yalnızca her projenin değerlendirilen raporundaki iş kalemleri (filtre sözleşmesi, S-05):
-     * {@code weekNumber} yoksa projenin en son raporu, varsa hafta numarası ≤ weekNumber olan
-     * en son raporu. "En son" yıl ve hafta birlikte karşılaştırılarak bulunur (bkz. {@link #weekKey}).
+     * {@code referenceKey} null ise projenin en son raporu, değilse anahtarı ({@link #weekKey})
+     * {@code referenceKey}'den büyük olmayan en son raporu. Anahtar yıl ve haftayı birlikte taşıdığı için
+     * "2026'nın 29. haftasına kadar" önceki yılların raporlarını da kapsar.
+     *
+     * @param referenceKey {@code WorkItemFilter#referenceKey()}; or. 2026 h29 için 202629
      */
-    public static Specification<WorkItem> inEvaluatedReport(Integer weekNumber) {
+    public static Specification<WorkItem> inEvaluatedReport(Integer referenceKey) {
         return (root, query, cb) -> {
             Path<WeeklyReport> report = root.get("weeklyReport");
 
@@ -51,17 +54,17 @@ public final class WorkItemSpecifications {
             Root<WeeklyReport> candidate = latestKey.from(WeeklyReport.class);
             Predicate sameProject = cb.equal(
                     candidate.get("project").get("id"), report.get("project").get("id"));
-            Predicate withinWeek = weekNumber == null
+            Predicate upToReference = referenceKey == null
                     ? cb.conjunction()
-                    : cb.le(candidate.get("weekNumber"), weekNumber);
-            latestKey.select(cb.max(weekKey(cb, candidate))).where(sameProject, withinWeek);
+                    : cb.le(weekKey(cb, candidate), referenceKey);
+            latestKey.select(cb.max(weekKey(cb, candidate))).where(sameProject, upToReference);
 
             return cb.equal(weekKey(cb, report), latestKey);
         };
     }
 
     /**
-     * Raporun yıl ve haftasını tek sayıda birleştirir: {@code year * 100 + weekNumber} (or. 2026 h30 = 202630).
+     * {@link WeeklyReport#weekKey(int, int)} kuralının sorgu karşılığı: {@code year * 100 + weekNumber}.
      * Hafta en fazla 53 olduğu için bu sayının sırası (yıl, hafta) sırasıyla aynıdır; böylece
      * "en son rapor" tek bir MAX ile bulunur.
      */

@@ -40,9 +40,9 @@ public class DashboardController {
     }
 
     @Operation(summary = "CTO portfoy ozeti",
-            description = "Tum projelerin degerlendirilen haftalik rapora gore durumunu, ilerlemesini, riskini, "
-                    + "canli task sayisini ve gecikme bilgisini tek ozette doner. Farkli filtreler VE ile, "
-                    + "cok degerli bir parametrenin degerleri VEYA ile birlesir (or. riskLevel=ORTA,YUKSEK). "
+            description = "Tum projelerin degerlendirilen haftalik rapora (varsayilan en son rapor; year ve "
+                    + "weekNumber ile gecmis bir nokta) gore durumunu, ilerlemesini, riskini, canli task sayisini "
+                    + "ve gecikme bilgisini tek ozette doner. Farkli filtreler VE ile, cok degerli bir parametrenin degerleri VEYA ile birlesir (or. riskLevel=ORTA,YUKSEK). "
                     + "Sayaclar filtrelenmis kumeden hesaplanir.")
     @GetMapping("/summary")
     public DashboardSummaryResponse summary(
@@ -55,8 +55,15 @@ public class DashboardController {
             @Parameter(description = "Sorumlu proje yoneticisinin kullanici id'si", example = "1")
             @RequestParam(required = false) Long ownerId,
 
-            @Parameter(description = "Referans hafta (1-53): her proje icin bu haftaya kadarki en son rapor esas "
-                    + "alinir; o haftaya kadar raporu olmayan projeler hasReport=false ile listelenir", example = "29")
+            @Parameter(description = "Referans yil (rapor tarihinin ISO hafta-yili). Yalnizca yil verilirse her proje "
+                    + "icin o yilin sonuna kadarki en son rapor esas alinir", example = "2026")
+            @RequestParam(required = false)
+            @Min(value = 2000, message = "Yil en az 2000 olmalidir.")
+            @Max(value = 2100, message = "Yil en fazla 2100 olmalidir.") Integer year,
+
+            @Parameter(description = "Referans hafta (1-53), yalnizca year ile birlikte: her proje icin bu yil ve "
+                    + "haftaya kadarki en son rapor esas alinir (onceki yillar dahil); o noktaya kadar raporu "
+                    + "olmayan projeler hasReport=false ile listelenir. year olmadan 400 doner", example = "29")
             @RequestParam(required = false)
             @Min(value = 1, message = "Hafta numarasi en az 1 olmalidir.")
             @Max(value = 53, message = "Hafta numarasi en fazla 53 olmalidir.") Integer weekNumber,
@@ -73,6 +80,6 @@ public class DashboardController {
             @RequestParam(required = false) Boolean delayed) {
 
         return dashboardService.getSummary(new DashboardFilter(
-                projectId, projectStatus, ownerId, weekNumber, overallStatus, riskLevel, delayed));
+                projectId, projectStatus, ownerId, year, weekNumber, overallStatus, riskLevel, delayed));
     }
 }

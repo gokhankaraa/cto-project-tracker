@@ -96,7 +96,9 @@ class WeeklyReportQueryTest {
 
     private ReportFilter filter(Long projectId, Long ownerId, Integer weekFrom, Integer weekTo,
                                 LocalDate dateFrom, LocalDate dateTo) {
-        return new ReportFilter(projectId, ownerId, weekFrom, weekTo, dateFrom, dateTo, null, null, null);
+        // Hafta parametreleri yalnizca yil ile verilebilir; setUp'taki raporlarin hepsi 2026'da.
+        Integer year = weekFrom != null || weekTo != null ? 2026 : null;
+        return new ReportFilter(projectId, ownerId, year, weekFrom, weekTo, dateFrom, dateTo, null, null, null);
     }
 
     private List<WeeklyReport> find(ReportFilter filter) {
@@ -127,6 +129,21 @@ class WeeklyReportQueryTest {
     }
 
     @Test
+    @DisplayName("Yil filtresi esitliktir; hafta araligi o yilin icinde uygulanir")
+    void yearFilterScopesWeekRange() {
+        WeeklyReport zetaW11Next = report(zeta, 11, LocalDate.of(2027, 3, 15),
+                ProgressStage.TEST, OverallStatus.YOLUNDA, RiskLevel.DUSUK);
+        em.flush();
+
+        assertThat(find(new ReportFilter(null, null, 2027, null, null, null, null, null, null, null)))
+                .containsExactly(zetaW11Next);
+        assertThat(find(new ReportFilter(null, null, 2026, 11, 11, null, null, null, null, null)))
+                .containsExactlyInAnyOrder(zetaW11, alfaW11);
+        assertThat(find(new ReportFilter(zeta.getId(), null, 2027, 11, 11, null, null, null, null, null)))
+                .containsExactly(zetaW11Next);
+    }
+
+    @Test
     @DisplayName("Tarih araliginin iki ucu da dahildir")
     void dateRangeIsInclusive() {
         assertThat(find(filter(null, null, null, null, LocalDate.of(2026, 3, 9), LocalDate.of(2026, 3, 16))))
@@ -137,11 +154,11 @@ class WeeklyReportQueryTest {
     @Test
     @DisplayName("Enum filtreleri: ayni parametrede VEYA, farkli parametrelerde VE")
     void enumFiltersCombineWithOrInsideAndAcross() {
-        ReportFilter risk = new ReportFilter(null, null, null, null, null, null,
+        ReportFilter risk = new ReportFilter(null, null, null, null, null, null, null,
                 null, List.of(RiskLevel.ORTA, RiskLevel.YUKSEK), null);
-        ReportFilter riskAndStage = new ReportFilter(null, null, null, null, null, null,
+        ReportFilter riskAndStage = new ReportFilter(null, null, null, null, null, null, null,
                 null, List.of(RiskLevel.ORTA, RiskLevel.YUKSEK), List.of(ProgressStage.TEST));
-        ReportFilter status = new ReportFilter(null, null, null, null, null, null,
+        ReportFilter status = new ReportFilter(null, null, null, null, null, null, null,
                 List.of(OverallStatus.GECIKMELI, OverallStatus.BLOKE), null, null);
 
         assertThat(find(risk)).containsExactlyInAnyOrder(zetaW11, alfaW11, alfaW12);

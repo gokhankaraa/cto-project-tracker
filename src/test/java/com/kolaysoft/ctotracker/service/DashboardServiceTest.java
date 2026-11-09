@@ -132,7 +132,7 @@ class DashboardServiceTest {
                 .thenReturn(0L);
 
         DashboardSummaryResponse summary = service.getSummary(
-                new DashboardFilter(null, null, null, null, null, List.of(RiskLevel.YUKSEK), null));
+                new DashboardFilter(null, null, null, null, null, null, List.of(RiskLevel.YUKSEK), null));
 
         assertThat(summary.projects()).hasSize(1);
         assertThat(summary.projects().get(0).projectId()).isEqualTo(2L);
@@ -154,34 +154,47 @@ class DashboardServiceTest {
     // --- T13 filtreleri ---
 
     private DashboardFilter riskFilter(RiskLevel... levels) {
-        return new DashboardFilter(null, null, null, null, null, List.of(levels), null);
+        return new DashboardFilter(null, null, null, null, null, null, List.of(levels), null);
     }
 
     private DashboardFilter delayedFilter(boolean delayed) {
-        return new DashboardFilter(null, null, null, null, null, null, delayed);
+        return new DashboardFilter(null, null, null, null, null, null, null, delayed);
     }
 
     @Test
-    @DisplayName("Referans hafta: o haftaya kadarki son rapor kullanilir, raporu olmayan proje hasReport=false")
+    @DisplayName("Referans yil + hafta: o noktaya kadarki son rapor kullanilir, raporu olmayan proje hasReport=false")
     void weekNumberSelectsLatestReportUpToThatWeek() {
         Project atlas = project(1L, "Atlas IK", null);
         Project ebelge = project(2L, "e-Belge", null);
         when(projectRepository.findAll(anySpec(), any(Sort.class))).thenReturn(List.of(atlas, ebelge));
 
         WeeklyReport atlasW29 = report(10L, 1L, 29, ProgressStage.GELISTIRME, RiskLevel.ORTA);
-        when(weeklyReportRepository.findTopByProjectIdAndWeekNumberLessThanEqualOrderByYearDescWeekNumberDesc(1L, 29))
+        when(weeklyReportRepository.findLatestByProjectIdUpTo(1L, 202629))
                 .thenReturn(Optional.of(atlasW29));
-        when(weeklyReportRepository.findTopByProjectIdAndWeekNumberLessThanEqualOrderByYearDescWeekNumberDesc(2L, 29))
+        when(weeklyReportRepository.findLatestByProjectIdUpTo(2L, 202629))
                 .thenReturn(Optional.empty());
 
         DashboardSummaryResponse summary = service.getSummary(
-                new DashboardFilter(null, null, null, 29, null, null, null));
+                new DashboardFilter(null, null, null, 2026, 29, null, null, null));
 
         assertThat(summary.totalProjects()).isEqualTo(2);
         assertThat(summary.projectsWithoutReport()).isEqualTo(1);
         assertThat(summary.projects().get(0).lastWeekNumber()).isEqualTo(29);
         assertThat(summary.projects().get(0).riskLevel()).isEqualTo(RiskLevel.ORTA);
         assertThat(summary.projects().get(1).hasReport()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Yalnizca yil: o yilin sonuna kadarki son rapor (anahtar yil*100+53)")
+    void yearAloneSelectsLatestReportUpToEndOfYear() {
+        when(projectRepository.findAll(anySpec(), any(Sort.class))).thenReturn(List.of(project(1L, "Atlas IK", null)));
+        WeeklyReport atlasW52 = report(10L, 1L, 52, ProgressStage.TEST, RiskLevel.DUSUK);
+        when(weeklyReportRepository.findLatestByProjectIdUpTo(1L, 202653)).thenReturn(Optional.of(atlasW52));
+
+        DashboardSummaryResponse summary = service.getSummary(
+                new DashboardFilter(null, null, null, 2026, null, null, null, null));
+
+        assertThat(summary.projects().get(0).lastWeekNumber()).isEqualTo(52);
     }
 
     @Test

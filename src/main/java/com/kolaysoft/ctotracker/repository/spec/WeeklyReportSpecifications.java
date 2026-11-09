@@ -12,7 +12,8 @@ import com.kolaysoft.ctotracker.entity.WeeklyReport;
  * Haftalık rapor sorgusu için filtre koşulları (filtre sözleşmesi T13, bölüm 3).
  *
  * <p>Her metot tek bir koşul üretir; değer verilmemişse koşul kısıtlama yapmaz.
- * Aralık koşullarında uçlar dahildir.
+ * Aralık koşullarında uçlar dahildir. Hafta aralığı {@link #inYear} ile birlikte o yılın içinde
+ * uygulanır; yılsız hafta parametresine {@code ReportFilter} izin vermez (V2).
  */
 public final class WeeklyReportSpecifications {
 
@@ -24,6 +25,7 @@ public final class WeeklyReportSpecifications {
         return Specification.allOf(
                 forProject(filter.projectId()),
                 ownedBy(filter.ownerId()),
+                inYear(filter.year()),
                 weekFrom(filter.weekFrom()),
                 weekTo(filter.weekTo()),
                 dateFrom(filter.dateFrom()),
@@ -46,6 +48,14 @@ public final class WeeklyReportSpecifications {
             return Specification.unrestricted();
         }
         return (root, query, cb) -> cb.equal(root.get("project").get("owner").get("id"), ownerId);
+    }
+
+    /** Raporun yılı (rapor tarihinin ISO hafta-yılı, bkz. {@code WeeklyReport#yearOf}). */
+    public static Specification<WeeklyReport> inYear(Integer year) {
+        if (year == null) {
+            return Specification.unrestricted();
+        }
+        return (root, query, cb) -> cb.equal(root.get("year"), year);
     }
 
     public static Specification<WeeklyReport> weekFrom(Integer weekFrom) {

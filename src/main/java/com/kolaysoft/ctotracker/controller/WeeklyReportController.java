@@ -64,7 +64,8 @@ public class WeeklyReportController {
 
     @Operation(summary = "Haftalik raporlari projeler arasi filtreli ve sayfali listele",
             description = "Farkli filtreler VE ile, cok degerli bir parametrenin degerleri VEYA ile birlesir. "
-                    + "Aralik uclari dahildir. Varsayilan siralama: en yeni rapor en ustte (reportDate,desc).")
+                    + "Aralik uclari dahildir. Hafta araligi year ile birlikte o yilin icinde uygulanir. "
+                    + "Varsayilan siralama: en yeni rapor en ustte (reportDate,desc).")
     @GetMapping(value = "/api/reports", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageResponse<WeeklyReportResponse> search(
             @Parameter(description = "Yalnizca bu proje", example = "1")
@@ -73,12 +74,19 @@ public class WeeklyReportController {
             @Parameter(description = "Sorumlu proje yoneticisinin kullanici id'si", example = "1")
             @RequestParam(required = false) Long ownerId,
 
-            @Parameter(description = "Baslangic haftasi (dahil, 1-53)", example = "29")
+            @Parameter(description = "Raporun yili (rapor tarihinin ISO hafta-yili)", example = "2026")
+            @RequestParam(required = false)
+            @Min(value = 2000, message = "Yil en az 2000 olmalidir.")
+            @Max(value = 2100, message = "Yil en fazla 2100 olmalidir.") Integer year,
+
+            @Parameter(description = "Baslangic haftasi (dahil, 1-53); yalnizca year ile birlikte, o yilin icinde",
+                    example = "29")
             @RequestParam(required = false)
             @Min(value = 1, message = "Hafta numarasi en az 1 olmalidir.")
             @Max(value = 53, message = "Hafta numarasi en fazla 53 olmalidir.") Integer weekFrom,
 
-            @Parameter(description = "Bitis haftasi (dahil, 1-53); weekFrom'dan kucuk olamaz", example = "30")
+            @Parameter(description = "Bitis haftasi (dahil, 1-53); yalnizca year ile birlikte, weekFrom'dan kucuk "
+                    + "olamaz", example = "30")
             @RequestParam(required = false)
             @Min(value = 1, message = "Hafta numarasi en az 1 olmalidir.")
             @Max(value = 53, message = "Hafta numarasi en fazla 53 olmalidir.") Integer weekTo,
@@ -112,7 +120,7 @@ public class WeeklyReportController {
                     + "projectName. Varsayilan: reportDate,desc", example = "weekNumber,asc")
             @RequestParam(required = false) String sort) {
 
-        ReportFilter filter = new ReportFilter(projectId, ownerId, weekFrom, weekTo, dateFrom, dateTo,
+        ReportFilter filter = new ReportFilter(projectId, ownerId, year, weekFrom, weekTo, dateFrom, dateTo,
                 overallStatus, riskLevel, progressStage);
         return weeklyReportService.search(filter, page, size, sort);
     }
