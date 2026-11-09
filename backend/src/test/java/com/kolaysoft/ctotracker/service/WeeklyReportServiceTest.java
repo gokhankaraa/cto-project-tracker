@@ -124,7 +124,7 @@ class WeeklyReportServiceTest {
 
         assertThatThrownBy(() -> service.create(1L, request(30, ProgressStage.ANALIZ)))
                 .isInstanceOf(DuplicateResourceException.class)
-                .hasMessage("Bu proje icin 2026 yilinin 30. haftasina ait rapor zaten mevcut.");
+                .hasMessage("Bu proje için 2026 yılının 30. haftasına ait rapor zaten mevcut.");
 
         verify(weeklyReportRepository, never()).save(any());
     }
@@ -149,7 +149,7 @@ class WeeklyReportServiceTest {
 
         assertThatThrownBy(() -> service.create(1L, request(35, LocalDate.of(2026, 7, 27), ProgressStage.ANALIZ)))
                 .isInstanceOf(InvalidParameterException.class)
-                .hasMessage("Rapor tarihi, anlattigi haftadan (2026 / 35. hafta, 24.08.2026) once olamaz.")
+                .hasMessage("Rapor tarihi, anlattığı haftadan (2026 / 35. hafta, 24.08.2026) önce olamaz.")
                 .extracting("parameter").isEqualTo("reportDate");
 
         verify(weeklyReportRepository, never()).save(any());
@@ -162,8 +162,8 @@ class WeeklyReportServiceTest {
 
         assertThatThrownBy(() -> service.create(1L, request(29, LocalDate.of(2026, 7, 27), ProgressStage.ANALIZ)))
                 .isInstanceOf(InvalidParameterException.class)
-                .hasMessage("Rapor en gec anlattigi haftanin ertesi haftasinda yazilabilir "
-                        + "(2026 / 29. hafta icin son gun 26.07.2026).")
+                .hasMessage("Rapor en geç anlattığı haftanın ertesi haftasında yazılabilir "
+                        + "(2026 / 29. hafta için son gün 26.07.2026).")
                 .extracting("parameter").isEqualTo("reportDate");
     }
 
@@ -175,7 +175,7 @@ class WeeklyReportServiceTest {
         // 2022, 2023 ve 2024 52 haftalik yillar.
         assertThatThrownBy(() -> service.create(1L, request(53, LocalDate.of(2023, 6, 5), ProgressStage.ANALIZ)))
                 .isInstanceOf(InvalidParameterException.class)
-                .hasMessage("Rapor tarihinin yilinda ve komsu yillarda 53. hafta yok.")
+                .hasMessage("Rapor tarihinin yılında ve komşu yıllarda 53. hafta yok.")
                 .extracting("parameter").isEqualTo("weekNumber");
     }
 
@@ -256,7 +256,7 @@ class WeeklyReportServiceTest {
 
         assertThatThrownBy(() -> service.update(5L, request(30, LocalDate.of(2027, 7, 26), ProgressStage.ANALIZ)))
                 .isInstanceOf(DuplicateResourceException.class)
-                .hasMessageContaining("2027 yilinin 30. haftasina");
+                .hasMessageContaining("2027 yılının 30. haftasına");
 
         verify(weeklyReportRepository, never()).save(any());
     }

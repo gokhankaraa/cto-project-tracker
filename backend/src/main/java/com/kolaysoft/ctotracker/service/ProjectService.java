@@ -69,14 +69,14 @@ public class ProjectService {
         // Raporu olan proje silinemez: kazara toplu silmeyi onlemek icin anlamli 409 doner.
         if (weeklyReportRepository.existsByProjectId(id)) {
             throw new ResourceInUseException(
-                    "Bu projenin haftalik raporlari var; once raporlari silin.");
+                    "Bu projenin haftalık raporları var; önce raporları silin.");
         }
         projectRepository.deleteById(id);
     }
 
     private void applyRequest(Project project, ProjectRequest request) {
         User owner = userRepository.findById(request.ownerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Kullanici", request.ownerId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı", request.ownerId()));
         project.setName(request.name());
         project.setCustomer(request.customer());
         project.setDescription(request.description());

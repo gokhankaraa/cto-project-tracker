@@ -177,7 +177,7 @@ class AuthorizationIntegrationTest {
         as("cto", json(post("/api/projects"), PROJECT))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"))
-                .andExpect(jsonPath("$.message").value("Bu islem icin yetkiniz yok."));
+                .andExpect(jsonPath("$.message").value("Bu işlem için yetkiniz yok."));
         as("cto", delete("/api/projects/3")).andExpect(status().isForbidden());
         as("cto", json(post("/api/projects/3/reports"), NOVA_REPORT)).andExpect(status().isForbidden());
         as("cto", json(put("/api/reports/4"), ATLAS_W31_UPDATE)).andExpect(status().isForbidden());

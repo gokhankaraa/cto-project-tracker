@@ -9,6 +9,6 @@ public class ResourceNotFoundException extends RuntimeException {
 
     /** Ornek: {@code new ResourceNotFoundException("Proje", 42)} -> "Proje bulunamadi: 42". */
     public ResourceNotFoundException(String resourceName, Object id) {
-        super("%s bulunamadi: %s".formatted(resourceName, id));
+        super("%s bulunamadı: %s".formatted(resourceName, id));
     }
 }

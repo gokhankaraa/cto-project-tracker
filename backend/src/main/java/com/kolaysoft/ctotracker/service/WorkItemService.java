@@ -113,13 +113,13 @@ public class WorkItemService {
     private WorkItem getWorkItemOrThrow(Long workItemId) {
         return workItemRepository.findById(workItemId)
                 .filter(item -> currentUser.viewer().canSee(item.getWeeklyReport().getProject()))
-                .orElseThrow(() -> new ResourceNotFoundException("Is kalemi", workItemId));
+                .orElseThrow(() -> new ResourceNotFoundException("İş kalemi", workItemId));
     }
 
     private WeeklyReport getVisibleReportOrThrow(Long reportId) {
         return weeklyReportRepository.findById(reportId)
                 .filter(report -> currentUser.viewer().canSee(report.getProject()))
-                .orElseThrow(() -> new ResourceNotFoundException("Haftalik rapor", reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Haftalık rapor", reportId));
     }
 
     private WorkItemResponse toResponse(WorkItem w) {

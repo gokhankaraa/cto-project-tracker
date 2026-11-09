@@ -42,7 +42,7 @@ final class FilterValues {
     static void requireYear(Integer year, Integer week, String weekParameter) {
         if (week != null && year == null) {
             throw new InvalidParameterException(weekParameter,
-                    "Hafta (" + weekParameter + ") yil (year) ile birlikte verilmelidir.");
+                    "Hafta (" + weekParameter + ") yıl (year) ile birlikte verilmelidir.");
         }
     }
 

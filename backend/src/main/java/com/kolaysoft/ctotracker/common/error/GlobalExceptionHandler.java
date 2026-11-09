@@ -44,7 +44,7 @@ public class GlobalExceptionHandler {
                 .toList();
 
         return build(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
-                "Gonderilen alanlar dogrulama kurallarina uymuyor.", request, fieldErrors);
+                "Gönderilen alanlar doğrulama kurallarına uymuyor.", request, fieldErrors);
     }
 
     /** Path/query parametreleri uzerindeki dogrulama hatalari. */
@@ -59,7 +59,7 @@ public class GlobalExceptionHandler {
                 .toList();
 
         return build(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
-                "Gonderilen parametreler dogrulama kurallarina uymuyor.", request, fieldErrors);
+                "Gönderilen parametreler doğrulama kurallarına uymuyor.", request, fieldErrors);
     }
 
     /**
@@ -70,7 +70,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleInvalidParameter(InvalidParameterException ex,
                                                            HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
-                "Gonderilen parametreler dogrulama kurallarina uymuyor.", request,
+                "Gönderilen parametreler doğrulama kurallarına uymuyor.", request,
                 List.of(new ApiFieldError(ex.getParameter(), ex.getMessage())));
     }
 
@@ -81,7 +81,7 @@ public class GlobalExceptionHandler {
         log.debug("Istek govdesi okunamadi: {}", ex.getMessage());
 
         return build(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_REQUEST,
-                "Istek govdesi okunamadi. Alan tiplerini ve enum degerlerini kontrol edin.", request);
+                "İstek gövdesi okunamadı. Alan tiplerini ve enum değerlerini kontrol edin.", request);
     }
 
     /** Path/query parametresi beklenen tipe cevrilemedi (or. tanimsiz enum, sayi yerine metin). */
@@ -91,7 +91,7 @@ public class GlobalExceptionHandler {
         log.debug("Parametre tipi uyumsuz: {}", ex.getMessage());
 
         return build(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_REQUEST,
-                "'%s' parametresinin degeri gecersiz.".formatted(ex.getName()), request);
+                "'%s' parametresinin değeri geçersiz.".formatted(ex.getName()), request);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -103,7 +103,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiError> handleUnknownPath(NoResourceFoundException ex, HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, ErrorCode.RESOURCE_NOT_FOUND,
-                "Boyle bir endpoint bulunmuyor.", request);
+                "Böyle bir endpoint bulunmuyor.", request);
     }
 
     @ExceptionHandler(DuplicateResourceException.class)
@@ -135,7 +135,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
         return build(HttpStatus.UNAUTHORIZED, ErrorCode.UNAUTHORIZED,
-                "Oturum gecersiz ya da suresi dolmus; yeniden giris yapin.", request);
+                "Oturum geçersiz ya da süresi dolmuş; yeniden giriş yapın.", request);
     }
 
     /**
@@ -144,14 +144,14 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
-        return build(HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, "Bu islem icin yetkiniz yok.", request);
+        return build(HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, "Bu işlem için yetkiniz yok.", request);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiError> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex,
                                                              HttpServletRequest request) {
         return build(HttpStatus.METHOD_NOT_ALLOWED, ErrorCode.METHOD_NOT_ALLOWED,
-                "%s metodu bu endpoint icin desteklenmiyor.".formatted(ex.getMethod()), request);
+                "%s metodu bu endpoint için desteklenmiyor.".formatted(ex.getMethod()), request);
     }
 
     /** Son savunma hatti: teknik detay sunucuda loglanir, istemciye sizdirilmaz. */
@@ -160,7 +160,7 @@ public class GlobalExceptionHandler {
         log.error("Beklenmeyen hata: {} {}", request.getMethod(), request.getRequestURI(), ex);
 
         return build(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_ERROR,
-                "Beklenmeyen bir sunucu hatasi olustu.", request);
+                "Beklenmeyen bir sunucu hatası oluştu.", request);
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, ErrorCode code, String message,

@@ -12,16 +12,16 @@ import jakarta.validation.constraints.Size;
 public record ProjectRequest(
 
         @Schema(description = "Proje adi", example = "Atlas IK")
-        @NotBlank(message = "Proje adi zorunludur.")
-        @Size(max = 255, message = "Proje adi en fazla 255 karakter olabilir.")
+        @NotBlank(message = "Proje adı zorunludur.")
+        @Size(max = 255, message = "Proje adı en fazla 255 karakter olabilir.")
         String name,
 
         @Schema(description = "Musteri veya demo musteri", example = "Demo Musteri A.S.")
-        @Size(max = 255, message = "Musteri en fazla 255 karakter olabilir.")
+        @Size(max = 255, message = "Müşteri en fazla 255 karakter olabilir.")
         String customer,
 
         @Schema(description = "Proje aciklamasi", example = "Insan kaynaklari surecleri urunu")
-        @Size(max = 1000, message = "Aciklama en fazla 1000 karakter olabilir.")
+        @Size(max = 1000, message = "Açıklama en fazla 1000 karakter olabilir.")
         String description,
 
         @Schema(description = "Proje durumu", example = "DEVAM_EDIYOR")
@@ -29,6 +29,6 @@ public record ProjectRequest(
         ProjectStatus status,
 
         @Schema(description = "Sorumlu proje yoneticisinin kullanici id'si", example = "1")
-        @NotNull(message = "Sorumlu proje yoneticisi (ownerId) zorunludur.")
+        @NotNull(message = "Sorumlu proje yöneticisi (ownerId) zorunludur.")
         Long ownerId) {
 }

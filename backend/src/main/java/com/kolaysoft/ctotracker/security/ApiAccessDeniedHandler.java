@@ -16,7 +16,7 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class ApiAccessDeniedHandler implements AccessDeniedHandler {
 
-    static final String MESSAGE = "Bu islem icin yetkiniz yok.";
+    static final String MESSAGE = "Bu işlem için yetkiniz yok.";
 
     private final ApiErrorWriter writer;
 

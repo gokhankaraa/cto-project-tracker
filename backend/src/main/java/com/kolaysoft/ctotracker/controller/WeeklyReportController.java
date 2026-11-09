@@ -76,20 +76,20 @@ public class WeeklyReportController {
 
             @Parameter(description = "Raporun yili (anlattigi haftanin ISO yili)", example = "2026")
             @RequestParam(required = false)
-            @Min(value = 2000, message = "Yil en az 2000 olmalidir.")
-            @Max(value = 2100, message = "Yil en fazla 2100 olmalidir.") Integer year,
+            @Min(value = 2000, message = "Yıl en az 2000 olmalıdır.")
+            @Max(value = 2100, message = "Yıl en fazla 2100 olmalıdır.") Integer year,
 
             @Parameter(description = "Baslangic haftasi (dahil, 1-53); yalnizca year ile birlikte, o yilin icinde",
                     example = "29")
             @RequestParam(required = false)
-            @Min(value = 1, message = "Hafta numarasi en az 1 olmalidir.")
-            @Max(value = 53, message = "Hafta numarasi en fazla 53 olmalidir.") Integer weekFrom,
+            @Min(value = 1, message = "Hafta numarası en az 1 olmalıdır.")
+            @Max(value = 53, message = "Hafta numarası en fazla 53 olmalıdır.") Integer weekFrom,
 
             @Parameter(description = "Bitis haftasi (dahil, 1-53); yalnizca year ile birlikte, weekFrom'dan kucuk "
                     + "olamaz", example = "30")
             @RequestParam(required = false)
-            @Min(value = 1, message = "Hafta numarasi en az 1 olmalidir.")
-            @Max(value = 53, message = "Hafta numarasi en fazla 53 olmalidir.") Integer weekTo,
+            @Min(value = 1, message = "Hafta numarası en az 1 olmalıdır.")
+            @Max(value = 53, message = "Hafta numarası en fazla 53 olmalıdır.") Integer weekTo,
 
             @Parameter(description = "Baslangic rapor tarihi (dahil, yyyy-MM-dd)", example = "2026-07-20")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
@@ -109,11 +109,11 @@ public class WeeklyReportController {
 
             @Parameter(description = "Sayfa numarasi (0'dan baslar)", example = "0")
             @RequestParam(defaultValue = "0")
-            @Min(value = 0, message = "Sayfa numarasi 0 veya daha buyuk olmalidir.") int page,
+            @Min(value = 0, message = "Sayfa numarası 0 veya daha büyük olmalıdır.") int page,
 
             @Parameter(description = "Sayfa boyutu (1-100)", example = "20")
             @RequestParam(defaultValue = "20")
-            @Min(value = 1, message = "Sayfa boyutu en az 1 olmalidir.")
+            @Min(value = 1, message = "Sayfa boyutu en az 1 olmalıdır.")
             @Max(value = 100, message = "Sayfa boyutu en fazla 100 olabilir.") int size,
 
             @Parameter(description = "Siralama: 'alan' veya 'alan,asc|desc'. Alanlar: reportDate, weekNumber, "

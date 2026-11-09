@@ -58,15 +58,15 @@ public class DashboardController {
             @Parameter(description = "Referans yil (raporun anlattigi haftanin ISO yili). Yalnizca yil verilirse her proje "
                     + "icin o yilin sonuna kadarki en son rapor esas alinir", example = "2026")
             @RequestParam(required = false)
-            @Min(value = 2000, message = "Yil en az 2000 olmalidir.")
-            @Max(value = 2100, message = "Yil en fazla 2100 olmalidir.") Integer year,
+            @Min(value = 2000, message = "Yıl en az 2000 olmalıdır.")
+            @Max(value = 2100, message = "Yıl en fazla 2100 olmalıdır.") Integer year,
 
             @Parameter(description = "Referans hafta (1-53), yalnizca year ile birlikte: her proje icin bu yil ve "
                     + "haftaya kadarki en son rapor esas alinir (onceki yillar dahil); o noktaya kadar raporu "
                     + "olmayan projeler hasReport=false ile listelenir. year olmadan 400 doner", example = "29")
             @RequestParam(required = false)
-            @Min(value = 1, message = "Hafta numarasi en az 1 olmalidir.")
-            @Max(value = 53, message = "Hafta numarasi en fazla 53 olmalidir.") Integer weekNumber,
+            @Min(value = 1, message = "Hafta numarası en az 1 olmalıdır.")
+            @Max(value = 53, message = "Hafta numarası en fazla 53 olmalıdır.") Integer weekNumber,
 
             @Parameter(description = "Raporun genel durumu; birden cok deger virgulle verilebilir", example = "RISKLI")
             @RequestParam(required = false) List<OverallStatus> overallStatus,

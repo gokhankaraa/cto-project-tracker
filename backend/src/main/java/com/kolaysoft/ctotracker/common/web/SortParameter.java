@@ -59,7 +59,7 @@ public final class SortParameter {
     private static InvalidParameterException invalid(String value, Map<String, String> allowed) {
         String fields = allowed.keySet().stream().sorted().collect(Collectors.joining(", "));
         return new InvalidParameterException(PARAMETER,
-                "Gecersiz siralama: '%s'. Bicim 'alan' veya 'alan,asc|desc' olmalidir; izin verilen alanlar: %s."
+                "Geçersiz sıralama: '%s'. Biçim 'alan' veya 'alan,asc|desc' olmalıdır; izin verilen alanlar: %s."
                         .formatted(value, fields));
     }
 }

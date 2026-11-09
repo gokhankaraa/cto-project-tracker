@@ -77,7 +77,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test-errors/not-found"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("Proje bulunamadi: 42"))
+                .andExpect(jsonPath("$.message").value("Proje bulunamadı: 42"))
                 .andExpect(jsonPath("$.fieldErrors").doesNotExist());
     }
 
@@ -95,7 +95,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test-errors/business-rule"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BUSINESS_RULE_VIOLATION"))
-                .andExpect(jsonPath("$.message").value("Ilerleme kademesinde sira atlanamaz."));
+                .andExpect(jsonPath("$.message").value("İlerleme kademesinde sıra atlanamaz."));
     }
 
     @Test
@@ -104,7 +104,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test-errors/boom"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("INTERNAL_ERROR"))
-                .andExpect(jsonPath("$.message").value("Beklenmeyen bir sunucu hatasi olustu."));
+                .andExpect(jsonPath("$.message").value("Beklenmeyen bir sunucu hatası oluştu."));
     }
 
     @Test
@@ -113,7 +113,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test-errors/access-denied"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"))
-                .andExpect(jsonPath("$.message").value("Bu islem icin yetkiniz yok."));
+                .andExpect(jsonPath("$.message").value("Bu işlem için yetkiniz yok."));
     }
 
     @Test
@@ -141,8 +141,8 @@ class GlobalExceptionHandlerTest {
         enum SampleLevel { DUSUK, ORTA, YUKSEK }
 
         record SampleRequest(@NotBlank(message = "Baslik zorunludur.") String title,
-                             @Min(value = 1, message = "Hafta numarasi en az 1 olmalidir.")
-                             @Max(value = 53, message = "Hafta numarasi en fazla 53 olmalidir.") int weekNumber) {
+                             @Min(value = 1, message = "Hafta numarası en az 1 olmalıdır.")
+                             @Max(value = 53, message = "Hafta numarası en fazla 53 olmalıdır.") int weekNumber) {
         }
 
         @PostMapping("/validate")
@@ -162,12 +162,12 @@ class GlobalExceptionHandlerTest {
 
         @org.springframework.web.bind.annotation.GetMapping("/duplicate")
         String duplicate() {
-            throw new DuplicateResourceException("Bu proje ve hafta icin rapor zaten mevcut.");
+            throw new DuplicateResourceException("Bu proje ve hafta için rapor zaten mevcut.");
         }
 
         @org.springframework.web.bind.annotation.GetMapping("/business-rule")
         String businessRule() {
-            throw new BusinessRuleException("Ilerleme kademesinde sira atlanamaz.");
+            throw new BusinessRuleException("İlerleme kademesinde sıra atlanamaz.");
         }
 
         @org.springframework.web.bind.annotation.GetMapping("/boom")

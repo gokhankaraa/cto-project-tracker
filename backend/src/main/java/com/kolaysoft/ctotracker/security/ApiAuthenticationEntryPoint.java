@@ -32,8 +32,8 @@ public class ApiAuthenticationEntryPoint implements AuthenticationEntryPoint {
                          AuthenticationException exception) throws IOException {
         // Token'in neden reddedildigi (imza, sure) istemciye ayrintili soylenmez.
         String message = exception instanceof InvalidBearerTokenException
-                ? "Oturum gecersiz ya da suresi dolmus; yeniden giris yapin."
-                : "Bu islem icin giris yapmalisiniz.";
+                ? "Oturum geçersiz ya da süresi dolmuş; yeniden giriş yapın."
+                : "Bu işlem için giriş yapmalısınız.";
         response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
         writer.write(request, response, HttpStatus.UNAUTHORIZED, ErrorCode.UNAUTHORIZED, message);
     }

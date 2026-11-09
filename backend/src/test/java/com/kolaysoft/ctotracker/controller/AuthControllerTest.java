@@ -125,7 +125,7 @@ class AuthControllerTest {
                             .contentType(MediaType.APPLICATION_JSON).content(loginBody(credentials[0], credentials[1])))
                     .andExpect(status().isUnauthorized())
                     .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"))
-                    .andExpect(jsonPath("$.message").value("E-posta ya da parola hatali."));
+                    .andExpect(jsonPath("$.message").value("E-posta ya da parola hatalı."));
         }
     }
 
@@ -147,7 +147,7 @@ class AuthControllerTest {
                 .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"))
                 .andExpect(jsonPath("$.status").value(401))
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
-                .andExpect(jsonPath("$.message").value("Bu islem icin giris yapmalisiniz."))
+                .andExpect(jsonPath("$.message").value("Bu işlem için giriş yapmalısınız."))
                 .andExpect(jsonPath("$.path").value("/api/projects"));
     }
 
@@ -163,7 +163,7 @@ class AuthControllerTest {
             mockMvc.perform(get("/api/projects").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                     .andExpect(status().isUnauthorized())
                     .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
-                    .andExpect(jsonPath("$.message").value("Oturum gecersiz ya da suresi dolmus; yeniden giris yapin."));
+                    .andExpect(jsonPath("$.message").value("Oturum geçersiz ya da süresi dolmuş; yeniden giriş yapın."));
         }
     }
 

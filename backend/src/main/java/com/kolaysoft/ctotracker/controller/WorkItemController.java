@@ -72,14 +72,14 @@ public class WorkItemController {
             @Parameter(description = "Referans yıl (raporun anlattığı haftanın ISO yılı). Yalnızca yıl verilirse her proje "
                     + "için o yılın sonuna kadarki en son rapor", example = "2026")
             @RequestParam(required = false)
-            @Min(value = 2000, message = "Yil en az 2000 olmalidir.")
-            @Max(value = 2100, message = "Yil en fazla 2100 olmalidir.") Integer year,
+            @Min(value = 2000, message = "Yıl en az 2000 olmalıdır.")
+            @Max(value = 2100, message = "Yıl en fazla 2100 olmalıdır.") Integer year,
 
             @Parameter(description = "Referans hafta (1-53), yalnızca year ile birlikte: her proje için bu yıl ve "
                     + "haftaya kadarki en son rapor (önceki yıllar dahil). year olmadan 400 döner", example = "29")
             @RequestParam(required = false)
-            @Min(value = 1, message = "Hafta numarasi en az 1 olmalidir.")
-            @Max(value = 53, message = "Hafta numarasi en fazla 53 olmalidir.") Integer weekNumber,
+            @Min(value = 1, message = "Hafta numarası en az 1 olmalıdır.")
+            @Max(value = 53, message = "Hafta numarası en fazla 53 olmalıdır.") Integer weekNumber,
 
             @Parameter(description = "Sorumlu; büyük/küçük harfe duyarsız 'içerir' araması", example = "mehmet")
             @RequestParam(required = false)
@@ -95,11 +95,11 @@ public class WorkItemController {
 
             @Parameter(description = "Sayfa numarası (0'dan başlar)", example = "0")
             @RequestParam(defaultValue = "0")
-            @Min(value = 0, message = "Sayfa numarasi 0 veya daha buyuk olmalidir.") int page,
+            @Min(value = 0, message = "Sayfa numarası 0 veya daha büyük olmalıdır.") int page,
 
             @Parameter(description = "Sayfa boyutu (1-100)", example = "20")
             @RequestParam(defaultValue = "20")
-            @Min(value = 1, message = "Sayfa boyutu en az 1 olmalidir.")
+            @Min(value = 1, message = "Sayfa boyutu en az 1 olmalıdır.")
             @Max(value = 100, message = "Sayfa boyutu en fazla 100 olabilir.") int size,
 
             @Parameter(description = "Sıralama: 'alan' veya 'alan,asc|desc'. Alanlar: plannedDate, title, "

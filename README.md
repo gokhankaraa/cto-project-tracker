@@ -499,7 +499,7 @@ Whatever the error, the API returns a single body shape (see pre-analysis, secti
   "timestamp": "2026-07-22T15:49:49.598473+03:00",
   "status": 404,
   "code": "RESOURCE_NOT_FOUND",
-  "message": "Proje bulunamadi: 42",
+  "message": "Proje bulunamadı: 42",
   "path": "/api/projects/42"
 }
 ```
@@ -511,10 +511,10 @@ Validation errors additionally include a `fieldErrors` array:
   "timestamp": "2026-07-22T15:49:49.598473+03:00",
   "status": 400,
   "code": "VALIDATION_ERROR",
-  "message": "Gonderilen alanlar dogrulama kurallarina uymuyor.",
+  "message": "Gönderilen alanlar doğrulama kurallarına uymuyor.",
   "path": "/api/reports",
   "fieldErrors": [
-    { "field": "weekNumber", "message": "Hafta numarasi en fazla 53 olmalidir." }
+    { "field": "weekNumber", "message": "Hafta numarası en fazla 53 olmalıdır." }
   ]
 }
 ```

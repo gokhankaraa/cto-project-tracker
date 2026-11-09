@@ -47,6 +47,6 @@ public class AuthController {
     public UserResponse me(@AuthenticationPrincipal Jwt jwt) {
         // Token gecerli ama kullanici o arada silinmisse oturum da gecersiz sayilir.
         return authService.currentUser(Long.valueOf(jwt.getSubject()))
-                .orElseThrow(() -> new InsufficientAuthenticationException("Kullanici artik yok."));
+                .orElseThrow(() -> new InsufficientAuthenticationException("Kullanıcı artık yok."));
     }
 }

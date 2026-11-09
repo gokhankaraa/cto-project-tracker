@@ -134,7 +134,7 @@ class MvpIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("DUPLICATE_RESOURCE"))
-                .andExpect(jsonPath("$.message").value("Bu proje icin 2026 yilinin 29. haftasina ait rapor zaten mevcut."));
+                .andExpect(jsonPath("$.message").value("Bu proje için 2026 yılının 29. haftasına ait rapor zaten mevcut."));
     }
 
     @Test

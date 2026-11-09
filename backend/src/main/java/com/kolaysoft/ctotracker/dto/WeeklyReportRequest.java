@@ -20,9 +20,9 @@ import jakarta.validation.constraints.Size;
 public record WeeklyReportRequest(
 
         @Schema(description = "Hafta numarasi (1-53)", example = "30")
-        @NotNull(message = "Hafta numarasi zorunludur.")
-        @Min(value = 1, message = "Hafta numarasi en az 1 olmalidir.")
-        @Max(value = 53, message = "Hafta numarasi en fazla 53 olmalidir.")
+        @NotNull(message = "Hafta numarası zorunludur.")
+        @Min(value = 1, message = "Hafta numarası en az 1 olmalıdır.")
+        @Max(value = 53, message = "Hafta numarası en fazla 53 olmalıdır.")
         Integer weekNumber,
 
         @Schema(description = "Rapor tarihi", example = "2026-07-27")
@@ -30,7 +30,7 @@ public record WeeklyReportRequest(
         LocalDate reportDate,
 
         @Schema(description = "Ilerleme kademesi", example = "GELISTIRME")
-        @NotNull(message = "Ilerleme kademesi zorunludur.")
+        @NotNull(message = "İlerleme kademesi zorunludur.")
         ProgressStage progressStage,
 
         @Schema(description = "Genel durum", example = "YOLUNDA")
@@ -42,11 +42,11 @@ public record WeeklyReportRequest(
         RiskLevel riskLevel,
 
         @Schema(description = "O hafta yapilanlar")
-        @Size(max = 2000, message = "Yapilanlar en fazla 2000 karakter olabilir.")
+        @Size(max = 2000, message = "Yapılanlar en fazla 2000 karakter olabilir.")
         String done,
 
         @Schema(description = "Gelecek hafta yapilacaklar")
-        @Size(max = 2000, message = "Yapilacaklar en fazla 2000 karakter olabilir.")
+        @Size(max = 2000, message = "Yapılacaklar en fazla 2000 karakter olabilir.")
         String planned,
 
         @Schema(description = "Riskler / engeller")

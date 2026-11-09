@@ -7,6 +7,6 @@ package com.kolaysoft.ctotracker.common.exception;
 public class InvalidCredentialsException extends RuntimeException {
 
     public InvalidCredentialsException() {
-        super("E-posta ya da parola hatali.");
+        super("E-posta ya da parola hatalı.");
     }
 }

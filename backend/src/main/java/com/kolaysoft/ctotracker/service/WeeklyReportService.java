@@ -140,11 +140,11 @@ public class WeeklyReportService {
     private void validateRanges(ReportFilter filter) {
         if (filter.weekFrom() != null && filter.weekTo() != null && filter.weekFrom() > filter.weekTo()) {
             throw new InvalidParameterException("weekTo",
-                    "Bitis haftasi (weekTo) baslangic haftasindan (weekFrom) kucuk olamaz.");
+                    "Bitiş haftası (weekTo) başlangıç haftasından (weekFrom) küçük olamaz.");
         }
         if (filter.dateFrom() != null && filter.dateTo() != null && filter.dateFrom().isAfter(filter.dateTo())) {
             throw new InvalidParameterException("dateTo",
-                    "Bitis tarihi (dateTo) baslangic tarihinden (dateFrom) once olamaz.");
+                    "Bitiş tarihi (dateTo) başlangıç tarihinden (dateFrom) önce olamaz.");
         }
     }
 
@@ -159,18 +159,18 @@ public class WeeklyReportService {
         int year = WeeklyReport.yearOf(week, reportDate);
         if (!WeeklyReport.hasWeek(year, week)) {
             throw new InvalidParameterException("weekNumber",
-                    "Rapor tarihinin yilinda ve komsu yillarda %d. hafta yok.".formatted(week));
+                    "Rapor tarihinin yılında ve komşu yıllarda %d. hafta yok.".formatted(week));
         }
         LocalDate monday = WeeklyReport.mondayOf(year, week);
         if (reportDate.isBefore(monday)) {
             throw new InvalidParameterException("reportDate",
-                    "Rapor tarihi, anlattigi haftadan (%d / %d. hafta, %s) once olamaz."
+                    "Rapor tarihi, anlattığı haftadan (%d / %d. hafta, %s) önce olamaz."
                             .formatted(year, week, DATE_FORMAT.format(monday)));
         }
         LocalDate lastDay = monday.plusDays(REPORT_WINDOW_DAYS - 1);
         if (reportDate.isAfter(lastDay)) {
             throw new InvalidParameterException("reportDate",
-                    "Rapor en gec anlattigi haftanin ertesi haftasinda yazilabilir (%d / %d. hafta icin son gun %s)."
+                    "Rapor en geç anlattığı haftanın ertesi haftasında yazılabilir (%d / %d. hafta için son gün %s)."
                             .formatted(year, week, DATE_FORMAT.format(lastDay)));
         }
         return year;
@@ -181,18 +181,18 @@ public class WeeklyReportService {
         int diff = next.ordinal() - current.ordinal();
         if (diff < 0) {
             throw new BusinessRuleException(
-                    "Ilerleme kademesi geriye alinamaz: %s -> %s.".formatted(current, next));
+                    "İlerleme kademesi geriye alınamaz: %s -> %s.".formatted(current, next));
         }
         if (diff > 1) {
             throw new BusinessRuleException(
-                    "Ilerleme kademesinde sira atlanamaz; yalnizca bir sonraki kademeye gecilebilir: %s -> %s."
+                    "İlerleme kademesinde sıra atlanamaz; yalnızca bir sonraki kademeye geçilebilir: %s -> %s."
                             .formatted(current, next));
         }
     }
 
     private static DuplicateResourceException duplicateWeek(Integer year, Integer weekNumber) {
         return new DuplicateResourceException(
-                "Bu proje icin %d yilinin %d. haftasina ait rapor zaten mevcut.".formatted(year, weekNumber));
+                "Bu proje için %d yılının %d. haftasına ait rapor zaten mevcut.".formatted(year, weekNumber));
     }
 
     private void applyRequest(WeeklyReport report, WeeklyReportRequest request) {
@@ -211,7 +211,7 @@ public class WeeklyReportService {
     private WeeklyReport getReportOrThrow(Long reportId) {
         return weeklyReportRepository.findById(reportId)
                 .filter(report -> currentUser.viewer().canSee(report.getProject()))
-                .orElseThrow(() -> new ResourceNotFoundException("Haftalik rapor", reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Haftalık rapor", reportId));
     }
 
     private Project getVisibleProjectOrThrow(Long projectId) {
