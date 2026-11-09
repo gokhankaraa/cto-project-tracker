@@ -1,11 +1,12 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useParams } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import { report } from '../../test/fixtures'
 import { mockApi, requests } from '../../test/mockApi'
 import { renderWithProviders } from '../../test/render'
+import { CTO, PROJECT_MANAGER, signIn } from '../../test/session'
 import { ReportDetailPage } from './ReportDetailPage'
 
 const REPORT = report(4, 31, {
@@ -31,6 +32,9 @@ function renderDetail(route = '/reports/4') {
 }
 
 describe('ReportDetailPage', () => {
+  // Yazma butonlari role gore gorunur; asagidaki rol testleri disinda testler Admin olarak calisir.
+  beforeEach(() => signIn())
+
   it('rapor bilgilerini ve metinlerini gosterir', async () => {
     mockApi({ '/api/reports/4': REPORT })
     renderDetail()
@@ -55,5 +59,24 @@ describe('ReportDetailPage', () => {
 
     expect(await screen.findByText('Proje detayı 1')).toBeInTheDocument()
     expect(requests(fetchMock).some((r) => r.method === 'DELETE' && r.url.pathname === '/api/reports/4')).toBe(true)
+  })
+
+  it('CTO raporu duzenleyemez ve silemez', async () => {
+    signIn(CTO)
+    mockApi({ '/api/reports/4': REPORT })
+    renderDetail()
+
+    expect(await screen.findByRole('heading', { name: '2026 / 31. hafta' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Düzenle' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sil' })).not.toBeInTheDocument()
+  })
+
+  it('proje yoneticisi raporu duzenleyebilir ve silebilir', async () => {
+    signIn(PROJECT_MANAGER)
+    mockApi({ '/api/reports/4': REPORT })
+    renderDetail()
+
+    expect(await screen.findByRole('link', { name: 'Düzenle' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sil' })).toBeInTheDocument()
   })
 })

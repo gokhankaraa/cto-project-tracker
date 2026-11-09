@@ -12,8 +12,7 @@ Stack: **Java + Spring Boot, React + TypeScript** · Author: Gökhan Kara
 > a real PostgreSQL via Testcontainers. Reports carry the year of the week they describe (Flyway V2,
 > corrected at year boundaries in V3), and the filters accept a `year`. The React frontend covers
 > all of these screens behind a login screen. The API requires a login (JWT) and enforces
-> role-based permissions; hiding actions a role may not take in the frontend comes next (until
-> then the backend answers them with **403**).
+> role-based permissions; the frontend shows each role only the actions it may take.
 
 Project documents (in [`docs/`](docs/), Turkish):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, data model, endpoints, assumptions, scope)
@@ -178,6 +177,8 @@ Login (`src/auth/`, `src/pages/LoginPage.tsx`):
   to see that page.
 - Logging in and out clears the query cache, so one user's data is never shown to the next one.
 - The top bar shows the user's name and role and a logout button.
+- Write actions follow the role (see [Permissions](#permissions)): `usePermissions()` hides the
+  buttons, `RequirePermission` guards the form routes in `router.tsx`.
 
 Shared building blocks for the screens: `src/api/types.ts` (response types and enum values, same
 names as the backend), `src/lib/labels.ts` (Turkish labels and badge colors for every enum),
@@ -351,6 +352,9 @@ curl -s http://localhost:8080/api/projects -H "Authorization: Bearer <token>"
 - Someone else's project, report or work item opened by id is **404** for a project manager, with
   the same message as a record that does not exist, so the API does not reveal that it exists.
   This also applies to writes: a project manager writing into someone else's project gets 404.
+- The frontend follows the same table (`frontend/src/auth/permissions.ts`): buttons for actions a
+  role may not take are not shown, and a form address typed by hand shows "Yetkiniz yok" instead
+  of the form. This is only for usability; the backend checks above are what enforce the rules.
 
 ## Filtering, paging and sorting
 
@@ -566,7 +570,7 @@ Backend tests (159 in total). The HTTP tests of business rules run as an Admin
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (149, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (164, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
@@ -581,6 +585,11 @@ Frontend tests (149, Vitest + Testing Library on jsdom; component tests never re
   page after a deliberate logout
 - `RequireAuth.test.tsx` — the page shows with a session; a 401 from the page's request returns to
   login with the note
+- `RequirePermission.test.tsx` — the permission table per role (same as the backend's), no
+  permissions without a session; a form route shows "Yetkiniz yok" to the CTO and project manager
+- Page tests run as an Admin by default; each screen with write actions also checks what the CTO
+  and a project manager see (no "Yeni proje" for either, project edit / delete only for the Admin,
+  report and work item actions for the project manager, none for the CTO)
 - `QueryState.test.tsx` — the shared loading / empty / error (with retry) states
 - `EnumBadge.test.tsx` — enum values shown with their Turkish label, a dash when there is no value
 - `AppLayout.test.tsx` — every screen is a menu link; the current page's item is active, also on

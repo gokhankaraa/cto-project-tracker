@@ -7,6 +7,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { errorMessage } from '../../api/client'
 import { useDeleteReport, useReport } from '../../api/reports'
 import type { WeeklyReport } from '../../api/types'
+import { usePermissions } from '../../auth/permissions'
 import { EnumBadge } from '../../components/EnumBadge'
 import { PageHeader } from '../../components/PageHeader'
 import { ProgressValue } from '../../components/ProgressValue'
@@ -24,6 +25,7 @@ export function ReportDetailPage() {
 
 function ReportDetail({ id }: { id: number }) {
   const report = useReport(id)
+  const can = usePermissions()
 
   return (
     <QueryState query={report}>
@@ -34,12 +36,14 @@ function ReportDetail({ id }: { id: number }) {
             description={`${data.projectName} · haftalık rapor`}
             back={{ to: `/projects/${data.projectId}`, label: data.projectName }}
             actions={
-              <>
-                <Button component={Link} to={`/reports/${id}/edit`} variant="default">
-                  Düzenle
-                </Button>
-                <DeleteReportButton report={data} />
-              </>
+              can.writeReports && (
+                <>
+                  <Button component={Link} to={`/reports/${id}/edit`} variant="default">
+                    Düzenle
+                  </Button>
+                  <DeleteReportButton report={data} />
+                </>
+              )
             }
           />
           <ReportSummary report={data} />

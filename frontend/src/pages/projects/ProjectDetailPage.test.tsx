@@ -1,11 +1,12 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import { ATLAS, report } from '../../test/fixtures'
 import { mockApi, requests } from '../../test/mockApi'
 import { renderWithProviders } from '../../test/render'
+import { CTO, PROJECT_MANAGER, signIn } from '../../test/session'
 import { ProjectDetailPage } from './ProjectDetailPage'
 
 function renderDetail(route = '/projects/1') {
@@ -19,6 +20,9 @@ function renderDetail(route = '/projects/1') {
 }
 
 describe('ProjectDetailPage', () => {
+  // Yazma butonlari role gore gorunur; asagidaki rol testleri disinda testler Admin olarak calisir.
+  beforeEach(() => signIn())
+
   it('proje bilgilerini ve raporlari en yeni hafta ustte gosterir', async () => {
     mockApi({
       '/api/projects/1': ATLAS,
@@ -94,5 +98,28 @@ describe('ProjectDetailPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Sayfa bulunamadı' })).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('CTO hicbir yazma butonu gormez', async () => {
+    signIn(CTO)
+    mockApi({ '/api/projects/1': ATLAS, '/api/projects/1/reports': [report(1, 29)] })
+    renderDetail()
+
+    expect(await screen.findByRole('heading', { name: 'Atlas IK' })).toBeInTheDocument()
+    await screen.findByText('2026 / 29. hafta')
+    for (const name of ['Düzenle', 'Sil', 'Yeni rapor']) {
+      expect(screen.queryByRole('link', { name })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+    }
+  })
+
+  it('proje yoneticisi rapor ekleyebilir ama projeyi duzenleyemez ve silemez', async () => {
+    signIn(PROJECT_MANAGER)
+    mockApi({ '/api/projects/1': ATLAS, '/api/projects/1/reports': [] })
+    renderDetail()
+
+    expect(await screen.findByRole('link', { name: 'Yeni rapor' })).toHaveAttribute('href', '/projects/1/reports/new')
+    expect(screen.queryByRole('link', { name: 'Düzenle' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sil' })).not.toBeInTheDocument()
   })
 })

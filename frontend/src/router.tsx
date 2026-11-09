@@ -1,6 +1,7 @@
-import { createBrowserRouter } from 'react-router'
+import { createBrowserRouter, Outlet } from 'react-router'
 
 import { RequireAuth } from './auth/RequireAuth'
+import { RequirePermission } from './auth/RequirePermission'
 import { AppLayout } from './layout/AppLayout'
 import { NotFoundPage } from './pages/NotFoundPage'
 
@@ -31,20 +32,8 @@ export const router = createBrowserRouter([
         lazy: () => import('./pages/projects/ProjectListPage').then((m) => ({ Component: m.ProjectListPage })),
       },
       {
-        path: 'projects/new',
-        lazy: () => import('./pages/projects/ProjectFormPage').then((m) => ({ Component: m.NewProjectPage })),
-      },
-      {
         path: 'projects/:id',
         lazy: () => import('./pages/projects/ProjectDetailPage').then((m) => ({ Component: m.ProjectDetailPage })),
-      },
-      {
-        path: 'projects/:id/edit',
-        lazy: () => import('./pages/projects/ProjectFormPage').then((m) => ({ Component: m.EditProjectPage })),
-      },
-      {
-        path: 'projects/:id/reports/new',
-        lazy: () => import('./pages/reports/ReportFormPage').then((m) => ({ Component: m.NewReportPage })),
       },
       {
         path: 'reports',
@@ -55,12 +44,43 @@ export const router = createBrowserRouter([
         lazy: () => import('./pages/reports/ReportDetailPage').then((m) => ({ Component: m.ReportDetailPage })),
       },
       {
-        path: 'reports/:id/edit',
-        lazy: () => import('./pages/reports/ReportFormPage').then((m) => ({ Component: m.EditReportPage })),
-      },
-      {
         path: 'work-items',
         lazy: () => import('./pages/workItems/WorkItemListPage').then((m) => ({ Component: m.WorkItemListPage })),
+      },
+      {
+        // Yazma formlari: rolu uymayan, adresi elle yazsa da formu degil "yetkiniz yok" gorur.
+        element: (
+          <RequirePermission permission="manageProjects">
+            <Outlet />
+          </RequirePermission>
+        ),
+        children: [
+          {
+            path: 'projects/new',
+            lazy: () => import('./pages/projects/ProjectFormPage').then((m) => ({ Component: m.NewProjectPage })),
+          },
+          {
+            path: 'projects/:id/edit',
+            lazy: () => import('./pages/projects/ProjectFormPage').then((m) => ({ Component: m.EditProjectPage })),
+          },
+        ],
+      },
+      {
+        element: (
+          <RequirePermission permission="writeReports">
+            <Outlet />
+          </RequirePermission>
+        ),
+        children: [
+          {
+            path: 'projects/:id/reports/new',
+            lazy: () => import('./pages/reports/ReportFormPage').then((m) => ({ Component: m.NewReportPage })),
+          },
+          {
+            path: 'reports/:id/edit',
+            lazy: () => import('./pages/reports/ReportFormPage').then((m) => ({ Component: m.EditReportPage })),
+          },
+        ],
       },
       { path: '*', element: <NotFoundPage /> },
     ],

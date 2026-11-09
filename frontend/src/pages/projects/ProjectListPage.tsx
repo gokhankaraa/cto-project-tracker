@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 
 import { useProjects } from '../../api/projects'
 import type { Project } from '../../api/types'
+import { usePermissions } from '../../auth/permissions'
 import { EnumBadge } from '../../components/EnumBadge'
 import { PageHeader } from '../../components/PageHeader'
 import { QueryState } from '../../components/QueryState'
@@ -19,15 +20,18 @@ export function ProjectListPage() {
   const navigate = useNavigate()
   const query = searchParams.get('q') ?? ''
   const projects = useProjects()
+  const can = usePermissions()
 
   return (
     <Stack gap="md">
       <PageHeader
         title="Projeler"
         actions={
-          <Button component={Link} to="/projects/new">
-            Yeni proje
-          </Button>
+          can.manageProjects && (
+            <Button component={Link} to="/projects/new">
+              Yeni proje
+            </Button>
+          )
         }
       />
 

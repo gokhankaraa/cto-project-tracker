@@ -7,6 +7,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { errorMessage } from '../../api/client'
 import { useDeleteProject, useProject, useProjectReports } from '../../api/projects'
 import type { Project, WeeklyReport } from '../../api/types'
+import { usePermissions } from '../../auth/permissions'
 import { EnumBadge } from '../../components/EnumBadge'
 import { PageHeader } from '../../components/PageHeader'
 import { ProgressValue } from '../../components/ProgressValue'
@@ -29,6 +30,7 @@ export function ProjectDetailPage() {
 function ProjectDetail({ id }: { id: number }) {
   const project = useProject(id)
   const reports = useProjectReports(id)
+  const can = usePermissions()
 
   return (
     <QueryState query={project}>
@@ -38,12 +40,14 @@ function ProjectDetail({ id }: { id: number }) {
             title={data.name}
             back={{ to: '/projects', label: 'Projeler' }}
             actions={
-              <>
-                <Button component={Link} to={`/projects/${id}/edit`} variant="default">
-                  Düzenle
-                </Button>
-                <DeleteProjectButton project={data} reportCount={reports.data?.length} />
-              </>
+              can.manageProjects && (
+                <>
+                  <Button component={Link} to={`/projects/${id}/edit`} variant="default">
+                    Düzenle
+                  </Button>
+                  <DeleteProjectButton project={data} reportCount={reports.data?.length} />
+                </>
+              )
             }
           />
 
@@ -51,9 +55,11 @@ function ProjectDetail({ id }: { id: number }) {
 
           <Group justify="space-between">
             <Title order={3}>Haftalık raporlar</Title>
-            <Button component={Link} to={`/projects/${id}/reports/new`}>
-              Yeni rapor
-            </Button>
+            {can.writeReports && (
+              <Button component={Link} to={`/projects/${id}/reports/new`}>
+                Yeni rapor
+              </Button>
+            )}
           </Group>
           <QueryState query={reports} isEmpty={(list) => list.length === 0} empty="Bu proje için henüz rapor yok.">
             {(list) => <ReportHistoryTable reports={list} />}

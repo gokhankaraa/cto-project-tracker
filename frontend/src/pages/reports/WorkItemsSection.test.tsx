@@ -1,10 +1,11 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import { report, workItem } from '../../test/fixtures'
 import { mockApi, requests, validationError, type MockReply, type MockRequest } from '../../test/mockApi'
 import { renderWithProviders } from '../../test/render'
+import { CTO, PROJECT_MANAGER, signIn } from '../../test/session'
 import { WorkItemsSection } from './WorkItemsSection'
 
 const REPORT = report(4, 31)
@@ -21,6 +22,9 @@ function setup(handlers: Record<string, Handler> = {}) {
 const writes = (fetchMock: ReturnType<typeof mockApi>) => requests(fetchMock).filter((r) => r.method !== 'GET')
 
 describe('WorkItemsSection', () => {
+  // Yazma butonlari role gore gorunur; asagidaki rol testleri disinda testler Admin olarak calisir.
+  beforeEach(() => signIn())
+
   it('raporun is kalemlerini listeler', async () => {
     setup()
 
@@ -95,5 +99,25 @@ describe('WorkItemsSection', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(writes(fetchMock).map((r) => `${r.method} ${r.url.pathname}`)).toEqual(['DELETE /api/work-items/10'])
+  })
+
+  it('CTO is kalemlerini gorur ama ekleyemez, duzenleyemez, silemez', async () => {
+    signIn(CTO)
+    setup()
+
+    const row = (await screen.findByText('Rapor ekrani entegrasyonu')).closest('tr')!
+    expect(within(row).queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'İş kalemi ekle' })).not.toBeInTheDocument()
+    // Bos islem sutunu da cizilmez.
+    expect(screen.getAllByRole('columnheader')).toHaveLength(6)
+  })
+
+  it('proje yoneticisi is kalemi ekleyip duzenleyebilir', async () => {
+    signIn(PROJECT_MANAGER)
+    setup()
+
+    // Ekle butonu liste yuklenmeden gorunur; satir islemleri liste gelince.
+    expect(await screen.findByRole('button', { name: 'Regresyon testi düzenle' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'İş kalemi ekle' })).toBeInTheDocument()
   })
 })

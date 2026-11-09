@@ -11,6 +11,7 @@ import {
   useUpdateWorkItem,
   type WorkItemRequest,
 } from '../../api/workItems'
+import { usePermissions } from '../../auth/permissions'
 import { EnumBadge } from '../../components/EnumBadge'
 import { QueryState } from '../../components/QueryState'
 import { formatDate } from '../../lib/format'
@@ -26,6 +27,7 @@ export function WorkItemsSection({ report }: { report: WeeklyReport }) {
   const create = useCreateWorkItem(report.id, report.projectId)
   const update = useUpdateWorkItem(report.id, report.projectId)
   const [dialog, setDialog] = useState<Dialog>({ kind: 'closed' })
+  const canWrite = usePermissions().writeReports
   const close = () => setDialog({ kind: 'closed' })
 
   const save = async (request: WorkItemRequest) => {
@@ -39,15 +41,22 @@ export function WorkItemsSection({ report }: { report: WeeklyReport }) {
     <Stack gap="sm">
       <Group justify="space-between">
         <Title order={3}>İş kalemleri</Title>
-        <Button onClick={() => setDialog({ kind: 'create' })}>İş kalemi ekle</Button>
+        {canWrite && <Button onClick={() => setDialog({ kind: 'create' })}>İş kalemi ekle</Button>}
       </Group>
 
       <QueryState query={workItems} isEmpty={(items) => items.length === 0} empty="Bu raporda iş kalemi yok.">
         {(items) => (
           <WorkItemTable
             items={items}
-            onEdit={(item) => setDialog({ kind: 'edit', item })}
-            onDelete={(item) => setDialog({ kind: 'delete', item })}
+            // Yazma izni yoksa satir islemleri ve onlarin sutunu hic cizilmez.
+            actions={
+              canWrite
+                ? {
+                    onEdit: (item) => setDialog({ kind: 'edit', item }),
+                    onDelete: (item) => setDialog({ kind: 'delete', item }),
+                  }
+                : undefined
+            }
           />
         )}
       </QueryState>
@@ -63,15 +72,12 @@ export function WorkItemsSection({ report }: { report: WeeklyReport }) {
   )
 }
 
-function WorkItemTable({
-  items,
-  onEdit,
-  onDelete,
-}: {
-  items: WorkItem[]
+interface RowActions {
   onEdit: (item: WorkItem) => void
   onDelete: (item: WorkItem) => void
-}) {
+}
+
+function WorkItemTable({ items, actions }: { items: WorkItem[]; actions?: RowActions }) {
   return (
     <Paper withBorder>
       <Table.ScrollContainer minWidth={820}>
@@ -84,7 +90,7 @@ function WorkItemTable({
               <Table.Th>Planlanan</Table.Th>
               <Table.Th>Tamamlanan</Table.Th>
               <Table.Th>Gecikme</Table.Th>
-              <Table.Th />
+              {actions && <Table.Th />}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -115,22 +121,29 @@ function WorkItemTable({
                     '–'
                   )}
                 </Table.Td>
-                <Table.Td>
-                  <Group gap={4} justify="flex-end" wrap="nowrap">
-                    <Button size="compact-sm" variant="subtle" onClick={() => onEdit(item)} aria-label={`${item.title} düzenle`}>
-                      Düzenle
-                    </Button>
-                    <Button
-                      size="compact-sm"
-                      variant="subtle"
-                      color="red"
-                      onClick={() => onDelete(item)}
-                      aria-label={`${item.title} sil`}
-                    >
-                      Sil
-                    </Button>
-                  </Group>
-                </Table.Td>
+                {actions && (
+                  <Table.Td>
+                    <Group gap={4} justify="flex-end" wrap="nowrap">
+                      <Button
+                        size="compact-sm"
+                        variant="subtle"
+                        onClick={() => actions.onEdit(item)}
+                        aria-label={`${item.title} düzenle`}
+                      >
+                        Düzenle
+                      </Button>
+                      <Button
+                        size="compact-sm"
+                        variant="subtle"
+                        color="red"
+                        onClick={() => actions.onDelete(item)}
+                        aria-label={`${item.title} sil`}
+                      >
+                        Sil
+                      </Button>
+                    </Group>
+                  </Table.Td>
+                )}
               </Table.Tr>
             ))}
           </Table.Tbody>
