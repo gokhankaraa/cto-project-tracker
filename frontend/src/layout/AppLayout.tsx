@@ -13,7 +13,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', ready: true },
-  { to: '/projects', label: 'Projeler', ready: false },
+  { to: '/projects', label: 'Projeler', ready: true },
   { to: '/reports', label: 'Raporlar', ready: false },
   { to: '/work-items', label: 'İş kalemleri', ready: false },
 ]

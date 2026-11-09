@@ -1,4 +1,5 @@
 import { MantineProvider } from '@mantine/core'
+import { Notifications } from '@mantine/notifications'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, type RenderOptions } from '@testing-library/react'
 import type { ReactElement, ReactNode } from 'react'
@@ -18,8 +19,10 @@ interface Options extends Omit<RenderOptions, 'wrapper'> {
 export function renderWithProviders(ui: ReactElement, { route = '/', ...options }: Options = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   function Wrapper({ children }: { children: ReactNode }) {
+    // env="test": gecis animasyonlari ve portallar kapali; acilir listeler hemen ve agacta gorunur.
     return (
-      <MantineProvider theme={theme}>
+      <MantineProvider theme={theme} env="test">
+        <Notifications />
         <QueryClientProvider client={queryClient}>
           <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>
         </QueryClientProvider>

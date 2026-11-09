@@ -2,7 +2,7 @@ import { Alert, Button, Center, Loader, Stack, Text } from '@mantine/core'
 import type { UseQueryResult } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
-import { ApiRequestError } from '../api/client'
+import { errorMessage } from '../api/client'
 
 interface QueryStateProps<T> {
   query: UseQueryResult<T>
@@ -27,7 +27,7 @@ export function QueryState<T>({ query, isEmpty, empty = 'Kayıt yok.', children 
   }
 
   if (query.isError) {
-    const message = query.error instanceof ApiRequestError ? query.error.message : 'Beklenmeyen bir hata oluştu.'
+    const message = errorMessage(query.error)
     return (
       <Alert color="red" title="Veriler yüklenemedi">
         <Stack gap="xs" align="flex-start">

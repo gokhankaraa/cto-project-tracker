@@ -31,6 +31,12 @@ if (typeof window !== 'undefined') {
   }
   window.ResizeObserver = ResizeObserverStub
 
+  // Textarea autosize, yazi tipleri yuklenince yuksekligi yeniden olcmek icin document.fonts'u dinler.
+  Object.defineProperty(document, 'fonts', {
+    configurable: true,
+    value: { addEventListener: () => {}, removeEventListener: () => {}, ready: Promise.resolve() },
+  })
+
   // Bilesen testleri gercek backend'e istek atmaz: mockApi() cagirmayan testte her istek
   // ag hatasi olur (ust bardaki baglanti gostergesi "Bağlantı yok" gosterir).
   beforeEach(() => {

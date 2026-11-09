@@ -1,7 +1,10 @@
-import { Badge, Group, Paper, Progress, Table, Text } from '@mantine/core'
+import { Anchor, Badge, Paper, Table, Text } from '@mantine/core'
+import { Link } from 'react-router'
 
 import type { DashboardProjectSummary } from '../../api/types'
 import { EnumBadge } from '../../components/EnumBadge'
+import { ProgressValue } from '../../components/ProgressValue'
+import { formatWeek } from '../../lib/format'
 import { OVERALL_STATUS_LABELS, PROGRESS_STAGE_LABELS, PROJECT_STATUS_LABELS, RISK_LEVEL_LABELS } from '../../lib/labels'
 
 const Dash = () => (
@@ -57,9 +60,9 @@ function ProjectRow({ project }: { project: DashboardProjectSummary }) {
   return (
     <Table.Tr>
       <Table.Td>
-        <Text fw={500} size="sm">
+        <Anchor component={Link} to={`/projects/${project.projectId}`} fw={500} size="sm">
           {project.name}
-        </Text>
+        </Anchor>
         {project.customer && (
           <Text size="xs" c="dimmed">
             {project.customer}
@@ -72,9 +75,7 @@ function ProjectRow({ project }: { project: DashboardProjectSummary }) {
       </Table.Td>
       <Table.Td>
         {project.hasReport ? (
-          <Text size="sm">
-            {project.lastYear} / {project.lastWeekNumber}. hafta
-          </Text>
+          <Text size="sm">{formatWeek(project.lastYear, project.lastWeekNumber)}</Text>
         ) : (
           <Badge color="gray" variant="outline" miw="max-content">
             Rapor yok
@@ -86,10 +87,7 @@ function ProjectRow({ project }: { project: DashboardProjectSummary }) {
       </Table.Td>
       <Table.Td>
         {project.hasReport ? (
-          <Group gap="xs" wrap="nowrap">
-            <Progress value={project.progressPercentage} w={72} aria-label={`İlerleme ${project.name}`} />
-            <Text size="sm">%{project.progressPercentage}</Text>
-          </Group>
+          <ProgressValue value={project.progressPercentage} label={`İlerleme ${project.name}`} />
         ) : (
           <Dash />
         )}

@@ -11,8 +11,8 @@ Track: **Full Stack (Java + Spring Boot, React + TypeScript)** · Author: Gökha
 > rule. Data now lives in PostgreSQL, with the schema managed by Flyway and tests running against a
 > real PostgreSQL via Testcontainers. Reports carry a year derived from the report date (Flyway V2),
 > and the filters accept a `year`. The repository now also holds the frontend: phase 0 (skeleton,
-> API client, CORS) is in place, and phase 1 (the MVP screens) has started with the CTO dashboard;
-> projects, weekly reports and work items come next, then role-based authorization (T14).
+> API client, CORS) is in place, and phase 1 (the MVP screens) has the CTO dashboard and project
+> management; weekly reports and work items come next, then role-based authorization (T14).
 
 Project documents (in [`docs/`](docs/)):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, scope, user stories, acceptance criteria)
@@ -57,10 +57,10 @@ Frontend:
 |---|---|---|
 | Language / UI | TypeScript, React 19 | Typed API responses; the most widely used UI library |
 | Build / dev server | Vite 8 | Fast dev server with hot reload; static build output |
-| Components | Mantine 9 | Ready form, date picker and multi-select components that match the API's filters |
+| Components | Mantine 9 (`core`, `form`, `notifications`) | Ready table, select / multi-select, modal and form components; `@mantine/form` maps the backend's `fieldErrors` to inputs |
 | Server state | TanStack Query 5 | Caching, loading/error states and retries for API calls |
-| Routing | React Router 8 | Page routes |
-| Tests / lint | Vitest, oxlint | Unit tests for the API client; fast linting |
+| Routing | React Router 8 | Page routes, loaded lazily per page; filters kept in the address |
+| Tests / lint | Vitest, Testing Library, oxlint | Unit and component tests on jsdom against a mocked API; fast linting |
 
 ## Requirements
 
@@ -175,11 +175,15 @@ Screens:
 | Address | Screen |
 |---|---|
 | `/` | CTO dashboard: counters, project table and filters (year / week, owner, project status, overall status, risk, delay) |
+| `/projects` | Project list with search by project, customer or owner (Turkish letters and case ignored) |
+| `/projects/:id` | Project details and its weekly reports, newest week first; delete with confirmation (blocked while the project has reports) |
+| `/projects/new`, `/projects/:id/edit` | Project form; checks the backend's rules before sending and shows the backend's `fieldErrors` under the matching input |
 
 Filters are kept in the address (`/?riskLevel=ORTA,YUKSEK&year=2026`), so a filtered view survives
 a reload and can be shared as a link. Invalid values in a hand-edited address are ignored, the same
 way the backend would reject them (for example a week without a year). The header shows whether the
-backend is reachable (`/api/health`, refreshed every minute).
+backend is reachable (`/api/health`, refreshed every minute). Each page is loaded as a separate
+chunk the first time it is opened, so the first visit downloads only the layout and that page.
 
 ## Configuration
 
@@ -449,7 +453,7 @@ Backend tests (128 in total):
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (33, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (63, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
@@ -463,6 +467,14 @@ Frontend tests (33, Vitest + Testing Library on jsdom; component tests never rea
   dropped, invalid values dropped, round trip
 - `DashboardPage.test.tsx` — counters and rows (including a project without a report), address
   filters sent to the API, reference text for year / week, clearing filters, empty result
+- `format.test.ts` — Turkish-insensitive search, date and week formatting, id parsing from the address
+- `ProjectListPage.test.tsx` — list with detail links, search typed or taken from the address
+- `ProjectDetailPage.test.tsx` — details and reports newest first, delete disabled when there are
+  reports, delete and return to the list (no request for the deleted project), 409 shown in the
+  dialog, unknown and invalid ids
+- `ProjectFormPage.test.tsx` — required fields checked before sending, create (empty optional
+  fields sent as `null`), backend `fieldErrors` under the input, other errors above the form, edit
+  with current values and `PUT`
 
 ## Known gaps
 

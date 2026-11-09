@@ -1,8 +1,9 @@
-import { Box, Stack, Text, Title } from '@mantine/core'
+import { Box, Stack } from '@mantine/core'
 import { useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 
 import { useDashboardSummary, type DashboardFilters } from '../../api/dashboard'
+import { PageHeader } from '../../components/PageHeader'
 import { QueryState } from '../../components/QueryState'
 import { DashboardFilterBar } from './DashboardFilterBar'
 import { dashboardSearch, parseDashboardFilters } from './filters'
@@ -31,12 +32,7 @@ export function DashboardPage() {
 
   return (
     <Stack gap="md">
-      <div>
-        <Title order={2}>Portföy özeti</Title>
-        <Text size="sm" c="dimmed">
-          {referenceText(filters)}
-        </Text>
-      </div>
+      <PageHeader title="Portföy özeti" description={referenceText(filters)} />
 
       <DashboardFilterBar filters={filters} onChange={setFilters} />
 

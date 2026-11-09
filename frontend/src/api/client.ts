@@ -40,6 +40,11 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** Ekranda gosterilecek hata metni: backend'in mesaji ya da genel bir metin. */
+export function errorMessage(error: unknown): string {
+  return error instanceof ApiRequestError ? error.message : 'Beklenmeyen bir hata oluştu.'
+}
+
 /**
  * Tam istek adresini kurar. Cok degerli parametreler backend'in bekledigi gibi virgulle birlesir
  * (riskLevel=ORTA,YUKSEK).
