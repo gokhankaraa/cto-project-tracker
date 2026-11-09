@@ -11,8 +11,9 @@ Track: **Full Stack (Java + Spring Boot, React + TypeScript)** · Author: Gökha
 > rule. Data now lives in PostgreSQL, with the schema managed by Flyway and tests running against a
 > real PostgreSQL via Testcontainers. Reports carry a year derived from the report date (Flyway V2),
 > and the filters accept a `year`. The repository now also holds the frontend: phase 0 (skeleton,
-> API client, CORS) is in place, and phase 1 (the MVP screens) has the CTO dashboard and project
-> management; weekly reports and work items come next, then role-based authorization (T14).
+> API client, CORS) is in place, and phase 1 (the MVP screens) has the CTO dashboard, project
+> management and the weekly report form; work items and the report list come next, then
+> role-based authorization (T14).
 
 Project documents (in [`docs/`](docs/)):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, scope, user stories, acceptance criteria)
@@ -178,6 +179,20 @@ Screens:
 | `/projects` | Project list with search by project, customer or owner (Turkish letters and case ignored) |
 | `/projects/:id` | Project details and its weekly reports, newest week first; delete with confirmation (blocked while the project has reports) |
 | `/projects/new`, `/projects/:id/edit` | Project form; checks the backend's rules before sending and shows the backend's `fieldErrors` under the matching input |
+| `/reports/:id` | Weekly report: stage, progress, status, risk, live tasks and the four text fields; delete with confirmation (its work items are deleted too) |
+| `/projects/:id/reports/new`, `/reports/:id/edit` | Weekly report form (see below) |
+
+Weekly report form:
+
+- The year is not entered; the backend takes it from the report date (ISO week-based year). The
+  form shows that year and the ISO week of the date as a hint.
+- The week number is a separate field and does not follow the date automatically: the backend keeps
+  the two independent (in the demo data a report is dated the Monday after the week it describes).
+  A new report starts with the week after the project's latest report and that report's stage.
+- When editing, only the current stage and the next one can be chosen (the backend rejects going
+  back or skipping a stage); the others are shown disabled.
+- Backend errors land where they belong: a second report for the same week (`409`) under the week,
+  a stage rule violation under the stage, `fieldErrors` under their inputs, anything else above the form.
 
 Filters are kept in the address (`/?riskLevel=ORTA,YUKSEK&year=2026`), so a filtered view survives
 a reload and can be shared as a link. Invalid values in a hand-edited address are ignored, the same
@@ -453,7 +468,7 @@ Backend tests (128 in total):
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (63, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (82, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
@@ -475,6 +490,12 @@ Frontend tests (63, Vitest + Testing Library on jsdom; component tests never rea
 - `ProjectFormPage.test.tsx` — required fields checked before sending, create (empty optional
   fields sent as `null`), backend `fieldErrors` under the input, other errors above the form, edit
   with current values and `PUT`
+- `isoWeek.test.ts` — ISO week and week-based year, including year boundaries (2027-01-01 is week 53
+  of 2026); invalid dates
+- `ReportFormPage.test.tsx` — defaults from the latest report, create with the request body, required
+  choices checked before sending, `409` under the week, only the current and next stage selectable
+  when editing, `PUT`, stage rule error under the stage
+- `ReportDetailPage.test.tsx` — report fields and texts, delete and return to the project
 
 ## Known gaps
 

@@ -1,0 +1,100 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+
+import { api } from './client'
+import { projectKeys } from './projects'
+import {
+  PROGRESS_STAGES,
+  type OverallStatus,
+  type ProgressStage,
+  type RiskLevel,
+  type WeeklyReport,
+} from './types'
+
+/**
+ * POST /api/projects/{projectId}/reports ve PUT /api/reports/{id} govdesi (dto/WeeklyReportRequest.java).
+ * Yil gonderilmez; backend rapor tarihinin ISO hafta-yilindan turetir. Ilerleme yuzdesi kademeden gelir.
+ */
+export interface WeeklyReportRequest {
+  weekNumber: number
+  reportDate: string
+  progressStage: ProgressStage
+  overallStatus: OverallStatus
+  riskLevel: RiskLevel
+  done: string | null
+  planned: string | null
+  risks: string | null
+  note: string | null
+}
+
+/** Backend'deki @Size sinirlari (dort metin alani da 2000). */
+export const REPORT_TEXT_LIMIT = 2000
+
+/** ProgressStage.java'daki yuzdeler. */
+export const STAGE_PERCENTAGES: Record<ProgressStage, number> = {
+  ANALIZ: 25,
+  GELISTIRME: 50,
+  TEST: 75,
+  TAMAMLANDI: 100,
+}
+
+/**
+ * Guncellemede secilebilecek kademeler (backend: WeeklyReportService.validateStageTransition):
+ * mevcut kademe ya da bir sonraki. Geri donmek ve sira atlamak reddedilir.
+ */
+export function allowedStages(current: ProgressStage): ProgressStage[] {
+  const index = PROGRESS_STAGES.indexOf(current)
+  return PROGRESS_STAGES.slice(index, index + 2)
+}
+
+export const reportKeys = {
+  all: ['reports'] as const,
+  detail: (id: number) => ['reports', id] as const,
+}
+
+export function useReport(id: number) {
+  return useQuery({
+    queryKey: reportKeys.detail(id),
+    queryFn: ({ signal }) => api.get<WeeklyReport>(`/api/reports/${id}`, undefined, signal),
+  })
+}
+
+/** Rapor degisince projenin rapor gecmisi, rapor sorgulari ve dashboard (son durum) eskir. */
+function useInvalidateReports() {
+  const queryClient = useQueryClient()
+  return (projectId: number) =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: reportKeys.all }),
+      queryClient.invalidateQueries({ queryKey: projectKeys.reports(projectId) }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+    ])
+}
+
+export function useCreateReport(projectId: number) {
+  const invalidate = useInvalidateReports()
+  return useMutation({
+    mutationFn: (request: WeeklyReportRequest) =>
+      api.post<WeeklyReport>(`/api/projects/${projectId}/reports`, request),
+    onSuccess: () => invalidate(projectId),
+  })
+}
+
+export function useUpdateReport(id: number) {
+  const invalidate = useInvalidateReports()
+  return useMutation({
+    mutationFn: (request: WeeklyReportRequest) => api.put<WeeklyReport>(`/api/reports/${id}`, request),
+    onSuccess: (saved) => invalidate(saved.projectId),
+  })
+}
+
+/** Rapora bagli is kalemleri de silinir (backend'de cascade). */
+export function useDeleteReport(report: WeeklyReport) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.delete(`/api/reports/${report.id}`),
+    onSuccess: () => {
+      // Silinen raporun kendi sorgusuna dokunulmaz (bkz. useDeleteProject): yenilense 404 alirdi.
+      void queryClient.invalidateQueries({ queryKey: projectKeys.reports(report.projectId) })
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}

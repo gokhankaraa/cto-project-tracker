@@ -1,4 +1,4 @@
-import { Alert, Button, Group, Modal, Paper, SimpleGrid, Stack, Table, Text, Title, Tooltip } from '@mantine/core'
+import { Alert, Anchor, Button, Group, Modal, Paper, SimpleGrid, Stack, Table, Text, Title, Tooltip } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
 import type { ReactNode } from 'react'
@@ -49,7 +49,12 @@ function ProjectDetail({ id }: { id: number }) {
 
           <ProjectInfo project={data} />
 
-          <Title order={3}>Haftalık raporlar</Title>
+          <Group justify="space-between">
+            <Title order={3}>Haftalık raporlar</Title>
+            <Button component={Link} to={`/projects/${id}/reports/new`}>
+              Yeni rapor
+            </Button>
+          </Group>
           <QueryState query={reports} isEmpty={(list) => list.length === 0} empty="Bu proje için henüz rapor yok.">
             {(list) => <ReportHistoryTable reports={list} />}
           </QueryState>
@@ -115,7 +120,11 @@ function ReportHistoryTable({ reports }: { reports: WeeklyReport[] }) {
           <Table.Tbody>
             {reports.map((report) => (
               <Table.Tr key={report.id}>
-                <Table.Td>{formatWeek(report.year, report.weekNumber)}</Table.Td>
+                <Table.Td>
+                  <Anchor component={Link} to={`/reports/${report.id}`} size="sm" fw={500}>
+                    {formatWeek(report.year, report.weekNumber)}
+                  </Anchor>
+                </Table.Td>
                 <Table.Td>{formatDate(report.reportDate)}</Table.Td>
                 <Table.Td>
                   <EnumBadge value={report.progressStage} labels={PROGRESS_STAGE_LABELS} />

@@ -1,0 +1,150 @@
+import { fireEvent, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { Route, Routes, useParams } from 'react-router'
+import { describe, expect, it } from 'vitest'
+
+import type { WeeklyReport } from '../../api/types'
+import { mockApi, requests } from '../../test/mockApi'
+import { renderWithProviders } from '../../test/render'
+import { ATLAS, report } from '../projects/testData'
+import { EditReportPage, NewReportPage } from './ReportFormPage'
+
+function ReportStub() {
+  return <p>Rapor detayı {useParams().id}</p>
+}
+
+function renderForm(route: string) {
+  renderWithProviders(
+    <Routes>
+      <Route path="/projects/:id/reports/new" element={<NewReportPage />} />
+      <Route path="/reports/:id/edit" element={<EditReportPage />} />
+      <Route path="/reports/:id" element={<ReportStub />} />
+    </Routes>,
+    { route },
+  )
+}
+
+const writes = (fetchMock: ReturnType<typeof mockApi>) => requests(fetchMock).filter((r) => r.method !== 'GET')
+
+async function choose(label: RegExp, option: string) {
+  await userEvent.click(screen.getByRole('combobox', { name: label }))
+  await userEvent.click(await screen.findByRole('option', { name: option }))
+}
+
+const LATEST = report(4, 31, { progressStage: 'TEST', progressPercentage: 75 })
+
+function apiForNew(post: Parameters<typeof mockApi>[0][string]) {
+  return mockApi({
+    '/api/projects/1': ATLAS,
+    '/api/projects/1/reports': [report(1, 29), LATEST, report(2, 30)],
+    'POST /api/projects/1/reports': post,
+  })
+}
+
+describe('NewReportPage', () => {
+  it('son rapordan sonraki hafta ve son kademeyle acilir; raporu olusturup detayina gider', async () => {
+    const fetchMock = apiForNew(({ body }) => ({ status: 201, body: { ...LATEST, ...(body as object), id: 9 } }))
+    renderForm('/projects/1/reports/new')
+
+    const week = await screen.findByRole('textbox', { name: /Hafta/ })
+    expect(week).toHaveValue('32')
+    expect(screen.getByRole('combobox', { name: /İlerleme aşaması/ })).toHaveValue('Test (%75)')
+    expect(screen.getByText('Son rapor: 2026 / 31. hafta, Test.')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/Rapor tarihi/), { target: { value: '2026-08-10' } })
+    expect(screen.getByText('Rapor yılı tarihten alınır: 2026. Tarih, ISO 33. haftada.')).toBeInTheDocument()
+    await choose(/Genel durum/, 'Riskli')
+    await choose(/Risk/, 'Yüksek')
+    await userEvent.type(screen.getByRole('textbox', { name: 'Bu hafta yapılanlar' }), '  Entegrasyon bitti.  ')
+    await userEvent.click(screen.getByRole('button', { name: 'Oluştur' }))
+
+    expect(await screen.findByText('Rapor detayı 9')).toBeInTheDocument()
+    expect(writes(fetchMock)[0].body).toEqual({
+      weekNumber: 32,
+      reportDate: '2026-08-10',
+      progressStage: 'TEST',
+      overallStatus: 'RISKLI',
+      riskLevel: 'YUKSEK',
+      done: 'Entegrasyon bitti.',
+      planned: null,
+      risks: null,
+      note: null,
+    })
+  })
+
+  it('zorunlu secimler yapilmadan istek atmaz', async () => {
+    const fetchMock = apiForNew(() => ({ status: 201 }))
+    renderForm('/projects/1/reports/new')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Oluştur' }))
+
+    expect(await screen.findByText('Genel durum zorunludur.')).toBeInTheDocument()
+    expect(screen.getByText('Risk seviyesi zorunludur.')).toBeInTheDocument()
+    expect(writes(fetchMock)).toEqual([])
+  })
+
+  it('ayni hafta icin rapor varsa (409) mesaji hafta alaninin altinda gosterir', async () => {
+    const message = 'Bu proje icin 2026 yilinin 32. haftasina ait rapor zaten mevcut.'
+    apiForNew(() => ({ status: 409, body: { status: 409, code: 'DUPLICATE_RESOURCE', message } }))
+    renderForm('/projects/1/reports/new')
+
+    await screen.findByRole('textbox', { name: /Hafta/ })
+    await choose(/Genel durum/, 'Yolunda')
+    await choose(/Risk/, 'Düşük')
+    await userEvent.click(screen.getByRole('button', { name: 'Oluştur' }))
+
+    expect(await screen.findByRole('textbox', { name: /Hafta/ })).toHaveAccessibleDescription(
+      expect.stringContaining(message),
+    )
+    expect(screen.queryByText('Rapor kaydedilemedi')).not.toBeInTheDocument()
+  })
+})
+
+describe('EditReportPage', () => {
+  const CURRENT: WeeklyReport = report(4, 31, { progressStage: 'TEST', done: 'Testler yazildi.' })
+
+  function apiForEdit(put: Parameters<typeof mockApi>[0][string]) {
+    return mockApi({ '/api/reports/4': CURRENT, 'PUT /api/reports/4': put })
+  }
+
+  it('yalnizca mevcut kademe ve bir sonraki secilebilir', async () => {
+    apiForEdit(() => ({ body: CURRENT }))
+    renderForm('/reports/4/edit')
+
+    await userEvent.click(await screen.findByRole('combobox', { name: /İlerleme aşaması/ }))
+    const listbox = await screen.findByRole('listbox')
+    const option = (name: string) => within(listbox).getByRole('option', { name })
+
+    expect(option('Analiz (%25)')).toHaveAttribute('data-combobox-disabled')
+    expect(option('Geliştirme (%50)')).toHaveAttribute('data-combobox-disabled')
+    expect(option('Test (%75)')).not.toHaveAttribute('data-combobox-disabled')
+    expect(option('Tamamlandı (%100)')).not.toHaveAttribute('data-combobox-disabled')
+  })
+
+  it('mevcut degerlerle acilir ve degisikligi PUT ile gonderir', async () => {
+    const fetchMock = apiForEdit(({ body }) => ({ body: { ...CURRENT, ...(body as object) } }))
+    renderForm('/reports/4/edit')
+
+    expect(await screen.findByRole('textbox', { name: 'Bu hafta yapılanlar' })).toHaveValue('Testler yazildi.')
+    await choose(/İlerleme aşaması/, 'Tamamlandı (%100)')
+    await userEvent.click(screen.getByRole('button', { name: 'Kaydet' }))
+
+    expect(await screen.findByText('Rapor detayı 4')).toBeInTheDocument()
+    expect(writes(fetchMock)[0]).toMatchObject({
+      method: 'PUT',
+      body: { weekNumber: 31, reportDate: '2026-07-20', progressStage: 'TAMAMLANDI', done: 'Testler yazildi.' },
+    })
+  })
+
+  it('kademe kurali ihlalini (400 is kurali) asama alaninin altinda gosterir', async () => {
+    const message = 'Ilerleme kademesi geriye alinamaz: TEST -> ANALIZ.'
+    apiForEdit(() => ({ status: 400, body: { status: 400, code: 'BUSINESS_RULE_VIOLATION', message } }))
+    renderForm('/reports/4/edit')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Kaydet' }))
+
+    expect(await screen.findByRole('combobox', { name: /İlerleme aşaması/ })).toHaveAccessibleDescription(
+      expect.stringContaining(message),
+    )
+  })
+})

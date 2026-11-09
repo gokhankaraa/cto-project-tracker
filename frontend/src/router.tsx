@@ -33,6 +33,18 @@ export const router = createBrowserRouter([
         path: 'projects/:id/edit',
         lazy: () => import('./pages/projects/ProjectFormPage').then((m) => ({ Component: m.EditProjectPage })),
       },
+      {
+        path: 'projects/:id/reports/new',
+        lazy: () => import('./pages/reports/ReportFormPage').then((m) => ({ Component: m.NewReportPage })),
+      },
+      {
+        path: 'reports/:id',
+        lazy: () => import('./pages/reports/ReportDetailPage').then((m) => ({ Component: m.ReportDetailPage })),
+      },
+      {
+        path: 'reports/:id/edit',
+        lazy: () => import('./pages/reports/ReportFormPage').then((m) => ({ Component: m.EditReportPage })),
+      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
