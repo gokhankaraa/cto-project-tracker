@@ -34,7 +34,7 @@ import com.kolaysoft.ctotracker.repository.WorkItemRepository;
  * bos veritabaniyla baslar; ornek veriye dayanan test {@code @ActiveProfiles("demo")} ile ister.
  *
  * <p>Veriler kurgusaldir (proje, musteri ve kisi adlari uydurma, e-postalar {@code example.com}); repository
- * herkese acik oldugu icin gercek sirket/musteri verisi kullanilmaz (staj yonetmeligi 8.2).
+ * herkese acik oldugu icin gercek sirket/musteri verisi kullanilmaz.
  * Testler ve README demo senaryosu kayit id'lerine dayandigi icin yeni kayitlar yalnizca SONA eklenir.
  */
 @Component
@@ -95,9 +95,9 @@ public class DataSeeder implements CommandLineRunner {
         saveWorkItem(ebelgeW30, "Mevzuat analizi", "e-Fatura kurallari",
                 "Mehmet Kaya", WorkItemStatus.DEVAM_EDIYOR);
 
-        // T13 demo verisi: Atlas IK icin 3. hafta (hafta filtresi ve sayfalama gorunsun) ve gecikme ornekleri.
+        // Filtre demo verisi: Atlas IK icin 3. hafta (hafta filtresi ve sayfalama gorunsun) ve gecikme ornekleri.
         // Rapor durumu YOLUNDA olsa da planlanan tarihi rapordan once olup bitmemis is kalemi projeyi
-        // gecikmeye dusurur; tarihi gecmis ama tamamlanmis is kalemi gecikme sayilmaz (analiz notu K-T13-01).
+        // gecikmeye dusurur; tarihi gecmis ama tamamlanmis is kalemi gecikme sayilmaz (filtreleme analizi KF-01).
         WeeklyReport atlasW31 = saveReport(atlas, 31, LocalDate.of(2026, 8, 3), ProgressStage.TEST,
                 OverallStatus.YOLUNDA, RiskLevel.ORTA,
                 "Regresyon testleri tamamlandi.", "Rapor ekrani entegrasyonu.",

@@ -84,7 +84,7 @@ public class WeeklyReportService {
     }
 
     /**
-     * Projeler arasi filtreli ve sayfali rapor listesi (T13 filtre sozlesmesi, bolum 3).
+     * Projeler arasi filtreli ve sayfali rapor listesi (filtre sozlesmesi, bolum 3).
      *
      * @param sort {@code alan} veya {@code alan,asc|desc}; null ise {@code reportDate,desc}
      */

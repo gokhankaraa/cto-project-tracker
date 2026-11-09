@@ -5,7 +5,7 @@ import java.util.List;
 import com.kolaysoft.ctotracker.entity.WorkItemStatus;
 
 /**
- * Projeler arası iş kalemi listesi filtresi (filtre sözleşmesi T13, bölüm 4).
+ * Projeler arası iş kalemi listesi filtresi (filtre sözleşmesi, bölüm 4).
  *
  * <p>Liste her zaman projelerin değerlendirilen raporuna göre çalışır (S-05): referans yoksa en son
  * rapor, yalnızca {@code year} varsa o yılın sonuna kadarki en son rapor, {@code year} + {@code weekNumber}

@@ -8,7 +8,7 @@ import org.springframework.data.domain.Page;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * Sayfali liste yaniti (T13 filtre sozlesmesi, S-02).
+ * Sayfali liste yaniti (filtre sozlesmesi, S-02).
  * Spring'in {@code Page} nesnesi dogrudan dondurulmez; boylece JSON yapisi Spring surumunden
  * bagimsiz ve sabit kalir.
  */

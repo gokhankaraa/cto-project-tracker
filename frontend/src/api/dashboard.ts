@@ -4,7 +4,7 @@ import { api } from './client'
 import type { DashboardSummary, OverallStatus, ProjectStatus, RiskLevel } from './types'
 
 /**
- * GET /api/dashboard/summary filtreleri (docs/filtre-sozlesmesi-T13.md, 2. bolum). Bos liste ve null
+ * GET /api/dashboard/summary filtreleri (docs/filtre-sozlesmesi.md, 2. bolum). Bos liste ve null
  * "filtre yok" demektir ve istege yazilmaz. weekNumber yalnizca year ile gecerlidir.
  */
 export type DashboardFilters = {

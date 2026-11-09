@@ -7,11 +7,11 @@ import com.kolaysoft.ctotracker.entity.ProjectStatus;
 import com.kolaysoft.ctotracker.entity.RiskLevel;
 
 /**
- * CTO dashboard filtresi (filtre sözleşmesi T13, bölüm 2).
+ * CTO dashboard filtresi (filtre sözleşmesi, bölüm 2).
  *
  * <p>Tekil değerlerde null, çok değerli alanlarda boş liste "filtre yok" demektir.
  * {@code year} ve {@code weekNumber} bir filtre değil, değerlendirilen raporu seçen referans noktadır
- * (K-T13-05, V2): her proje için bu noktaya kadarki en son rapor esas alınır. {@code weekNumber}
+ * (KF-05, V2): her proje için bu noktaya kadarki en son rapor esas alınır. {@code weekNumber}
  * yalnızca {@code year} ile birlikte verilebilir.
  */
 public record DashboardFilter(
@@ -46,7 +46,7 @@ public record DashboardFilter(
 
     /**
      * Değerlendirilen rapora dayalı bir koşul (rapor durumu, risk, gecikme) var mı.
-     * Varsa raporu olmayan projeler listelenmez (K-T13-04).
+     * Varsa raporu olmayan projeler listelenmez (KF-04).
      */
     public boolean hasReportCriteria() {
         return !overallStatuses.isEmpty() || !riskLevels.isEmpty() || delayed != null;

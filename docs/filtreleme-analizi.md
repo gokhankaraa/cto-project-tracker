@@ -1,16 +1,14 @@
-# T13 — Filtreleme ve Durum Zenginleştirme: Kısa Analiz
+# Filtreleme ve Durum Zenginleştirme: Kısa Analiz
 
-**Staj yönü:** Backend (Java + Spring Boot)
-**Task:** T13 (21–24. gün), ortak görev satırı
 **Hazırlayan:** Gökhan Kara
 **Tarih:** 22 Ekim 2026
 
-> **Ortak görev (yönetmelik):** Proje, hafta, durum, risk, sorumlu ve gecikme filtrelerini ekleyin;
-> boş/yükleniyor/hata durumlarını iyileştirin.
+> **Hedef:** Proje, hafta, durum, risk, sorumlu ve gecikme filtrelerini eklemek;
+> boş/yükleniyor/hata durumlarını iyileştirmek.
 
 Bu not, filtrelerin *ne anlama geldiğini* ve *ne zaman doğru çalışmış sayılacağını* tanımlar.
-Parametre adları, sayfalama ve sıralama gibi teknik ayrıntılar backend satırındaki filtre
-sözleşmesinde (21. gün) netleşecek.
+Parametre adları, sayfalama ve sıralama gibi teknik ayrıntılar [filtre sözleşmesinde](filtre-sozlesmesi.md)
+netleşir.
 
 ---
 
@@ -23,7 +21,7 @@ arttıkça CTO'nun asıl sorduğu sorular şunlar oluyor:
 - "Ayşe'nin projeleri ne durumda?"
 - "Geçen hafta portföy nasıl görünüyordu?"
 
-T13 bu soruların her birine tek bir istekle cevap verebilmeyi hedefliyor.
+Filtreleme bu soruların her birine tek bir istekle cevap verebilmeyi hedefliyor.
 
 ## 2. Mevcut durum
 
@@ -44,30 +42,31 @@ T13 bu soruların her birine tek bir istekle cevap verebilmeyi hedefliyor.
 | **Durum** | Sistemde üç ayrı durum kavramı var, karıştırılmamalı: projenin durumu (`ProjectStatus`), raporun genel durumu (`OverallStatus`), iş kaleminin durumu (`WorkItemStatus`) | Proje durumu ve rapor durumu: dashboard ve rapor listesi. İş kalemi durumu: iş kalemi listesi |
 | **Risk** | Raporun risk seviyesi (dashboard'da en son veya seçilen haftanın raporu) | Dashboard, rapor listesi |
 | **Sorumlu** | Dashboard ve raporlarda projenin sorumlu proje yöneticisi (`owner`). İş kalemlerinde `assignee` alanı (serbest metin). | Hepsi |
-| **Gecikme** | Bkz. bölüm 5, K-T13-01 | Dashboard, iş kalemi listesi |
+| **Gecikme** | Bkz. bölüm 5, KF-01 | Dashboard, iş kalemi listesi |
 
-## 4. Kapsam dışı (T13'te yapılmayacaklar)
+## 4. Kapsam dışı (bu çalışmada yapılmayacaklar)
 
-- **Rol bazlı kısıt:** proje yöneticisinin yalnızca kendi projelerini görmesi T14'ün işi. T13'te
-  filtreler bu kısıtın sonradan tek bir ek koşulla eklenebileceği şekilde kurulur.
+- **Rol bazlı kısıt:** proje yöneticisinin yalnızca kendi projelerini görmesi kimlik doğrulama ve
+  rol bazlı yetki adımının işi. Filtreler bu kısıtın sonradan tek bir ek koşulla eklenebileceği
+  şekilde kurulur.
 - Rapor metinlerinde (yapılanlar, riskler vb.) serbest metin araması.
 - Kayıtlı filtreler ve filtre şablonları.
 - Takvim uyumu (`scheduleStatus`): bu alan MVP'de hiç eklenmedi (ön analiz, karar 4).
-- Filtrenin URL'de saklanması ve yükleniyor göstergesi: frontend satırının konusu.
+- Filtrenin URL'de saklanması ve yükleniyor göstergesi: frontend'in konusu.
 
 ## 5. Kararlar
 
 | No | Karar | Gerekçe |
 |---|---|---|
-| K-T13-01 | **Gecikme tanımı.** Bir iş kalemi gecikmiştir: durumu `GECIKTI` ise **veya** planlanan tarihi bağlı olduğu raporun tarihinden önceyse ve durumu `TAMAMLANDI` değilse. Bir proje gecikmededir: değerlendirilen raporunun genel durumu `GECIKMELI` ise **veya** o raporda en az bir gecikmiş iş kalemi varsa. | Rapor haftalık bir anlık görüntü (snapshot) olduğu için referans tarih "bugün" değil raporun kendi tarihi. Böylece sonuç saate bağlı olmaz ve test edilebilir kalır, geçmiş haftalar da kendi haftalarındaki duruma göre değerlendirilir. |
-| K-T13-02 | Farklı filtreler **VE** ile birleşir. Aynı parametredeki birden çok değer **VEYA** ile birleşir (ör. `ORTA,YUKSEK` = orta veya yüksek riskli). | CTO'nun en sık sorusu "orta ve yüksek riskliler" gibi bir aralık. |
-| K-T13-03 | Filtre verilmezse mevcut davranış aynen korunur. Mevcut `?riskLevel=YUKSEK` kullanımı da çalışmaya devam eder. | Geriye uyumluluk; MVP testleri ve README'deki demo senaryosu bozulmaz. |
-| K-T13-04 | Rapora dayalı filtreler (risk, rapor durumu, gecikme) verildiğinde raporu olmayan projeler listelenmez. Projeye dayalı filtrelerde (proje, proje durumu, sorumlu) bu projeler `hasReport=false` ile listelenir. | Bugünkü risk filtresi de bu şekilde çalışıyor; kural tüm filtrelere genellenir. |
-| K-T13-05 | Hafta filtresi bir filtreden çok bir **referans noktası**: X. haftaya kadar hiç raporu olmayan projeler de `hasReport=false` ile görünür. | CTO'nun "o hafta kim rapor girmemişti" sorusunu da görebilmesi için. |
-| K-T13-06 | Dashboard sayaçları (toplam proje, yüksek riskli, raporsuz, canlı task) filtrelenmiş kümeye göre hesaplanır. | Ekrandaki liste ile sayaçlar her zaman tutarlı kalır. |
-| K-T13-07 | Filtre sonucu boşsa yanıt `200` ve boş liste olur, `404` dönmez. Var olmayan bir proje id'siyle filtrelemek de boş liste döndürür. | Filtre bir kayıt arama işlemi değildir; "sonuç yok" bir hata değildir. |
-| K-T13-08 | Sayfalama rapor ve iş kalemi listelerinde olur, dashboard'da olmaz. | Rapor ve iş kalemi sayısı zamanla büyür. Proje sayısı küçük kalır ve sayaçlar tüm küme üzerinden hesaplanmalıdır. |
-| K-T13-09 | İş kalemi sorumlusu araması büyük/küçük harfe duyarsız ve "içerir" mantığıyla yapılır (`assignee=ayse` → "Ayse Yilmaz"). | `assignee` serbest metin; tam eşleşme kullanışsız olur. |
+| KF-01 | **Gecikme tanımı.** Bir iş kalemi gecikmiştir: durumu `GECIKTI` ise **veya** planlanan tarihi bağlı olduğu raporun tarihinden önceyse ve durumu `TAMAMLANDI` değilse. Bir proje gecikmededir: değerlendirilen raporunun genel durumu `GECIKMELI` ise **veya** o raporda en az bir gecikmiş iş kalemi varsa. | Rapor haftalık bir anlık görüntü (snapshot) olduğu için referans tarih "bugün" değil raporun kendi tarihi. Böylece sonuç saate bağlı olmaz ve test edilebilir kalır, geçmiş haftalar da kendi haftalarındaki duruma göre değerlendirilir. |
+| KF-02 | Farklı filtreler **VE** ile birleşir. Aynı parametredeki birden çok değer **VEYA** ile birleşir (ör. `ORTA,YUKSEK` = orta veya yüksek riskli). | CTO'nun en sık sorusu "orta ve yüksek riskliler" gibi bir aralık. |
+| KF-03 | Filtre verilmezse mevcut davranış aynen korunur. Mevcut `?riskLevel=YUKSEK` kullanımı da çalışmaya devam eder. | Geriye uyumluluk; MVP testleri ve README'deki demo senaryosu bozulmaz. |
+| KF-04 | Rapora dayalı filtreler (risk, rapor durumu, gecikme) verildiğinde raporu olmayan projeler listelenmez. Projeye dayalı filtrelerde (proje, proje durumu, sorumlu) bu projeler `hasReport=false` ile listelenir. | Bugünkü risk filtresi de bu şekilde çalışıyor; kural tüm filtrelere genellenir. |
+| KF-05 | Hafta filtresi bir filtreden çok bir **referans noktası**: X. haftaya kadar hiç raporu olmayan projeler de `hasReport=false` ile görünür. | CTO'nun "o hafta kim rapor girmemişti" sorusunu da görebilmesi için. |
+| KF-06 | Dashboard sayaçları (toplam proje, yüksek riskli, raporsuz, canlı task) filtrelenmiş kümeye göre hesaplanır. | Ekrandaki liste ile sayaçlar her zaman tutarlı kalır. |
+| KF-07 | Filtre sonucu boşsa yanıt `200` ve boş liste olur, `404` dönmez. Var olmayan bir proje id'siyle filtrelemek de boş liste döndürür. | Filtre bir kayıt arama işlemi değildir; "sonuç yok" bir hata değildir. |
+| KF-08 | Sayfalama rapor ve iş kalemi listelerinde olur, dashboard'da olmaz. | Rapor ve iş kalemi sayısı zamanla büyür. Proje sayısı küçük kalır ve sayaçlar tüm küme üzerinden hesaplanmalıdır. |
+| KF-09 | İş kalemi sorumlusu araması büyük/küçük harfe duyarsız ve "içerir" mantığıyla yapılır (`assignee=ayse` → "Ayse Yilmaz"). | `assignee` serbest metin; tam eşleşme kullanışsız olur. |
 
 ## 6. Kullanıcı hikâyeleri
 
@@ -87,11 +86,11 @@ T13 bu soruların her birine tek bir istekle cevap verebilmeyi hedefliyor.
 
 | Durum | Beklenen davranış |
 |---|---|
-| Sonuç yok | `200`, boş liste, sayaçlar `0` (K-T13-07) |
-| Tanımsız enum değeri, sayı yerine metin (`?riskLevel=COK_YUKSEK`, `?projectId=abc`) | `400 INVALID_REQUEST`, mesajda parametre adı geçer (T07'den beri mevcut) |
+| Sonuç yok | `200`, boş liste, sayaçlar `0` (KF-07) |
+| Tanımsız enum değeri, sayı yerine metin (`?riskLevel=COK_YUKSEK`, `?projectId=abc`) | `400 INVALID_REQUEST`, mesajda parametre adı geçer (zaten mevcut) |
 | Ters aralık (`weekFrom > weekTo`, `dateFrom > dateTo`) | `400 VALIDATION_ERROR`, ilgili alan `fieldErrors` içinde |
 | Aralık dışı hafta (`0`, `54`) | `400 VALIDATION_ERROR` |
-| Geçersiz sıralama alanı, çok büyük sayfa boyutu | `400` (ayrıntı 23. günde) |
+| Geçersiz sıralama alanı, çok büyük sayfa boyutu | `400` (ayrıntı filtre sözleşmesinde) |
 | Herhangi bir filtre kombinasyonu | Hiçbir zaman `500` dönmez |
 | Yükleniyor | Arayüzün işi. Backend'in payı listeleri sayfalı ve hızlı döndürmek (bkz. riskler) |
 
@@ -107,9 +106,9 @@ hafta 31 ORTA raporları), e-Belge (sorumlu Mehmet, hafta 30 YUKSEK raporu) ve N
 5. **KK-05:** Birden çok filtre VE ile birleşir (ör. sorumlu Ayse + risk YUKSEK → boş liste, `200`).
 6. **KK-06:** Gecikme kuralının üç koşulunun her biri tek başına projeyi "gecikmede" yapar. Planlanan tarihi geçmiş ama durumu `TAMAMLANDI` olan iş kalemi gecikme sayılmaz. Planlanan tarihi olmayan iş kalemi yalnızca durumu `GECIKTI` ise gecikmiş sayılır.
 7. **KK-07:** Rapor listesi tüm projelerin raporlarını döner. Proje, hafta/tarih aralığı, durum, risk ve sorumlu ile süzülebilir, varsayılan sıralamada en yeni rapor en üstte olur ve sonuç sayfalıdır.
-8. **KK-08:** İş kalemi listesi sorumlu (K-T13-09), durum, proje ve gecikme ile süzülebilir.
+8. **KK-08:** İş kalemi listesi sorumlu (KF-09), durum, proje ve gecikme ile süzülebilir.
 9. **KK-09:** Bölüm 7'deki her hata durumu tabloda yazan kodu ve mevcut `ApiError` formatını döner.
-10. **KK-10:** Swagger'da her filtre parametresinin açıklaması ve örneği vardır. README'deki "Known gaps" bölümünden T13 maddesi kaldırılır.
+10. **KK-10:** Swagger'da her filtre parametresinin açıklaması ve örneği vardır. README'deki "Known gaps" bölümünden filtreleme maddesi kaldırılır.
 
 ## 9. API ve veri etkisi (özet)
 
@@ -124,58 +123,56 @@ hafta 31 ORTA raporları), e-Belge (sorumlu Mehmet, hafta 30 YUKSEK raporu) ve N
 
 Netleştirilecek konular ve kararlar (kararlar 5 Kasım 2026'da verildi):
 
-1. **Gecikme tanımı (K-T13-01)** iş tarafının beklentisine uyuyor mu? Referans tarih olarak
+1. **Gecikme tanımı (KF-01)** iş tarafının beklentisine uyuyor mu? Referans tarih olarak
    raporun tarihi mi, yoksa "bugün" mü kullanılmalı?
    **Karar:** Raporun tarihi kalır. Rapor o haftanın anlık görüntüsüdür, sonuç saate bağlı olmaz
    ve geçmiş haftalar kendi tarihlerine göre değerlendirilir. Bilinen sınır: yeni rapor girilmezse
-   sonradan oluşan gecikme görünmez. Bunu T17'deki "bu hafta raporu girilmemiş" göstergesi karşılar.
+   sonradan oluşan gecikme görünmez. Bunu sonraki bir adımda eklenecek "bu hafta raporu girilmemiş"
+   göstergesi karşılar.
 2. **Hafta numarasında yıl bilgisi yok.** `(project_id, week_number)` benzersizlik kısıtı yıl
    değişiminde çakışır: bir proje 2027'nin 30. haftası için rapor giremez, hafta filtresi de
-   hangi yılın haftası olduğunu bilemez. T13'ün kapsamı dışında, ama proje sonuna kadar
+   hangi yılın haftası olduğunu bilemez. Bu çalışmanın kapsamı dışında, ama proje sonuna kadar
    çözülmesi gereken bir risk. Öneri: rapora yıl bilgisi eklemek veya haftayı rapor tarihinden türetmek.
    **Karar:** PostgreSQL geçişinden hemen sonra ayrı bir adımda rapora yıl kolonu eklenir (Flyway
    V2). Benzersizlik kısıtı `(project_id, year, week_number)` olur, hafta filtrelerine yıl eklenir.
 3. **Yazım hatalı parametreler sessizce yok sayılıyor.** Örneğin `?risk=YUKSEK` hata vermez,
    filtresiz sonuç döner. Bu Spring'in standart davranışı; reddedilmesi gerekir mi, yoksa
    dokümante etmek yeterli mi?
-   **Karar:** Dokümante etmek yeterli. Davranış README'de yazılı, test senaryolarında
-   `E6-SC2-TC-Filter-10` olarak kayıtlı.
+   **Karar:** Dokümante etmek yeterli. Davranış README'de yazılı.
 4. **Performans:** dashboard her proje için ayrı sorgu atıyor (en son rapor ve canlı task
    sayısı). Hafta ve gecikme filtreleri buna yeni sorgular ekleyecek. Proje sayısı küçükken
-   sorun değil; T17'deki performans kontrolünde ele alınacak.
-   **Karar:** T17'de ölçülüp ele alınır.
+   sorun değil; sonraki bir performans kontrolünde ele alınacak.
+   **Karar:** Sonraki bir adımda ölçülüp ele alınır.
 
 ## 11. Öncelik
 
 | Konu | Öncelik |
 |---|---|
-| Dashboard: proje, hafta, durum, risk, sorumlu, gecikme filtreleri | T13 (MVP) |
-| Projeler arası rapor listesi: filtre, sayfalama, sıralama | T13 (MVP) |
-| Projeler arası iş kalemi listesi: sorumlu, durum, gecikme | T13 (MVP) |
-| Hata ve boş sonuç davranışları, testler, Swagger ve README | T13 (MVP) |
-| Rol bazlı filtre kapsamı | T14 |
-| "Bu hafta raporu girilmemiş" göstergesi, haftalık trend | Sonra (T17) |
+| Dashboard: proje, hafta, durum, risk, sorumlu, gecikme filtreleri | Bu çalışma |
+| Projeler arası rapor listesi: filtre, sayfalama, sıralama | Bu çalışma |
+| Projeler arası iş kalemi listesi: sorumlu, durum, gecikme | Bu çalışma |
+| Hata ve boş sonuç davranışları, testler, Swagger ve README | Bu çalışma |
+| Rol bazlı filtre kapsamı | Kimlik doğrulama ve rol bazlı yetki adımı |
+| "Bu hafta raporu girilmemiş" göstergesi, haftalık trend | Sonra |
 | Serbest metin araması, kayıtlı filtreler | Opsiyonel |
 
 ## 12. Kapanış kontrolü (5 Kasım 2026)
 
-Mentor kontrolünün yerine öz değerlendirme yapıldı. Kanıt kaynakları: `./mvnw test` (100 test,
-0 hata), test senaryoları xlsx'indeki E6 bölümü (23 senaryo, çalışan uygulamaya karşı hepsi PASS)
-ve Swagger şeması (`/v3/api-docs`).
+Kanıt kaynakları: `./mvnw test` (100 test, 0 hata), çalışan uygulamaya karşı elle denenen
+istekler ve Swagger şeması (`/v3/api-docs`).
 
 | Kriter | Durum | Kanıt |
 |---|---|---|
 | KK-01 | Sağlandı | MVP'den kalan testler (`MvpIntegrationTest` dahil) değişmeden geçiyor. Filtresiz yanıta yalnızca yeni alan eklendi (S-06). |
-| KK-02 | Sağlandı | `E6-SC1-TC-Filter-1`, `DashboardServiceTest` |
-| KK-03 | Sağlandı | `E6-SC1-TC-Filter-2`, `FilterIntegrationTest.dashboardWeekReference` |
-| KK-04 | Sağlandı | `E6-SC1-TC-Filter-3`, `FilterIntegrationTest.dashboardOwnerFilterAndCounters` |
-| KK-05 | Sağlandı | `E6-SC1-TC-Filter-4` |
+| KK-02 | Sağlandı | `DashboardServiceTest` |
+| KK-03 | Sağlandı | `FilterIntegrationTest.dashboardWeekReference` |
+| KK-04 | Sağlandı | `FilterIntegrationTest.dashboardOwnerFilterAndCounters` |
+| KK-05 | Sağlandı | `DashboardServiceTest` (filtrelerin VE ile birleşmesi) |
 | KK-06 | Sağlandı | `WorkItemQueryTest` (`delayedConditionCoversAllCases`, `reportLevelDelay`, `queryConditionMatchesDelayPolicy`), `DashboardServiceTest.delayedFilterAndCounter` |
-| KK-07 | Sağlandı | `E6-SC1-TC-Filter-6`–`10`, `WeeklyReportQueryTest` |
-| KK-08 | Sağlandı | `E6-SC1-TC-Filter-11`–`13`, `WorkItemQueryTest.filtersCombine` |
-| KK-09 | Sağlandı | `FilterIntegrationTest.invalidRequestsReturn400` (17 hatalı istek), `E6-SC2`. Hiçbir durumda `500` dönmüyor. |
-| KK-10 | Sağlandı | Üç endpoint'teki 27 parametrenin hepsinde Swagger açıklaması ve örneği var. README'deki "Known gaps" bölümünden T13 maddesi kaldırıldı. |
+| KK-07 | Sağlandı | `WeeklyReportQueryTest`, `FilterIntegrationTest` |
+| KK-08 | Sağlandı | `WorkItemQueryTest.filtersCombine` |
+| KK-09 | Sağlandı | `FilterIntegrationTest.invalidRequestsReturn400` (17 hatalı istek). Hiçbir durumda `500` dönmüyor. |
+| KK-10 | Sağlandı | Üç endpoint'teki 27 parametrenin hepsinde Swagger açıklaması ve örneği var. README'deki "Known gaps" bölümünden filtreleme maddesi kaldırıldı. |
 
-**Yönetmelik teslim satırı** ("Filtreli dashboard/rapor listesi + test kanıtı + güncel README"):
-filtreli dashboard ile rapor ve iş kalemi listeleri, otomatik testler ve xlsx senaryoları, güncel README.
-T13 bu haliyle kapanır.
+Sonuç: filtreli dashboard ile rapor ve iş kalemi listeleri, otomatik testler ve güncel README.
+Filtreleme çalışması bu haliyle kapanır.

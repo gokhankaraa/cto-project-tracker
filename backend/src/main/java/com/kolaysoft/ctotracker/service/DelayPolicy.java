@@ -12,7 +12,7 @@ import com.kolaysoft.ctotracker.repository.WorkItemRepository;
 import com.kolaysoft.ctotracker.repository.spec.WorkItemSpecifications;
 
 /**
- * Gecikme kuralı (T13 analiz notu, K-T13-01). Dashboard satırı, iş kalemi yanıtı ve filtreler
+ * Gecikme kuralı (filtreleme analizi, KF-01). Dashboard satırı, iş kalemi yanıtı ve filtreler
  * bu kuralı kullanır; sorgu tarafındaki karşılığı {@link WorkItemSpecifications#delayed(Boolean)}.
  *
  * <p>Referans tarih "bugün" değil, iş kaleminin bağlı olduğu raporun tarihidir. Rapor haftalık bir

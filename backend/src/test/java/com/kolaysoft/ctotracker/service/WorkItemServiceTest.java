@@ -43,7 +43,7 @@ class WorkItemServiceTest {
     private WorkItemService service;
 
     private WeeklyReport report(Long id) {
-        // Yanit artik proje bilgisini de iceriyor (T13); rapora bir proje baglanir.
+        // Yanit artik proje bilgisini de iceriyor; rapora bir proje baglanir.
         Project p = new Project();
         p.setId(1L);
         p.setName("Atlas IK");

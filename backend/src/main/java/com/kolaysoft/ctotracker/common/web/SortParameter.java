@@ -8,7 +8,7 @@ import org.springframework.data.domain.Sort;
 import com.kolaysoft.ctotracker.common.exception.InvalidParameterException;
 
 /**
- * {@code sort} sorgu parametresini cozer (T13 filtre sozlesmesi, bolum 3-4 ve S-03).
+ * {@code sort} sorgu parametresini cozer (filtre sozlesmesi, bolum 3-4 ve S-03).
  *
  * <p>Bicim: {@code alan}, {@code alan,asc} veya {@code alan,desc} (yon verilmezse artan). Yalnizca izin
  * listesindeki API alan adlari kabul edilir ve entity yoluna eslenir (or. {@code projectName -> project.name}).

@@ -36,7 +36,7 @@ import jakarta.validation.constraints.Min;
  * Haftalik rapor endpoint'leri. Olusturma/listeleme proje altindan
  * ({@code /api/projects/{projectId}/reports}); tekil islemler rapor id'si uzerinden
  * ({@code /api/reports/{id}}) yapilir (on analiz, bolum 5). Projeler arasi filtreli ve sayfali
- * liste {@code GET /api/reports} uzerindendir (T13 filtre sozlesmesi, bolum 3).
+ * liste {@code GET /api/reports} uzerindendir (filtre sozlesmesi, bolum 3).
  */
 @Tag(name = "WeeklyReport", description = "Haftalik rapor yonetimi")
 @RestController

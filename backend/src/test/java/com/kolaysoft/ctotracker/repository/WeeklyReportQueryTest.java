@@ -30,7 +30,7 @@ import com.kolaysoft.ctotracker.entity.WeeklyReport;
 import com.kolaysoft.ctotracker.repository.spec.WeeklyReportSpecifications;
 
 /**
- * Rapor filtre kosullarinin gercek veritabaninda testi (T13 filtre sozlesmesi, bolum 3).
+ * Rapor filtre kosullarinin gercek veritabaninda testi (filtre sozlesmesi, bolum 3).
  * {@code @DataJpaTest} DataSeeder'i calistirmaz; veri her testte burada kurulur ve geri alinir.
  */
 @DataJpaTest

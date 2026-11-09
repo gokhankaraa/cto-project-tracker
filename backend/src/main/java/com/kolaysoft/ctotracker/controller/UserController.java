@@ -18,7 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * Kullanici listesi (salt okunur). Frontend'de projeye sorumlu atarken ve dashboard'u sorumluya gore
- * suzerken kullanilir. Kullanici ekleme/duzenleme kimlik dogrulama ile birlikte (T14) ele alinacak.
+ * suzerken kullanilir. Kullanici ekleme/duzenleme kimlik dogrulama ile birlikte ele alinacak.
  */
 @Tag(name = "User", description = "Kullanici listesi")
 @RestController

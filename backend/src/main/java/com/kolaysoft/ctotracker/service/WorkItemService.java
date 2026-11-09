@@ -63,7 +63,7 @@ public class WorkItemService {
     }
 
     /**
-     * Projeler arası filtreli ve sayfalı iş kalemi listesi (T13 filtre sözleşmesi, bölüm 4).
+     * Projeler arası filtreli ve sayfalı iş kalemi listesi (filtre sözleşmesi, bölüm 4).
      * Her zaman projelerin değerlendirilen raporuna göre çalışır (S-05).
      *
      * @param sort {@code alan} veya {@code alan,asc|desc}; null ise {@code plannedDate,asc}

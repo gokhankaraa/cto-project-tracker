@@ -31,7 +31,7 @@ import com.kolaysoft.ctotracker.service.DelayPolicy;
 
 /**
  * Is kalemi filtre kosullarinin ve gecikme kuralinin gercek veritabaninda testi
- * (T13 filtre sozlesmesi bolum 4 ve S-05, analiz notu K-T13-01 ve K-T13-09).
+ * (filtre sozlesmesi bolum 4 ve S-05, analiz notu KF-01 ve KF-09).
  */
 @DataJpaTest
 @Import(TestcontainersConfiguration.class)

@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * Kullanici yaniti: frontend'de sorumlu proje yoneticisi secimi ve filtresi icin. E-posta bilerek
- * yer almaz; secim icin gerekmiyor (kimlik dogrulama T14 ile gelecek).
+ * yer almaz; secim icin gerekmiyor (kimlik dogrulama ile gelecek).
  */
 @Schema(description = "Kullanici yaniti")
 public record UserResponse(

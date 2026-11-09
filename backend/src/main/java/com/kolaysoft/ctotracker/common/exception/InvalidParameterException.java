@@ -3,7 +3,7 @@ package com.kolaysoft.ctotracker.common.exception;
 /**
  * Tek basina gecerli ama birlikte ya da bicim olarak gecersiz istek parametrelerinde firlatilir;
  * 400 VALIDATION_ERROR'a donusur ve hatali parametre {@code fieldErrors} icinde doner
- * (T13 filtre sozlesmesi, bolum 5). Ornekler: weekFrom &gt; weekTo, year olmadan
+ * (filtre sozlesmesi, bolum 5). Ornekler: weekFrom &gt; weekTo, year olmadan
  * verilen hafta parametresi, tanimsiz siralama alani.
  */
 public class InvalidParameterException extends RuntimeException {

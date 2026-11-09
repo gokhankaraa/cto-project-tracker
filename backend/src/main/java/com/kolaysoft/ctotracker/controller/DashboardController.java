@@ -24,7 +24,7 @@ import jakarta.validation.constraints.Min;
 /**
  * CTO dashboard endpoint'i (on analiz H-06). Tum projelerin son durumunu tek ozet olarak doner.
  *
- * <p>Filtre parametreleri T13 filtre sozlesmesinin 2. bolumune gore tanimlidir. Parametreler tek tek
+ * <p>Filtre parametreleri filtre sozlesmesinin 2. bolumune gore tanimlidir. Parametreler tek tek
  * {@code @RequestParam} olarak alinir (sozlesme S-01): boylece tip hatalari mevcut
  * {@code 400 INVALID_REQUEST} yolundan, aralik hatalari {@code 400 VALIDATION_ERROR} yolundan doner.
  */

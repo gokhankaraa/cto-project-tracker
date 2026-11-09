@@ -9,9 +9,9 @@ import com.kolaysoft.ctotracker.entity.Project;
 import com.kolaysoft.ctotracker.entity.ProjectStatus;
 
 /**
- * Proje sorgusu için filtre koşulları (filtre sözleşmesi T13, bölüm 2 ve 7).
+ * Proje sorgusu için filtre koşulları (filtre sözleşmesi, bölüm 2 ve 7).
  *
- * <p>Her metot tek bir koşul üretir; değer verilmemişse koşul kısıtlama yapmaz. T14'te rol bazlı
+ * <p>Her metot tek bir koşul üretir; değer verilmemişse koşul kısıtlama yapmaz. Kimlik doğrulama geldiğinde rol bazlı
  * görünürlük koşulu (proje yöneticisi yalnızca kendi projeleri) de buraya eklenecek.
  */
 public final class ProjectSpecifications {

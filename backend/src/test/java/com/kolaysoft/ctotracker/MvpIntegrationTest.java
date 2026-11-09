@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * MVP uctan uca entegrasyon testleri (T08 test turu).
+ * MVP uctan uca entegrasyon testleri.
  *
  * <p>Gercek uygulamayi ayaga kaldirip HTTP katmanindan (MockMvc) test eder: proje -> rapor ->
  * is kalemi -> dashboard akisi ve kritik negatif senaryolar. Her test {@code @Transactional}

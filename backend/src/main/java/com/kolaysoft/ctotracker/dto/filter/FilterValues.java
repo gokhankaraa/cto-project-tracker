@@ -6,7 +6,7 @@ import java.util.Objects;
 import com.kolaysoft.ctotracker.common.exception.InvalidParameterException;
 import com.kolaysoft.ctotracker.entity.WeeklyReport;
 
-/** Filtre kayıtlarının ortak normalleştirme kuralları (filtre sözleşmesi T13, bölüm 1). */
+/** Filtre kayıtlarının ortak normalleştirme kuralları (filtre sözleşmesi, bölüm 1). */
 final class FilterValues {
 
     /** Yalnızca yıl verildiğinde referans nokta yılın son olası haftasıdır. */

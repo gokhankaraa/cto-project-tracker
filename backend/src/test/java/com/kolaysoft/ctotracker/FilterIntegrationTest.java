@@ -38,7 +38,7 @@ import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
 import com.kolaysoft.ctotracker.repository.WorkItemRepository;
 
 /**
- * T13 filtre endpoint'lerinin HTTP katmanindan uctan uca testi (filtre sozlesmesi bolum 2-5).
+ * Filtre endpoint'lerinin HTTP katmanindan uctan uca testi (filtre sozlesmesi bolum 2-5).
  *
  * <p>Seed verisine dayanmaz ({@code demo} profili acik degil, veritabani bos baslar): her test kendi
  * sorumlusunu, projelerini ve raporlarini olusturur ve sonuclari o sorumluya ({@code ownerId}) gore suzer;

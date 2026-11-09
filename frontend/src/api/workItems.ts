@@ -19,7 +19,7 @@ export interface WorkItemRequest {
 export const WORK_ITEM_LIMITS = { title: 255, description: 2000, assignee: 255 } as const
 
 /**
- * GET /api/work-items filtreleri (docs/filtre-sozlesmesi-T13.md, 4. bolum). Varsayilan olarak her
+ * GET /api/work-items filtreleri (docs/filtre-sozlesmesi.md, 4. bolum). Varsayilan olarak her
  * projenin degerlendirilen (en son) raporundaki is kalemleri listelenir; year/weekNumber gecmis bir nokta secer.
  */
 export type WorkItemFilters = {

@@ -14,7 +14,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * Yalnizca {@code /api/**} acilir; Swagger UI zaten uygulamanin kendi adresinden calisir.
  *
  * <p>Cerez/kimlik bilgisi gonderimi ({@code allowCredentials}) kapali: henuz oturum yok. Kimlik
- * dogrulama (T14) geldiginde bu karar yeniden ele alinir.
+ * dogrulama geldiginde bu karar yeniden ele alinir.
  */
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {

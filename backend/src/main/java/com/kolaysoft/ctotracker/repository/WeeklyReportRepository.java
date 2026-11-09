@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import com.kolaysoft.ctotracker.entity.WeeklyReport;
 
-/** Filtreli sorgular icin bkz. {@code repository.spec.WeeklyReportSpecifications} (T13). */
+/** Filtreli sorgular icin bkz. {@code repository.spec.WeeklyReportSpecifications}. */
 public interface WeeklyReportRepository extends JpaRepository<WeeklyReport, Long>,
         JpaSpecificationExecutor<WeeklyReport> {
 
@@ -24,7 +24,7 @@ public interface WeeklyReportRepository extends JpaRepository<WeeklyReport, Long
 
     /**
      * Projenin referans noktaya kadarki (dahil) en son raporu: dashboard'da {@code year}/{@code weekNumber}
-     * icin (T13, V2). Anahtar {@code year * 100 + weekNumber}'dir (bkz. {@link WeeklyReport#weekKey});
+     * icin (V2). Anahtar {@code year * 100 + weekNumber}'dir (bkz. {@link WeeklyReport#weekKey});
      * or. 202629 "2026'nin 29. haftasina kadar" demektir ve onceki yillarin raporlarini da kapsar.
      */
     @Query("""

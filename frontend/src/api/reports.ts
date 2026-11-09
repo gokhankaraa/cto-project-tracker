@@ -49,7 +49,7 @@ export function allowedStages(current: ProgressStage): ProgressStage[] {
 }
 
 /**
- * GET /api/reports filtreleri (docs/filtre-sozlesmesi-T13.md, 3. bolum). year raporun yilina esitliktir;
+ * GET /api/reports filtreleri (docs/filtre-sozlesmesi.md, 3. bolum). year raporun yilina esitliktir;
  * weekFrom/weekTo yalnizca year ile ve o yilin icinde gecerlidir; yillar arasi aralik icin tarih kullanilir.
  */
 export type ReportFilters = {

@@ -1,10 +1,8 @@
-# T13 — Filtre Sözleşmesi (API)
+# Filtre Sözleşmesi (API)
 
-**Staj yönü:** Backend (Java + Spring Boot)
-**Task:** T13, 21. gün — filtre sözleşmesi ve parametreler
 **Hazırlayan:** Gökhan Kara
 **Tarih:** 22 Ekim 2026
-**Dayandığı doküman:** [analiz-notu-T13.md](analiz-notu-T13.md) (K-T13-xx kararları ve KK-xx kabul kriterleri oradadır)
+**Dayandığı doküman:** [filtreleme-analizi.md](filtreleme-analizi.md) (KF-xx kararları ve KK-xx kabul kriterleri oradadır)
 **Güncelleme (6 Kasım 2026):** Raporlara yıl eklendi (Flyway V2). Yıl istekte gönderilmez; rapor
 tarihinin ISO hafta-yılından türetilir. Yanıtlara `year` / `lastYear` alanları eklendi ve "en son rapor"
 artık önce yıla, sonra haftaya göre seçilir.
@@ -19,7 +17,7 @@ bu dokümandaki örnekler aynen geçerlidir. Değişen tek durum yıl sınırıd
 yazılan raporu artık 2027 değil 2026 yılındadır.
 
 Bu doküman üç endpoint'in filtre parametrelerini, doğrulama kurallarını, yanıt yapısını ve hata
-davranışını tanımlar. 22–24. günlerdeki geliştirme ve testler bu sözleşmeye göre yapılacak.
+davranışını tanımlar. Geliştirme ve testler bu sözleşmeye göre yapıldı.
 
 ---
 
@@ -27,23 +25,23 @@ davranışını tanımlar. 22–24. günlerdeki geliştirme ve testler bu sözle
 
 | Kural | Açıklama |
 |---|---|
-| Birleştirme | Farklı parametreler **VE** ile birleşir. Çok değerli parametrelerde değerler **VEYA** ile birleşir (K-T13-02). |
+| Birleştirme | Farklı parametreler **VE** ile birleşir. Çok değerli parametrelerde değerler **VEYA** ile birleşir (KF-02). |
 | Çok değerli parametre | Virgülle (`riskLevel=ORTA,YUKSEK`) veya tekrarla (`riskLevel=ORTA&riskLevel=YUKSEK`) verilebilir. Tabloda "çoklu" olarak işaretlenmiştir. |
-| Verilmeyen parametre | Filtre uygulanmaz. Hiç parametre verilmezse mevcut davranış korunur (K-T13-03). |
+| Verilmeyen parametre | Filtre uygulanmaz. Hiç parametre verilmezse mevcut davranış korunur (KF-03). |
 | Boş değer | `?ownerId=` gibi boş verilen parametre, verilmemiş sayılır. |
 | Enum değerleri | Büyük harf ve koddaki adıyla yazılır (`YUKSEK`, `DEVAM_EDIYOR`). |
 | Tarih biçimi | ISO 8601, `yyyy-MM-dd` (ör. `2026-07-27`) |
 | Hafta numarası | 1–53 (rapor oluştururken kullanılan kuralla aynı). Yıl olmadan anlamsız olduğu için hafta parametreleri yalnızca `year` ile birlikte verilebilir. |
 | Yıl | 2000–2100. Raporun yılı, anlattığı haftanın ISO yılıdır (ör. 53. hafta, rapor tarihi 2027-01-04 → 2026). |
-| Var olmayan id | Hata dönmez, boş sonuç döner (K-T13-07). |
-| Gecikme | Analiz notundaki K-T13-01 tanımı kullanılır. Hesaplama tek bir yerde yapılır, üç endpoint de aynı kuralı kullanır. |
+| Var olmayan id | Hata dönmez, boş sonuç döner (KF-07). |
+| Gecikme | Analiz notundaki KF-01 tanımı kullanılır. Hesaplama tek bir yerde yapılır, üç endpoint de aynı kuralı kullanır. |
 
 **Değerlendirilen rapor:** Dashboard ve iş kalemi listesi her proje için tek bir raporu esas alır:
 
 - `year` verilmezse projenin **en son** raporu (en yeni yıl, o yıl içinde en yüksek hafta),
 - yalnızca `year=Y` verilirse projenin **Y yılının sonuna kadarki** en son raporu,
 - `year=Y&weekNumber=X` verilirse projenin **Y yılının X. haftasına kadarki (dahil)** en son raporu
-  (K-T13-05). Önceki yılların raporları da adaydır: `year=2027&weekNumber=1` için o haftada rapor
+  (KF-05). Önceki yılların raporları da adaydır: `year=2027&weekNumber=1` için o haftada rapor
   yoksa 2026'nın son raporu esas alınır.
 
 Karşılaştırma yıl ve haftayı birlikte taşıyan tek bir anahtarla yapılır: `year * 100 + weekNumber`
@@ -67,9 +65,9 @@ Karşılaştırma yıl ve haftayı birlikte taşıyan tek bir anahtarla yapılı
 | `delayed` | Boolean | — | `true` / `false` | Değerlendirilen rapor: `true` yalnızca gecikenler, `false` yalnızca gecikmeyenler |
 
 - Proje parametreleri (`projectId`, `projectStatus`, `ownerId`) raporu olmayan projeleri de döndürür.
-  Rapor parametreleri (`overallStatus`, `riskLevel`, `delayed`) verildiğinde bu projeler listelenmez (K-T13-04).
+  Rapor parametreleri (`overallStatus`, `riskLevel`, `delayed`) verildiğinde bu projeler listelenmez (KF-04).
 - `year` / `weekNumber` hiçbir projeyi elemez. O noktaya kadar raporu olmayan projeler `hasReport=false` ile döner.
-- Sayfalama yoktur (K-T13-08). Sıralama bugünkü gibi proje id'sine göre artan.
+- Sayfalama yoktur (KF-08). Sıralama bugünkü gibi proje id'sine göre artan.
 
 ### Yanıt: mevcut alanlar aynen kalır, yeni alanlar eklenir
 
@@ -80,7 +78,7 @@ Karşılaştırma yıl ve haftayı birlikte taşıyan tek bir anahtarla yapılı
 | `DashboardProjectSummary` | `lastYear` | Integer | Değerlendirilen raporun yılı (V2; raporu yoksa `null`) |
 
 Mevcut alanlarda değişiklik yok: `lastYear` / `lastWeekNumber`, `year` / `weekNumber` verildiğinde
-değerlendirilen raporun yılını ve haftasını gösterir. Sayaçlar filtrelenmiş kümeye göre hesaplanır (K-T13-06).
+değerlendirilen raporun yılını ve haftasını gösterir. Sayaçlar filtrelenmiş kümeye göre hesaplanır (KF-06).
 
 ### Örnekler (seed verisi)
 
@@ -171,7 +169,7 @@ eklenir. Ek alanlar diğer rapor endpoint'lerinin yanıtında da yer alır.
 | `projectId` | Long | — | — |
 | `year` | Integer | — | 2000–2100 (değerlendirilen rapor; bkz. bölüm 1) |
 | `weekNumber` | Integer | — | 1–53, yalnızca `year` ile (değerlendirilen rapor; bkz. bölüm 1) |
-| `assignee` | String | — | En fazla 255 karakter. Büyük/küçük harfe duyarsız, "içerir" araması (K-T13-09) |
+| `assignee` | String | — | En fazla 255 karakter. Büyük/küçük harfe duyarsız, "içerir" araması (KF-09) |
 | `status` | `WorkItemStatus` | ✓ | Tanımlı enum |
 | `delayed` | Boolean | — | `true` / `false` |
 | `page` | Integer | — | ≥ 0, varsayılan `0` |
@@ -190,7 +188,7 @@ Bölüm 3'teki sayfa yapısı kullanılır, `content` elemanları `WorkItemRespo
 | `projectName` | String | Proje adı |
 | `year` | Integer | Bağlı olduğu raporun yılı (V2) |
 | `weekNumber` | Integer | Bağlı olduğu raporun haftası |
-| `delayed` | boolean | K-T13-01'e göre gecikmiş mi |
+| `delayed` | boolean | KF-01'e göre gecikmiş mi |
 
 ### Örnekler (seed verisi)
 
@@ -238,7 +236,7 @@ gereği yok sayılır ve filtresiz sonuç döner. Bu davranış README'de belirt
 
 ---
 
-## 7. Uygulama yaklaşımı (22–23. gün için)
+## 7. Uygulama yaklaşımı
 
 - **Proje koşulları** (`projectId`, `projectStatus`, `ownerId`) `Specification<Project>` olarak
   kurulur. Dashboard proje kümesini bu sorguyla alır.
@@ -255,9 +253,9 @@ gereği yok sayılır ve filtresiz sonuç döner. Bu davranış README'de belirt
 - **Örnek veri:** gecikme filtresini gösterebilmek için seed'e planlanan tarihli iş kalemleri
   içeren yeni bir rapor eklenir (Atlas IK hafta 31). Mevcut kayıtlar değişmez.
 
-## 8. Yetkilendirmeye (T14) hazırlık
+## 8. Yetkilendirmeye hazırlık
 
-T14'te kimlik doğrulama geldiğinde rol kısıtı, kullanıcının filtrelerinden **önce** gelen ve
+Kimlik doğrulama geldiğinde rol kısıtı, kullanıcının filtrelerinden **önce** gelen ve
 her zaman uygulanan bir koşul olarak eklenecek:
 
 | Rol | Görünürlük koşulu |
@@ -265,11 +263,11 @@ her zaman uygulanan bir koşul olarak eklenecek:
 | CTO, Admin | Koşul yok (tüm projeler) |
 | Proje yöneticisi | `project.owner = oturumdaki kullanıcı` |
 
-Bu koşul üç endpoint'te de proje `Specification`'ına VE ile eklenir. Bu yüzden T13'teki filtre
+Bu koşul üç endpoint'te de proje `Specification`'ına VE ile eklenir. Bu yüzden filtre
 kodunun değişmesi gerekmez. Bir proje yöneticisi `?ownerId=` ile başkasının projelerini
-istediğinde sonuç boş döner, hata dönmez (K-T13-07).
+istediğinde sonuç boş döner, hata dönmez (KF-07).
 
-## 9. Test eşlemesi (24. gün)
+## 9. Test eşlemesi
 
 | Test | Kapsam |
 |---|---|
@@ -277,4 +275,3 @@ istediğinde sonuç boş döner, hata dönmez (K-T13-07).
 | `WeeklyReportQueryTest` (yeni, `@DataJpaTest`) | Rapor `Specification`'ları, aralık uçları, sıralama ve ikinci anahtar |
 | `WorkItemQueryTest` (yeni, `@DataJpaTest`) | Değerlendirilen rapor alt sorgusu, `assignee` araması, gecikme koşulu |
 | `FilterIntegrationTest` (yeni, MockMvc) | Bölüm 2–4'teki örnekler ve bölüm 5'teki her hata satırı |
-| Test senaryoları xlsx | T13 senaryoları mevcut ID düzenine göre eklenir |

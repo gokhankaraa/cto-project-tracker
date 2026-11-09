@@ -51,7 +51,7 @@ class DashboardServiceTest {
     @InjectMocks
     private DashboardService service;
 
-    /** Proje sorgusu artik filtre kosuluyla (Specification) ve id sirasiyla cagriliyor (T13). */
+    /** Proje sorgusu artik filtre kosuluyla (Specification) ve id sirasiyla cagriliyor. */
     private static Specification<Project> anySpec() {
         return any();
     }
@@ -151,7 +151,7 @@ class DashboardServiceTest {
         assertThat(summary.totalLiveTasks()).isZero();
     }
 
-    // --- T13 filtreleri ---
+    // --- Filtreler ---
 
     private DashboardFilter riskFilter(RiskLevel... levels) {
         return new DashboardFilter(null, null, null, null, null, null, List.of(levels), null);

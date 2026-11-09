@@ -8,7 +8,7 @@ import com.kolaysoft.ctotracker.entity.ProgressStage;
 import com.kolaysoft.ctotracker.entity.RiskLevel;
 
 /**
- * Projeler arası haftalık rapor listesi filtresi (filtre sözleşmesi T13, bölüm 3).
+ * Projeler arası haftalık rapor listesi filtresi (filtre sözleşmesi, bölüm 3).
  *
  * <p>Tekil değerlerde null, çok değerli alanlarda boş liste "filtre yok" demektir.
  * Hafta ve tarih aralıklarının uçları dahildir. {@code year} raporun yılına eşitlik filtresidir;

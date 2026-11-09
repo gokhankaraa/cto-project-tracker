@@ -9,7 +9,7 @@ import com.kolaysoft.ctotracker.dto.filter.ReportFilter;
 import com.kolaysoft.ctotracker.entity.WeeklyReport;
 
 /**
- * Haftalık rapor sorgusu için filtre koşulları (filtre sözleşmesi T13, bölüm 3).
+ * Haftalık rapor sorgusu için filtre koşulları (filtre sözleşmesi, bölüm 3).
  *
  * <p>Her metot tek bir koşul üretir; değer verilmemişse koşul kısıtlama yapmaz.
  * Aralık koşullarında uçlar dahildir. Hafta aralığı {@link #inYear} ile birlikte o yılın içinde
@@ -86,7 +86,7 @@ public final class WeeklyReportSpecifications {
         return (root, query, cb) -> cb.lessThanOrEqualTo(root.get("reportDate"), dateTo);
     }
 
-    /** Enum alanı verilen değerlerden biri mi (değerler arasında VEYA, K-T13-02). */
+    /** Enum alanı verilen değerlerden biri mi (değerler arasında VEYA, KF-02). */
     private static Specification<WeeklyReport> in(String attribute, Collection<?> values) {
         if (values == null || values.isEmpty()) {
             return Specification.unrestricted();

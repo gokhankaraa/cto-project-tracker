@@ -1,7 +1,5 @@
 # Haftalık Proje Durum Raporlama ve CTO Takip Sistemi — Ön Analiz
 
-**Staj yönü:** Backend (Java + Spring Boot)
-**Staj süresi:** 20 gün (MVP hedefi)
 **Hazırlayan:** Gökhan Kara
 **Tarih:** 20 Temmuz 2026
 
@@ -108,7 +106,7 @@ Her çekirdek varlık için CRUD işlemleri ve bir adet CTO dashboard özet endp
 
 ## 6. Teknoloji kararım
 
-**Dil / framework:** Java + Spring Boot seçtim. Staj dokümanı bu yığını öneriyor ve öğrenmek istediğim teknoloji bu.
+**Dil / framework:** Java + Spring Boot seçtim. Kurumsal backend geliştirmede yaygın ve olgun bir yığın; öğrenmek istediğim teknoloji de bu.
 
 **Veritabanı:** Geliştirme aşamasında H2 kullanacağım (gömülü, sıfır kurulum, MVP için fazlasıyla yeterli). Üretim ortamına geçişte PostgreSQL'e taşınabilir.
 
@@ -118,7 +116,7 @@ Her çekirdek varlık için CRUD işlemleri ve bir adet CTO dashboard özet endp
 
 ## 7. Varsayımlarım ve kararlarım
 
-Bazı noktalar dokümanda net tanımlanmadığı için, MVP kapsamını daraltmak ve kısıtlı sürede ilerleyebilmek adına aşağıdaki makul varsayımları benimsedim. Her kararı gerekçesiyle birlikte yazdım; ihtiyaç halinde ileride revize edebilirim.
+Bazı noktalar ihtiyaçta net tanımlanmadığı için, MVP kapsamını daraltmak ve hızlı ilerleyebilmek adına aşağıdaki makul varsayımları benimsedim. Her kararı gerekçesiyle birlikte yazdım; ihtiyaç halinde ileride revize edebilirim.
 
 1. **Proje + hafta benzersizdir.** Bir proje bir hafta için tek rapor alır. WeeklyReport üzerinde project + weekNumber için unique constraint tanımlayacağım. Gerekçe: "haftalık rapor" kavramıyla en tutarlı yaklaşım bu.
 
@@ -126,7 +124,7 @@ Bazı noktalar dokümanda net tanımlanmadığı için, MVP kapsamını daraltma
 
 3. **Canlı task, iş kalemi listesinden türetilir.** Ayrı bir "aktif task sayısı" alanı tutmuyorum; gerektiğinde durumu DEVAM_EDIYOR olan WorkItem'ları sayacağım. Gerekçe: veriyi tek kaynakta tutarak tutarsızlık riskini ortadan kaldırıyorum.
 
-4. **Genel durum, takvim ve risk ayrı alanlardır.** overallStatus ve riskLevel çekirdek alanlarım; scheduleStatus (takvim uyumu) alanını süre kalırsa ekleyeceğim. Gerekçe: doküman bu üçünü ayrı kavram olarak tanımlıyor. MVP'de takvim alanını ilk sürümde atlayabilirim.
+4. **Genel durum, takvim ve risk ayrı alanlardır.** overallStatus ve riskLevel çekirdek alanlarım; scheduleStatus (takvim uyumu) alanını süre kalırsa ekleyeceğim. Gerekçe: bu üçü ayrı kavramlardır. MVP'de takvim alanını ilk sürümde atlayabilirim.
 
 5. **Rapor düzenlenebilir; kilitleme yoktur.** Raporları basit güncelleme (PUT) ile değiştirilebilir yapacağım. 
 

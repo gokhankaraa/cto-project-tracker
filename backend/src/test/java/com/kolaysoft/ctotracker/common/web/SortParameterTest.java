@@ -14,7 +14,7 @@ import org.springframework.data.domain.Sort;
 
 import com.kolaysoft.ctotracker.common.exception.InvalidParameterException;
 
-/** SortParameter birim testleri (T13 filtre sozlesmesi, S-03). */
+/** SortParameter birim testleri (filtre sozlesmesi, S-03). */
 class SortParameterTest {
 
     private static final Map<String, String> ALLOWED = Map.of(

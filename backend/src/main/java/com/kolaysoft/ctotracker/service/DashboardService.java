@@ -21,7 +21,7 @@ import com.kolaysoft.ctotracker.repository.WorkItemRepository;
 import com.kolaysoft.ctotracker.repository.spec.ProjectSpecifications;
 
 /**
- * CTO dashboard toplulastirma mantigi (on analiz H-06, T13 filtre sozlesmesi bolum 2).
+ * CTO dashboard toplulastirma mantigi (on analiz H-06, filtre sozlesmesi bolum 2).
  *
  * <p>Her proje icin degerlendirilen rapor bulunur: referans verilmezse en guncel rapor (en yeni yil, o yil
  * icinde en yuksek hafta), yalnizca yil verilirse o yilin sonuna kadarki, yil + hafta verilirse o haftaya
@@ -75,7 +75,7 @@ public class DashboardService {
 
     /**
      * Rapora dayali filtreler. Bu filtrelerden biri verildiginde raporu olmayan projeler listelenmez
-     * (T13 analiz notu K-T13-04).
+     * (filtreleme analizi KF-04).
      */
     private boolean matchesReportCriteria(DashboardProjectSummary summary, DashboardFilter filter) {
         if (!filter.hasReportCriteria()) {

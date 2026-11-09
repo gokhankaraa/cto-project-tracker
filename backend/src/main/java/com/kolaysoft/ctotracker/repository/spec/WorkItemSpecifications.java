@@ -19,7 +19,7 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 
 /**
- * İş kalemi sorgusu için filtre koşulları (filtre sözleşmesi T13, bölüm 4).
+ * İş kalemi sorgusu için filtre koşulları (filtre sözleşmesi, bölüm 4).
  *
  * <p>Her metot tek bir koşul üretir; değer verilmemişse koşul kısıtlama yapmaz.
  */
@@ -83,7 +83,7 @@ public final class WorkItemSpecifications {
         return (root, query, cb) -> cb.equal(root.get("weeklyReport").get("project").get("id"), projectId);
     }
 
-    /** Sorumlu metninde büyük/küçük harfe duyarsız "içerir" araması (K-T13-09). */
+    /** Sorumlu metninde büyük/küçük harfe duyarsız "içerir" araması (KF-09). */
     public static Specification<WorkItem> assigneeContains(String text) {
         if (text == null || text.isBlank()) {
             return Specification.unrestricted();

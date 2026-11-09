@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 /**
  * CTO dashboard portfoy ozeti (on analiz H-06).
  * Proje ozet satirlari ve CTO'nun hizli bakisi icin temel sayaclar.
- * Filtre verildiginde sayaclar filtrelenmis kumeden hesaplanir (T13 analiz notu K-T13-06).
+ * Filtre verildiginde sayaclar filtrelenmis kumeden hesaplanir (filtreleme analizi KF-06).
  */
 @Schema(description = "CTO dashboard portfoy ozeti")
 public record DashboardSummaryResponse(

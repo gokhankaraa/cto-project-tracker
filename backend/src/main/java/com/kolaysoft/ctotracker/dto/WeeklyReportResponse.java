@@ -21,7 +21,7 @@ public record WeeklyReportResponse(
         @Schema(description = "Bagli oldugu proje id'si", example = "1")
         Long projectId,
 
-        @Schema(description = "Bagli oldugu projenin adi (projeler arasi listede okunabilirlik icin, T13)",
+        @Schema(description = "Bagli oldugu projenin adi (projeler arasi listede okunabilirlik icin)",
                 example = "Atlas IK")
         String projectName,
 

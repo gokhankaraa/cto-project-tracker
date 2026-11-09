@@ -33,7 +33,7 @@ import jakarta.validation.constraints.Size;
  * İş kalemi endpoint'leri. Olusturma/listeleme rapor altindan
  * ({@code /api/reports/{reportId}/work-items}); tekil islemler is kalemi id'si uzerinden
  * ({@code /api/work-items/{id}}) yapilir (on analiz, bolum 5). Projeler arasi filtreli ve sayfali
- * liste {@code GET /api/work-items} uzerindendir (T13 filtre sozlesmesi, bolum 4).
+ * liste {@code GET /api/work-items} uzerindendir (filtre sozlesmesi, bolum 4).
  */
 @Tag(name = "WorkItem", description = "İş kalemi yönetimi")
 @RestController

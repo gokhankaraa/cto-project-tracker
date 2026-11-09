@@ -4,25 +4,19 @@ A web application where project managers enter weekly status reports for the pro
 and the CTO monitors the entire project portfolio from a single place: a Spring Boot REST API with
 PostgreSQL, and a React frontend.
 
-Track: **Full Stack (Java + Spring Boot, React + TypeScript)** · Author: Gökhan Kara
+Stack: **Java + Spring Boot, React + TypeScript** · Author: Gökhan Kara
 
-> **Status:** MVP (T01–T12) complete. T13 (days 21–24) adds filtering on the CTO dashboard and two
-> cross-project list endpoints for reports and work items, with paging, sorting and a shared delay
-> rule. Data now lives in PostgreSQL, with the schema managed by Flyway and tests running against a
-> real PostgreSQL via Testcontainers. Reports carry the year of the week they describe (Flyway V2,
-> corrected at year boundaries in V3), and the filters accept a `year`. The repository now also holds the frontend: phase 0 (skeleton,
-> API client, CORS) is in place, and phase 1 (the MVP screens) is complete: CTO dashboard,
-> projects, weekly reports, work items and the cross-project report and work item lists.
-> Role-based authorization (T14) comes next.
+> **Status:** Projects, weekly reports, work items and the CTO dashboard are in place, with filtering
+> on the dashboard and on cross-project report and work item lists (paging, sorting and a shared
+> delay rule). Data lives in PostgreSQL, with the schema managed by Flyway and tests running against
+> a real PostgreSQL via Testcontainers. Reports carry the year of the week they describe (Flyway V2,
+> corrected at year boundaries in V3), and the filters accept a `year`. The React frontend covers
+> all of these screens. Authentication and role-based authorization come next.
 
-Project documents (in [`docs/`](docs/)):
-- [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, scope, user stories, acceptance criteria)
-- [`teknik-karar-notu.docx`](docs/teknik-karar-notu.docx) — technical decision note and learning plan
-- [`test-raporu-MVP-T08.docx`](docs/test-raporu-MVP-T08.docx) — MVP test report (incl. T09 regression)
-- [`analiz-notu-T13.md`](docs/analiz-notu-T13.md) — T13 filtering analysis (decisions, acceptance criteria)
-- [`filtre-sozlesmesi-T13.md`](docs/filtre-sozlesmesi-T13.md) — T13 filter API contract (parameters, examples, errors)
-- [`Test Senaryolari - CTO Takip Sistemi.xlsx`](docs/) — detailed test-case log
-- Weekly internship reports and per-task reports
+Project documents (in [`docs/`](docs/), Turkish):
+- [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, data model, endpoints, assumptions, scope)
+- [`filtreleme-analizi.md`](docs/filtreleme-analizi.md) — filtering analysis (decisions `KF-xx`, acceptance criteria `KK-xx`)
+- [`filtre-sozlesmesi.md`](docs/filtre-sozlesmesi.md) — filter API contract (parameters, examples, errors)
 
 ---
 
@@ -31,7 +25,7 @@ Project documents (in [`docs/`](docs/)):
 ```
 ├── backend/             Spring Boot REST API (Maven project, Dockerfile)
 ├── frontend/            React + TypeScript web app (Vite)
-├── docs/                Analysis notes, API contracts, reports
+├── docs/                Analysis notes and the filter API contract
 ├── docker-compose.yml   PostgreSQL and the backend container
 └── .env.example         Values docker compose reads
 ```
@@ -291,7 +285,7 @@ The full, interactive contract is in Swagger UI. Key business rules (see pre-ana
 ## Filtering, paging and sorting
 
 The full contract, with examples against the demo data, is in
-[`filtre-sozlesmesi-T13.md`](docs/filtre-sozlesmesi-T13.md). Every parameter is also described in
+[`filtre-sozlesmesi.md`](docs/filtre-sozlesmesi.md). Every parameter is also described in
 Swagger UI with an example value.
 
 | Endpoint | Filters | Paging / sorting |
@@ -455,7 +449,7 @@ Backend tests (140 in total):
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
   (project → report → work item → dashboard), 404 / 400 / 409, stage skip, a report date outside
   its week (400 on `reportDate`), dashboard filter
-- `FilterIntegrationTest` — T13 filters over HTTP (MockMvc): dashboard filters and counters, year and
+- `FilterIntegrationTest` — filter endpoints over HTTP (MockMvc): dashboard filters and counters, year and
   week reference (including across years), report paging and sorting, work item filters, null-last default sort, and the error
   cases of the filter contract (such as a week parameter without `year`)
 - `WeeklyReportQueryTest` / `WorkItemQueryTest` — filter queries against the database
@@ -528,7 +522,7 @@ Frontend tests (130, Vitest + Testing Library on jsdom; component tests never re
 
 ## Known gaps
 
-MVP scope decisions, with rationale, are in sections 13–14 of the pre-analysis document.
+MVP scope decisions, with rationale, are in sections 7–8 of the pre-analysis document.
 Not yet implemented at this stage:
 
 - Authentication (login) and role-based authorization — out of MVP scope; `User.password` is
