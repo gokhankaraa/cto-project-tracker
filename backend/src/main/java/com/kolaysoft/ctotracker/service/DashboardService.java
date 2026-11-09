@@ -19,6 +19,7 @@ import com.kolaysoft.ctotracker.repository.ProjectRepository;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
 import com.kolaysoft.ctotracker.repository.WorkItemRepository;
 import com.kolaysoft.ctotracker.repository.spec.ProjectSpecifications;
+import com.kolaysoft.ctotracker.security.CurrentUser;
 
 /**
  * CTO dashboard toplulastirma mantigi (on analiz H-06, filtre sozlesmesi bolum 2).
@@ -40,15 +41,18 @@ public class DashboardService {
     private final WeeklyReportRepository weeklyReportRepository;
     private final WorkItemRepository workItemRepository;
     private final DelayPolicy delayPolicy;
+    private final CurrentUser currentUser;
 
     public DashboardService(ProjectRepository projectRepository,
                             WeeklyReportRepository weeklyReportRepository,
                             WorkItemRepository workItemRepository,
-                            DelayPolicy delayPolicy) {
+                            DelayPolicy delayPolicy,
+                            CurrentUser currentUser) {
         this.projectRepository = projectRepository;
         this.weeklyReportRepository = weeklyReportRepository;
         this.workItemRepository = workItemRepository;
         this.delayPolicy = delayPolicy;
+        this.currentUser = currentUser;
     }
 
     /**
@@ -58,7 +62,10 @@ public class DashboardService {
      */
     public DashboardSummaryResponse getSummary(DashboardFilter filter) {
         List<DashboardProjectSummary> summaries = projectRepository
-                .findAll(ProjectSpecifications.matching(filter), Sort.by("id"))
+                // Gorunurluk kosulu filtrelerle VE ile birlesir (filtre sozlesmesi, bolum 8): proje yoneticisi
+                // yalnizca kendi projelerini gorur, sayaclar da bu kumeden hesaplanir.
+                .findAll(ProjectSpecifications.matching(filter)
+                        .and(ProjectSpecifications.ownedBy(currentUser.viewer().visibleOwnerId())), Sort.by("id"))
                 .stream()
                 .map(project -> toSummary(project, filter.referenceKey()))
                 .filter(summary -> matchesReportCriteria(summary, filter))

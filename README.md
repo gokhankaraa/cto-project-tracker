@@ -11,8 +11,8 @@ Stack: **Java + Spring Boot, React + TypeScript** · Author: Gökhan Kara
 > delay rule). Data lives in PostgreSQL, with the schema managed by Flyway and tests running against
 > a real PostgreSQL via Testcontainers. Reports carry the year of the week they describe (Flyway V2,
 > corrected at year boundaries in V3), and the filters accept a `year`. The React frontend covers
-> all of these screens. The API now requires a login (JWT); role-based permissions and the
-> frontend login screen come next — until then the frontend's requests get **401**.
+> all of these screens. The API requires a login (JWT) and enforces role-based permissions; the
+> frontend login screen comes next — until then the frontend's requests get **401**.
 
 Project documents (in [`docs/`](docs/), Turkish):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, data model, endpoints, assumptions, scope)
@@ -317,6 +317,25 @@ curl -s http://localhost:8080/api/projects -H "Authorization: Bearer <token>"
 - The token travels in a header, not a cookie, so CSRF protection is not needed; CORS allows the
   `Authorization` header from the frontend origin.
 
+## Permissions
+
+| | Admin | CTO | Project manager |
+|---|---|---|---|
+| Dashboard, lists, details | all projects | all projects | **only projects they own** |
+| Create / edit / delete projects | ✓ | ✗ | ✗ |
+| Write / delete weekly reports and work items | ✓ | ✗ | **only in projects they own** |
+| User list, `/api/auth/me` | ✓ | ✓ | ✓ |
+
+- **Role** (who may write what) is checked on the write endpoints (`@PreAuthorize`, rules in
+  `security/Permissions`); a role that is not allowed gets **403** `FORBIDDEN`. The CTO reads
+  everything and changes nothing.
+- **Ownership** (whose data) is part of every query: a project manager's lists, dashboard rows,
+  counters and page totals only cover their own projects, combined with the filters by AND
+  (`?ownerId=` of someone else returns an empty result, not an error).
+- Someone else's project, report or work item opened by id is **404** for a project manager, with
+  the same message as a record that does not exist, so the API does not reveal that it exists.
+  This also applies to writes: a project manager writing into someone else's project gets 404.
+
 ## Filtering, paging and sorting
 
 The full contract, with examples against the demo data, is in
@@ -411,7 +430,8 @@ stage on update → **400**, deleting a project that still has reports → **409
 ```
 com.kolaysoft.ctotracker
 ├── config/           Application configuration (OpenAPI/Swagger, CORS, demo data seeder)
-├── security/         Spring Security setup, token issuing, 401/403 responses in ApiError format
+├── security/         Spring Security setup, token issuing, 401/403 responses, permission rules
+│                     (Permissions) and the logged-in user's visibility (CurrentUser, Viewer)
 ├── controller/       HTTP layer: request handling, DTO exchange
 ├── service/          Business rules (stage transitions, uniqueness, delay rule)
 ├── repository/       Database access via Spring Data JPA
@@ -485,10 +505,11 @@ npm test           # frontend unit tests, no backend needed
 Spring tests run against a real PostgreSQL 17 started by Testcontainers (`TestcontainersConfiguration`);
 the schema comes from the same Flyway scripts as the application. Each test context starts with an
 empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; every other test
-creates its own data. Service tests use Mockito and need no database.
+creates its own data. Service tests use Mockito and need no database; they run as an Admin
+(a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
-Backend tests (150 in total). The HTTP tests of business rules run as an Admin
-(`@WithMockUser`); login and token handling are tested with real tokens:
+Backend tests (159 in total). The HTTP tests of business rules run as an Admin
+(`@WithMockUser`); login, tokens and permissions are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
   (project → report → work item → dashboard), 404 / 400 / 409, stage skip, a report date outside
@@ -506,6 +527,11 @@ Backend tests (150 in total). The HTTP tests of business rules run as an Admin
   uniqueness is per project + year + week, and the latest report compares the year before the week
 - `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
 - `HealthControllerTest` — health endpoint and DB connection (reports PostgreSQL)
+- `AuthorizationIntegrationTest` — the permission matrix end to end with the demo users logging in:
+  lists, dashboard (rows and counters), cross-project lists scoped to the project manager's own
+  projects; someone else's records 404 with the same message as a missing one; the CTO gets 403 on
+  every write; project managers can't manage projects (403) and write only into their own (404
+  elsewhere); the Admin can do everything
 - `AuthControllerTest` — login returns a token that works on protected endpoints and `/me`; wrong
   password, unknown e-mail and a user without a password get the same 401; empty fields (400); no
   token, a tampered token and an expired token (401, `ApiError` + `WWW-Authenticate`); a deleted
@@ -573,8 +599,6 @@ Frontend tests (130, Vitest + Testing Library on jsdom; component tests never re
 MVP scope decisions, with rationale, are in sections 7–8 of the pre-analysis document.
 Not yet implemented at this stage:
 
-- Role-based permissions (who may change what, project managers seeing only their own projects) —
-  in progress; for now every logged-in user can do everything
 - No user management or password change yet: users and their passwords come from the demo data
 - No token refresh or server-side logout: a token stays valid until it expires
 - Report locking, audit log, export — out of MVP scope

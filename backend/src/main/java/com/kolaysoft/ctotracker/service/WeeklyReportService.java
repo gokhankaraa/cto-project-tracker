@@ -27,6 +27,7 @@ import com.kolaysoft.ctotracker.repository.ProjectRepository;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
 import com.kolaysoft.ctotracker.repository.WorkItemRepository;
 import com.kolaysoft.ctotracker.repository.spec.WeeklyReportSpecifications;
+import com.kolaysoft.ctotracker.security.CurrentUser;
 
 /**
  * Haftalik rapor CRUD is mantigi ve is kurallari (on analiz H-03/H-04/H-05).
@@ -62,18 +63,21 @@ public class WeeklyReportService {
     private final WeeklyReportRepository weeklyReportRepository;
     private final ProjectRepository projectRepository;
     private final WorkItemRepository workItemRepository;
+    private final CurrentUser currentUser;
 
     public WeeklyReportService(WeeklyReportRepository weeklyReportRepository,
                                ProjectRepository projectRepository,
-                               WorkItemRepository workItemRepository) {
+                               WorkItemRepository workItemRepository,
+                               CurrentUser currentUser) {
         this.weeklyReportRepository = weeklyReportRepository;
         this.projectRepository = projectRepository;
         this.workItemRepository = workItemRepository;
+        this.currentUser = currentUser;
     }
 
     @Transactional(readOnly = true)
     public List<WeeklyReportResponse> findByProject(Long projectId) {
-        requireProjectExists(projectId);
+        getVisibleProjectOrThrow(projectId);
         return weeklyReportRepository.findByProjectId(projectId).stream()
                 .map(this::toResponse).toList();
     }
@@ -93,13 +97,13 @@ public class WeeklyReportService {
         validateRanges(filter);
         Pageable pageable = PageRequest.of(page, size, SortParameter.parse(sort, SORT_FIELDS, DEFAULT_SORT));
         return PageResponse.of(
-                weeklyReportRepository.findAll(WeeklyReportSpecifications.matching(filter), pageable),
+                weeklyReportRepository.findAll(WeeklyReportSpecifications.matching(filter)
+                        .and(WeeklyReportSpecifications.ownedBy(currentUser.viewer().visibleOwnerId())), pageable),
                 this::toResponse);
     }
 
     public WeeklyReportResponse create(Long projectId, WeeklyReportRequest request) {
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new ResourceNotFoundException("Proje", projectId));
+        Project project = getVisibleProjectOrThrow(projectId);
 
         int year = validateReportWeek(request);
         if (weeklyReportRepository.existsByProjectIdAndYearAndWeekNumber(projectId, year, request.weekNumber())) {
@@ -129,10 +133,7 @@ public class WeeklyReportService {
     }
 
     public void delete(Long reportId) {
-        if (!weeklyReportRepository.existsById(reportId)) {
-            throw new ResourceNotFoundException("Haftalik rapor", reportId);
-        }
-        weeklyReportRepository.deleteById(reportId);
+        weeklyReportRepository.delete(getReportOrThrow(reportId));
     }
 
     /** Ters araliklar 400 doner; hata araligin bitis parametresinde raporlanir (filtre sozlesmesi, bolum 5). */
@@ -206,15 +207,17 @@ public class WeeklyReportService {
         report.setNote(request.note());
     }
 
+    /** Rapor yoksa ya da projesi oturumdaki kullaniciya gorunmuyorsa ayni 404. */
     private WeeklyReport getReportOrThrow(Long reportId) {
         return weeklyReportRepository.findById(reportId)
+                .filter(report -> currentUser.viewer().canSee(report.getProject()))
                 .orElseThrow(() -> new ResourceNotFoundException("Haftalik rapor", reportId));
     }
 
-    private void requireProjectExists(Long projectId) {
-        if (!projectRepository.existsById(projectId)) {
-            throw new ResourceNotFoundException("Proje", projectId);
-        }
+    private Project getVisibleProjectOrThrow(Long projectId) {
+        return projectRepository.findById(projectId)
+                .filter(project -> currentUser.viewer().canSee(project))
+                .orElseThrow(() -> new ResourceNotFoundException("Proje", projectId));
     }
 
     private WeeklyReportResponse toResponse(WeeklyReport r) {

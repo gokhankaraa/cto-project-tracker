@@ -14,6 +14,9 @@ import com.kolaysoft.ctotracker.entity.User;
 import com.kolaysoft.ctotracker.repository.ProjectRepository;
 import com.kolaysoft.ctotracker.repository.UserRepository;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
+import com.kolaysoft.ctotracker.repository.spec.ProjectSpecifications;
+import com.kolaysoft.ctotracker.security.CurrentUser;
+import org.springframework.data.domain.Sort;
 
 /**
  * Proje CRUD is mantigi. Controller HTTP ile, repository veritabani ile ilgilenir;
@@ -26,17 +29,22 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final WeeklyReportRepository weeklyReportRepository;
+    private final CurrentUser currentUser;
 
     public ProjectService(ProjectRepository projectRepository, UserRepository userRepository,
-                          WeeklyReportRepository weeklyReportRepository) {
+                          WeeklyReportRepository weeklyReportRepository, CurrentUser currentUser) {
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.weeklyReportRepository = weeklyReportRepository;
+        this.currentUser = currentUser;
     }
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> findAll() {
-        return projectRepository.findAll().stream().map(ProjectService::toResponse).toList();
+        // Proje yoneticisi yalnizca kendi projelerini gorur (bkz. Viewer).
+        Long visibleOwner = currentUser.viewer().visibleOwnerId();
+        return projectRepository.findAll(ProjectSpecifications.ownedBy(visibleOwner), Sort.by("id")).stream()
+                .map(ProjectService::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
@@ -57,9 +65,7 @@ public class ProjectService {
     }
 
     public void delete(Long id) {
-        if (!projectRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Proje", id);
-        }
+        getProjectOrThrow(id);
         // Raporu olan proje silinemez: kazara toplu silmeyi onlemek icin anlamli 409 doner.
         if (weeklyReportRepository.existsByProjectId(id)) {
             throw new ResourceInUseException(
@@ -78,8 +84,10 @@ public class ProjectService {
         project.setOwner(owner);
     }
 
+    /** Proje yoksa ya da oturumdaki kullanici goremiyorsa ayni 404 (projenin varligi sizmaz). */
     private Project getProjectOrThrow(Long id) {
         return projectRepository.findById(id)
+                .filter(project -> currentUser.viewer().canSee(project))
                 .orElseThrow(() -> new ResourceNotFoundException("Proje", id));
     }
 

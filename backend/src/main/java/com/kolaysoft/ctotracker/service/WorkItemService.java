@@ -20,6 +20,7 @@ import com.kolaysoft.ctotracker.entity.WorkItem;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
 import com.kolaysoft.ctotracker.repository.WorkItemRepository;
 import com.kolaysoft.ctotracker.repository.spec.WorkItemSpecifications;
+import com.kolaysoft.ctotracker.security.CurrentUser;
 
 /**
  * İş kalemi CRUD is mantigi (on analiz H-05).
@@ -41,18 +42,21 @@ public class WorkItemService {
     private final WorkItemRepository workItemRepository;
     private final WeeklyReportRepository weeklyReportRepository;
     private final DelayPolicy delayPolicy;
+    private final CurrentUser currentUser;
 
     public WorkItemService(WorkItemRepository workItemRepository,
                            WeeklyReportRepository weeklyReportRepository,
-                           DelayPolicy delayPolicy) {
+                           DelayPolicy delayPolicy,
+                           CurrentUser currentUser) {
         this.workItemRepository = workItemRepository;
         this.weeklyReportRepository = weeklyReportRepository;
         this.delayPolicy = delayPolicy;
+        this.currentUser = currentUser;
     }
 
     @Transactional(readOnly = true)
     public List<WorkItemResponse> findByReport(Long reportId) {
-        requireReportExists(reportId);
+        getVisibleReportOrThrow(reportId);
         return workItemRepository.findByWeeklyReportId(reportId).stream()
                 .map(this::toResponse).toList();
     }
@@ -72,13 +76,13 @@ public class WorkItemService {
     public PageResponse<WorkItemResponse> search(WorkItemFilter filter, int page, int size, String sort) {
         Pageable pageable = PageRequest.of(page, size, SortParameter.parse(sort, SORT_FIELDS, DEFAULT_SORT));
         return PageResponse.of(
-                workItemRepository.findAll(WorkItemSpecifications.matching(filter), pageable),
+                workItemRepository.findAll(WorkItemSpecifications.matching(filter)
+                        .and(WorkItemSpecifications.projectOwnedBy(currentUser.viewer().visibleOwnerId())), pageable),
                 this::toResponse);
     }
 
     public WorkItemResponse create(Long reportId, WorkItemRequest request) {
-        WeeklyReport report = weeklyReportRepository.findById(reportId)
-                .orElseThrow(() -> new ResourceNotFoundException("Haftalik rapor", reportId));
+        WeeklyReport report = getVisibleReportOrThrow(reportId);
 
         WorkItem workItem = new WorkItem();
         workItem.setWeeklyReport(report);
@@ -93,10 +97,7 @@ public class WorkItemService {
     }
 
     public void delete(Long workItemId) {
-        if (!workItemRepository.existsById(workItemId)) {
-            throw new ResourceNotFoundException("Is kalemi", workItemId);
-        }
-        workItemRepository.deleteById(workItemId);
+        workItemRepository.delete(getWorkItemOrThrow(workItemId));
     }
 
     private void applyRequest(WorkItem workItem, WorkItemRequest request) {
@@ -108,15 +109,17 @@ public class WorkItemService {
         workItem.setCompletedDate(request.completedDate());
     }
 
+    /** Is kalemi yoksa ya da projesi oturumdaki kullaniciya gorunmuyorsa ayni 404. */
     private WorkItem getWorkItemOrThrow(Long workItemId) {
         return workItemRepository.findById(workItemId)
+                .filter(item -> currentUser.viewer().canSee(item.getWeeklyReport().getProject()))
                 .orElseThrow(() -> new ResourceNotFoundException("Is kalemi", workItemId));
     }
 
-    private void requireReportExists(Long reportId) {
-        if (!weeklyReportRepository.existsById(reportId)) {
-            throw new ResourceNotFoundException("Haftalik rapor", reportId);
-        }
+    private WeeklyReport getVisibleReportOrThrow(Long reportId) {
+        return weeklyReportRepository.findById(reportId)
+                .filter(report -> currentUser.viewer().canSee(report.getProject()))
+                .orElseThrow(() -> new ResourceNotFoundException("Haftalik rapor", reportId));
     }
 
     private WorkItemResponse toResponse(WorkItem w) {

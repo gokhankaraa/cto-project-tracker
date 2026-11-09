@@ -76,6 +76,14 @@ public final class WorkItemSpecifications {
         return (root, query, cb) -> cb.equal(root.get("weeklyReport").get("id"), reportId);
     }
 
+    /** İş kaleminin bağlı olduğu projenin sorumlu proje yöneticisi (görünürlük, bkz. Viewer). */
+    public static Specification<WorkItem> projectOwnedBy(Long ownerId) {
+        if (ownerId == null) {
+            return Specification.unrestricted();
+        }
+        return (root, query, cb) -> cb.equal(root.get("weeklyReport").get("project").get("owner").get("id"), ownerId);
+    }
+
     public static Specification<WorkItem> forProject(Long projectId) {
         if (projectId == null) {
             return Specification.unrestricted();

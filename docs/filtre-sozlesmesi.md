@@ -9,6 +9,9 @@ artık önce yıla, sonra haftaya göre seçilir.
 **Güncelleme (9 Kasım 2026):** Üç endpoint'e `year` parametresi eklendi. Hafta parametreleri
 (`weekNumber`, `weekFrom`, `weekTo`) artık yalnızca `year` ile birlikte verilebilir; yılsız hafta
 `400 VALIDATION_ERROR` döner (bölüm 1 ve 5).
+**Güncelleme (9 Kasım 2026, yetkilendirme):** Üç endpoint giriş ister. Proje yöneticisi yalnızca
+sorumlusu olduğu projelerin verisini görür; koşul filtrelerle VE ile birleşir (bölüm 8). Bu
+dokümandaki örnekler CTO ve Admin için geçerlidir.
 **Güncelleme (9 Kasım 2026, Flyway V3):** Raporun yılı artık rapor tarihinin değil, **anlattığı
 haftanın** ISO yılıdır: hafta numarası ve rapor tarihinden türetilir (o haftanın rapor tarihine en
 yakın olduğu yıl). Rapor, anlattığı haftanın içinde ya da ertesi haftasında yazılır; aksi halde rapor
@@ -253,19 +256,27 @@ gereği yok sayılır ve filtresiz sonuç döner. Bu davranış README'de belirt
 - **Örnek veri:** gecikme filtresini gösterebilmek için seed'e planlanan tarihli iş kalemleri
   içeren yeni bir rapor eklenir (Atlas IK hafta 31). Mevcut kayıtlar değişmez.
 
-## 8. Yetkilendirmeye hazırlık
+## 8. Yetkilendirme
 
-Kimlik doğrulama geldiğinde rol kısıtı, kullanıcının filtrelerinden **önce** gelen ve
-her zaman uygulanan bir koşul olarak eklenecek:
+Üç endpoint de giriş ister (`Authorization: Bearer <token>`; token yoksa `401`). Rol kısıtı,
+kullanıcının filtrelerinden **önce** gelen ve her zaman uygulanan bir koşuldur:
 
 | Rol | Görünürlük koşulu |
 |---|---|
 | CTO, Admin | Koşul yok (tüm projeler) |
 | Proje yöneticisi | `project.owner = oturumdaki kullanıcı` |
 
-Bu koşul üç endpoint'te de proje `Specification`'ına VE ile eklenir. Bu yüzden filtre
-kodunun değişmesi gerekmez. Bir proje yöneticisi `?ownerId=` ile başkasının projelerini
-istediğinde sonuç boş döner, hata dönmez (KF-07).
+Bu koşul üç endpoint'te de proje `Specification`'ına VE ile eklenir; filtre kodu değişmedi.
+Sayaçlar ve sayfa toplamları da bu kümeden hesaplanır. Bir proje yöneticisi `?ownerId=` ya da
+`?projectId=` ile başkasının projelerini istediğinde sonuç boş döner, hata dönmez (KF-07).
+
+| İstek (seed verisi) | Sonuç |
+|---|---|
+| `GET /api/dashboard/summary`, Ayşe (PM) | Atlas IK ve Nova POS, `totalProjects: 2` |
+| `GET /api/dashboard/summary?ownerId=2`, Ayşe | Boş liste, sayaçlar `0`, `200` |
+| `GET /api/reports`, Mehmet (PM) | Yalnızca e-Belge hafta 30, `totalElements: 1` |
+| `GET /api/work-items`, Mehmet | Yalnızca e-Belge iş kalemleri |
+| Herhangi biri, CTO veya Admin | Bölüm 2–4'teki örneklerle aynı (tüm projeler) |
 
 ## 9. Test eşlemesi
 

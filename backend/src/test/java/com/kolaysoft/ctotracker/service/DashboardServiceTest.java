@@ -13,6 +13,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.BeforeEach;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -31,6 +32,9 @@ import com.kolaysoft.ctotracker.entity.WorkItemStatus;
 import com.kolaysoft.ctotracker.repository.ProjectRepository;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
 import com.kolaysoft.ctotracker.repository.WorkItemRepository;
+import com.kolaysoft.ctotracker.security.CurrentUser;
+import com.kolaysoft.ctotracker.security.Viewer;
+import com.kolaysoft.ctotracker.entity.Role;
 
 /** DashboardService toplulastirma testleri (Spring context'siz, Mockito ile). */
 @ExtendWith(MockitoExtension.class)
@@ -47,6 +51,22 @@ class DashboardServiceTest {
 
     @Mock
     private DelayPolicy delayPolicy;
+
+    /** Bu testler is kurallarini sinar; oturumdaki kullanici her projeyi goren Admin'dir. */
+
+    @Mock
+
+    private CurrentUser currentUser;
+
+
+    @BeforeEach
+
+    void signInAsAdmin() {
+
+        lenient().when(currentUser.viewer()).thenReturn(new Viewer(99L, Role.ADMIN));
+
+    }
+
 
     @InjectMocks
     private DashboardService service;

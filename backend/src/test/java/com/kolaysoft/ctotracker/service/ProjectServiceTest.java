@@ -6,12 +6,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.BeforeEach;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -27,6 +29,8 @@ import com.kolaysoft.ctotracker.entity.User;
 import com.kolaysoft.ctotracker.repository.ProjectRepository;
 import com.kolaysoft.ctotracker.repository.UserRepository;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
+import com.kolaysoft.ctotracker.security.CurrentUser;
+import com.kolaysoft.ctotracker.security.Viewer;
 
 /** ProjectService birim testleri (Spring context'siz, Mockito ile). */
 @ExtendWith(MockitoExtension.class)
@@ -40,6 +44,22 @@ class ProjectServiceTest {
 
     @Mock
     private WeeklyReportRepository weeklyReportRepository;
+
+    /** Bu testler is kurallarini sinar; oturumdaki kullanici her projeyi goren Admin'dir. */
+
+    @Mock
+
+    private CurrentUser currentUser;
+
+
+    @BeforeEach
+
+    void signInAsAdmin() {
+
+        lenient().when(currentUser.viewer()).thenReturn(new Viewer(99L, Role.ADMIN));
+
+    }
+
 
     @InjectMocks
     private ProjectService service;
@@ -144,7 +164,7 @@ class ProjectServiceTest {
     @Test
     @DisplayName("Silme: olmayan proje 404 ResourceNotFound")
     void deleteRejectsMissingProject() {
-        when(projectRepository.existsById(99L)).thenReturn(false);
+        when(projectRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.delete(99L))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -155,7 +175,7 @@ class ProjectServiceTest {
     @Test
     @DisplayName("Silme: raporu olan proje silinemez, 409 ResourceInUse")
     void deleteRejectsProjectWithReports() {
-        when(projectRepository.existsById(1L)).thenReturn(true);
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(new Project()));
         when(weeklyReportRepository.existsByProjectId(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> service.delete(1L))
@@ -167,7 +187,7 @@ class ProjectServiceTest {
     @Test
     @DisplayName("Silme: raporu olmayan proje silinir")
     void deleteRemovesProjectWithoutReports() {
-        when(projectRepository.existsById(1L)).thenReturn(true);
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(new Project()));
         when(weeklyReportRepository.existsByProjectId(1L)).thenReturn(false);
 
         service.delete(1L);

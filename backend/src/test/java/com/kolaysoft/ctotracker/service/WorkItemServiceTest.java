@@ -6,12 +6,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.BeforeEach;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -25,6 +27,9 @@ import com.kolaysoft.ctotracker.entity.WorkItem;
 import com.kolaysoft.ctotracker.entity.WorkItemStatus;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
 import com.kolaysoft.ctotracker.repository.WorkItemRepository;
+import com.kolaysoft.ctotracker.security.CurrentUser;
+import com.kolaysoft.ctotracker.security.Viewer;
+import com.kolaysoft.ctotracker.entity.Role;
 
 /** WorkItemService birim testleri (Spring context'siz, Mockito ile). */
 @ExtendWith(MockitoExtension.class)
@@ -38,6 +43,22 @@ class WorkItemServiceTest {
 
     @Mock
     private DelayPolicy delayPolicy;
+
+    /** Bu testler is kurallarini sinar; oturumdaki kullanici her projeyi goren Admin'dir. */
+
+    @Mock
+
+    private CurrentUser currentUser;
+
+
+    @BeforeEach
+
+    void signInAsAdmin() {
+
+        lenient().when(currentUser.viewer()).thenReturn(new Viewer(99L, Role.ADMIN));
+
+    }
+
 
     @InjectMocks
     private WorkItemService service;
@@ -129,7 +150,7 @@ class WorkItemServiceTest {
     @Test
     @DisplayName("Listeleme: olmayan rapor icin 404")
     void findByReportRejectsMissingReport() {
-        when(weeklyReportRepository.existsById(99L)).thenReturn(false);
+        when(weeklyReportRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.findByReport(99L))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -138,21 +159,22 @@ class WorkItemServiceTest {
     @Test
     @DisplayName("Silme: olmayan is kalemi 404")
     void deleteRejectsMissing() {
-        when(workItemRepository.existsById(99L)).thenReturn(false);
+        when(workItemRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.delete(99L))
                 .isInstanceOf(ResourceNotFoundException.class);
 
-        verify(workItemRepository, never()).deleteById(any());
+        verify(workItemRepository, never()).delete(any(WorkItem.class));
     }
 
     @Test
     @DisplayName("Silme: mevcut is kalemi silinir")
     void deleteRemovesExisting() {
-        when(workItemRepository.existsById(10L)).thenReturn(true);
+        WorkItem item = existing(10L, 1L);
+        when(workItemRepository.findById(10L)).thenReturn(Optional.of(item));
 
         service.delete(10L);
 
-        verify(workItemRepository).deleteById(10L);
+        verify(workItemRepository).delete(item);
     }
 }

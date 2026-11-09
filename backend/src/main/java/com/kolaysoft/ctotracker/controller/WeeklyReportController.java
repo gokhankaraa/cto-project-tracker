@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +25,7 @@ import com.kolaysoft.ctotracker.entity.OverallStatus;
 import com.kolaysoft.ctotracker.entity.ProgressStage;
 import com.kolaysoft.ctotracker.entity.RiskLevel;
 import com.kolaysoft.ctotracker.service.WeeklyReportService;
+import com.kolaysoft.ctotracker.security.Permissions;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -55,6 +57,7 @@ public class WeeklyReportController {
     }
 
     @Operation(summary = "Projeye haftalik rapor olustur")
+    @PreAuthorize(Permissions.REPORT_WRITERS)
     @PostMapping(value = "/api/projects/{projectId}/reports",
             consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<WeeklyReportResponse> create(@PathVariable Long projectId,
@@ -132,6 +135,7 @@ public class WeeklyReportController {
     }
 
     @Operation(summary = "Haftalik rapor guncelle")
+    @PreAuthorize(Permissions.REPORT_WRITERS)
     @PutMapping(value = "/api/reports/{id}",
             consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public WeeklyReportResponse update(@PathVariable Long id, @Valid @RequestBody WeeklyReportRequest request) {
@@ -139,6 +143,7 @@ public class WeeklyReportController {
     }
 
     @Operation(summary = "Haftalik rapor sil")
+    @PreAuthorize(Permissions.REPORT_WRITERS)
     @DeleteMapping("/api/reports/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         weeklyReportService.delete(id);
