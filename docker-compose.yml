@@ -1,8 +1,8 @@
-# Gelistirme ortami: PostgreSQL (db) ve istege bagli olarak uygulamanin kendisi (app).
+# Gelistirme ortami: PostgreSQL (db) ve istege bagli olarak backend (app) ile frontend (web).
 # Kullanim:
 #   cp .env.example .env          (istege bagli; degerlerin hepsinin varsayilani var)
 #   docker compose up -d db       (yalnizca veritabani; uygulama: cd backend && ./mvnw spring-boot:run)
-#   docker compose up -d --build  (veritabani + uygulama, http://localhost:8080)
+#   docker compose up -d --build  (veritabani + backend + frontend: http://localhost:3000, API http://localhost:8080)
 #   docker compose down           (veri volume'da kalir; silmek icin: docker compose down -v)
 # Proje adi sabit: volume ve ag adlari klasor adina bagli kalmasin (or. repo baska adla klonlansa da).
 name: cto-project-tracker
@@ -48,6 +48,16 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-do-not-use-in-production-0123456789}
     ports:
       - "${APP_PORT:-8080}:8080"
+
+  web:
+    build: ./frontend
+    image: cto-tracker-web:latest
+    container_name: ctotracker-web
+    depends_on:
+      - app
+    # nginx: derlenmis frontend'i sunar, /api isteklerini app servisine iletir (tek adres, CORS gerekmez).
+    ports:
+      - "${WEB_PORT:-3000}:80"
 
 volumes:
   ctotracker-db-data:

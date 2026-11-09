@@ -25,9 +25,9 @@ Project documents (in [`docs/`](docs/), Turkish):
 
 ```
 ├── backend/             Spring Boot REST API (Maven project, Dockerfile)
-├── frontend/            React + TypeScript web app (Vite)
+├── frontend/            React + TypeScript web app (Vite; Dockerfile + nginx.conf)
 ├── docs/                Analysis notes and the filter API contract
-├── docker-compose.yml   PostgreSQL and the backend container
+├── docker-compose.yml   PostgreSQL, backend and frontend containers
 └── .env.example         Values docker compose reads
 ```
 
@@ -96,19 +96,34 @@ java -jar target/cto-project-tracker-backend-0.0.1-SNAPSHOT.jar
 
 ### Run everything with Docker
 
-The app ships with a multi-stage [`backend/Dockerfile`](backend/Dockerfile) (builds the jar inside the image, then runs it on a
-JRE). `docker-compose.yml` starts it together with PostgreSQL, so no local Java/Maven is needed:
+`docker-compose.yml` starts the whole system — PostgreSQL, the backend and the frontend — so no
+local Java, Maven or Node is needed:
 
 ```bash
-docker compose up -d --build            # PostgreSQL + application
+docker compose up -d --build            # PostgreSQL + backend + frontend
 
-curl http://localhost:8080/api/health   # {"status":"UP","databaseStatus":"UP", ...}
+open http://localhost:3000              # the web app (log in with a demo user, see Demo data)
+curl http://localhost:8080/api/health   # the API directly: {"status":"UP","databaseStatus":"UP", ...}
 
 docker compose down                     # stop (add -v to also delete the data)
 ```
 
-The image is built with `-DskipTests`: Testcontainers needs Docker, which is not reachable inside
-`docker build`. Run `./mvnw test` (in `backend/`) before building an image.
+| Service | Image | Address |
+|---|---|---|
+| `db` | `postgres:17-alpine` | `localhost:5433` (`DB_PORT`) |
+| `app` | [`backend/Dockerfile`](backend/Dockerfile): builds the jar, runs it on a JRE | http://localhost:8080 (`APP_PORT`), Swagger at `/swagger-ui.html` |
+| `web` | [`frontend/Dockerfile`](frontend/Dockerfile): builds the app with Node, serves it with nginx | http://localhost:3000 (`WEB_PORT`) |
+
+The `web` container's nginx ([`frontend/nginx.conf`](frontend/nginx.conf)) serves the built files and
+forwards `/api/**` to the `app` service. The browser talks to one address, so no CORS setup is
+needed and the image does not contain a backend address (it is built with an empty
+`VITE_API_BASE_URL`, so requests go to the page's own origin). Unknown paths such as
+`/projects/3` return `index.html` and React Router resolves them.
+
+The backend image is built with `-DskipTests`: Testcontainers needs Docker, which is not reachable
+inside `docker build`. Run `./mvnw test` (in `backend/`) and `npm test` (in `frontend/`) before
+building images. The backend takes a few seconds to start; until then the frontend shows
+"Bağlantı yok" in the top bar.
 
 ### Verifying it runs
 
@@ -149,8 +164,8 @@ Every page except `/login` needs a login; log in with one of the demo users
 (e.g. `admin@example.com` / `Demo1234!`, see [Sample users](#demo-data)). The top bar shows the
 backend and database status from `/api/health` (no login needed), so it also confirms that the
 browser can reach the API (CORS). The API address comes from `VITE_API_BASE_URL`
-(default `http://localhost:8080`); to change it, copy `frontend/.env.example` to
-`frontend/.env.local`. If the frontend runs on another address, add that address to the backend's
+(default `http://localhost:8080`; empty means the page's own origin, as in the Docker image); to
+change it, copy `frontend/.env.example` to `frontend/.env.local`. If the frontend runs on another address, add that address to the backend's
 `CORS_ALLOWED_ORIGINS`.
 
 | Command (in `frontend/`) | What it does |
@@ -231,11 +246,13 @@ git) to change them.
 |---|---|---|
 | `DB_HOST` | `localhost` | PostgreSQL host |
 | `DB_PORT` | `5433` | PostgreSQL port (5433 avoids clashing with a locally installed PostgreSQL on 5432) |
+| `APP_PORT` | `8080` | Host port of the backend container (`docker compose` only) |
+| `WEB_PORT` | `3000` | Host port of the frontend container (`docker compose` only) |
 | `DB_NAME` | `ctotracker` | Database name |
 | `DB_USER` | `ctotracker` | Database user |
 | `DB_PASSWORD` | `ctotracker_dev` | Database password (development only) |
 | `SPRING_PROFILES_ACTIVE` | *(none → `demo`)* | Active Spring profile, see below |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated origins allowed to call `/api/**` from a browser (the frontend); other origins get **403** |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated origins allowed to call `/api/**` from a browser (a frontend on another address, e.g. `npm run dev`); other origins get **403**. Not needed for the `web` container, which reaches the API through its own address |
 | `JWT_SECRET` | *(development-only value)* | Secret that signs login tokens (HS256), **at least 32 bytes** or the app does not start. Any real environment must set its own random value (e.g. `openssl rand -base64 48`); changing it invalidates all issued tokens |
 | `JWT_TOKEN_TTL` | `8h` | How long a login token is valid; there is no refresh, the user logs in again |
 
@@ -574,11 +591,11 @@ Backend tests (161 in total). The HTTP tests of business rules run as an Admin
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (164, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (165, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
-  with commas), error handling (`ApiError` body, non-JSON error, network failure), the token sent
+  with commas; an empty `VITE_API_BASE_URL` targets the page's origin), error handling (`ApiError` body, non-JSON error, network failure), the token sent
   in the `Authorization` header, a 401 ending the session (403 does not)
 - `session.test.ts` — the session store: saved to `localStorage`, an expired token is no session,
   logout reason kept when a 401 follows, login and logout in another tab

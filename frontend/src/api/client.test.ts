@@ -39,6 +39,22 @@ describe('buildUrl', () => {
   })
 })
 
+describe('buildUrl, bos VITE_API_BASE_URL', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.resetModules()
+  })
+
+  it('istegi sayfanin geldigi adrese yapar (Docker: nginx /api yi backend e iletir)', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', '')
+    vi.stubGlobal('location', { origin: 'http://localhost:3000' })
+    vi.resetModules()
+    const client = await import('./client')
+
+    expect(client.buildUrl('/api/projects', { year: 2026 })).toBe('http://localhost:3000/api/projects?year=2026')
+  })
+})
+
 describe('apiRequest', () => {
   it('basarili yaniti JSON olarak doner', async () => {
     const fetchMock = mockFetch(json(200, { status: 'UP' }))

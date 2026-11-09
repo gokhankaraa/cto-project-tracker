@@ -1,0 +1,6 @@
+# Imaja girmeyenler: paketler imajin icinde npm ci ile kurulur, build imajin icinde yapilir.
+node_modules
+dist
+.env.local
+.env.*.local
+*.log

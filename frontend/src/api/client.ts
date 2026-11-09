@@ -1,7 +1,10 @@
 import { endSession, getSession } from '../auth/session'
 import type { ApiError, FieldError } from './types'
 
-/** Backend adresi; .env.local'daki VITE_API_BASE_URL ile degistirilir (bkz. .env.example). */
+/**
+ * Backend adresi; .env.local'daki VITE_API_BASE_URL ile degistirilir (bkz. .env.example). Bos ise
+ * istekler sayfanin geldigi adrese gider (Docker'da nginx /api'yi backend'e iletir).
+ */
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080').replace(/\/+$/, '')
 
 /** Sunucuya hic ulasilamadiginda (backend kapali, CORS reddi, ag hatasi) kullanilan kod. */
@@ -51,7 +54,8 @@ export function errorMessage(error: unknown): string {
  * (riskLevel=ORTA,YUKSEK).
  */
 export function buildUrl(path: string, params?: QueryParams): string {
-  const url = new URL(BASE_URL + path)
+  // BASE_URL bossa yol goreli kalir; sayfanin adresiyle tamamlanir.
+  const url = new URL(BASE_URL + path, globalThis.location?.origin)
   for (const [key, value] of Object.entries(params ?? {})) {
     if (value === null || value === undefined || value === '') continue
     if (Array.isArray(value)) {
