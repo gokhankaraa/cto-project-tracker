@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import com.kolaysoft.ctotracker.TestcontainersConfiguration;
 import com.kolaysoft.ctotracker.common.exception.BusinessRuleException;
@@ -39,6 +40,8 @@ import jakarta.validation.constraints.NotBlank;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import({GlobalExceptionHandlerTest.TestEndpoints.class, TestcontainersConfiguration.class})
+// Butun istekler giris ister; bu testler yetki degil is kurallarini sinar, Admin olarak calisir.
+@WithMockUser(roles = "ADMIN")
 class GlobalExceptionHandlerTest {
 
     @Autowired
@@ -105,6 +108,15 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("Controller icindeki yetki reddi 500 degil 403 FORBIDDEN olur")
+    void accessDeniedInControllerReturns403() throws Exception {
+        mockMvc.perform(get("/test-errors/access-denied"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("Bu islem icin yetkiniz yok."));
+    }
+
+    @Test
     @DisplayName("Tanimsiz endpoint cagrildiginda da ayni hata formati doner")
     void unknownPathUsesSameErrorFormat() throws Exception {
         mockMvc.perform(get("/api/boyle-bir-endpoint-yok"))
@@ -161,6 +173,11 @@ class GlobalExceptionHandlerTest {
         @org.springframework.web.bind.annotation.GetMapping("/boom")
         String boom() {
             throw new IllegalStateException("veritabani baglantisi koptu");
+        }
+
+        @org.springframework.web.bind.annotation.GetMapping("/access-denied")
+        String accessDenied() {
+            throw new org.springframework.security.access.AccessDeniedException("rol yetmiyor");
         }
     }
 }

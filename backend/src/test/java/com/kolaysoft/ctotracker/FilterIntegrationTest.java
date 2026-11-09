@@ -21,6 +21,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import com.kolaysoft.ctotracker.entity.OverallStatus;
 import com.kolaysoft.ctotracker.entity.ProgressStage;
@@ -50,6 +51,8 @@ import com.kolaysoft.ctotracker.repository.WorkItemRepository;
 @AutoConfigureMockMvc
 @Transactional
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+// Butun istekler giris ister; bu testler yetki degil is kurallarini sinar, Admin olarak calisir.
+@WithMockUser(roles = "ADMIN")
 class FilterIntegrationTest {
 
     @Autowired

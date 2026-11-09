@@ -30,10 +30,6 @@ public class UserService {
         List<User> users = role == null
                 ? userRepository.findAll(BY_NAME)
                 : userRepository.findByRole(role, BY_NAME);
-        return users.stream().map(UserService::toResponse).toList();
-    }
-
-    private static UserResponse toResponse(User user) {
-        return new UserResponse(user.getId(), user.getFullName(), user.getRole());
+        return users.stream().map(UserResponse::from).toList();
     }
 }

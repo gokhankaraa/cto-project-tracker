@@ -11,7 +11,8 @@ Stack: **Java + Spring Boot, React + TypeScript** · Author: Gökhan Kara
 > delay rule). Data lives in PostgreSQL, with the schema managed by Flyway and tests running against
 > a real PostgreSQL via Testcontainers. Reports carry the year of the week they describe (Flyway V2,
 > corrected at year boundaries in V3), and the filters accept a `year`. The React frontend covers
-> all of these screens. Authentication and role-based authorization come next.
+> all of these screens. The API now requires a login (JWT); role-based permissions and the
+> frontend login screen come next — until then the frontend's requests get **401**.
 
 Project documents (in [`docs/`](docs/), Turkish):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, data model, endpoints, assumptions, scope)
@@ -40,6 +41,7 @@ Project documents (in [`docs/`](docs/), Turkish):
 | Database | PostgreSQL 17 (Docker Compose for development) | Production-grade relational DB; same engine in development, tests and deployment |
 | Schema migrations | Flyway | Versioned SQL scripts (`db/migration`); Hibernate only validates the schema |
 | Validation | Spring Validation (Bean Validation) | Field-level required/format/range checks |
+| Security | Spring Security 7, OAuth2 Resource Server (JWT, HS256), BCrypt | Stateless login tokens with Spring's own JWT support (no extra JWT library); passwords stored only as hashes |
 | API docs | springdoc-openapi 3.0.3 (Swagger UI) | Test endpoints from the browser and show the API in the demo |
 | Helper | Lombok | Reduce boilerplate getter/setter/constructor code |
 | Tests | JUnit 5, Mockito, Testcontainers | Integration tests run against a throwaway PostgreSQL container |
@@ -217,6 +219,8 @@ git) to change them.
 | `DB_PASSWORD` | `ctotracker_dev` | Database password (development only) |
 | `SPRING_PROFILES_ACTIVE` | *(none → `demo`)* | Active Spring profile, see below |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated origins allowed to call `/api/**` from a browser (the frontend); other origins get **403** |
+| `JWT_SECRET` | *(development-only value)* | Secret that signs login tokens (HS256), **at least 32 bytes** or the app does not start. Any real environment must set its own random value (e.g. `openssl rand -base64 48`); changing it invalidates all issued tokens |
+| `JWT_TOKEN_TTL` | `8h` | How long a login token is valid; there is no refresh, the user logs in again |
 
 **Profiles:** when no profile is chosen, the `demo` profile is used and `DataSeeder` loads the demo
 data into an empty database. Choosing any other profile (e.g. `SPRING_PROFILES_ACTIVE=prod`) starts
@@ -240,9 +244,14 @@ entity change.
 
 ## API endpoints
 
+Every endpoint except health, login and the API docs requires a login token in the
+`Authorization: Bearer <token>` header (see [Authentication](#authentication)).
+
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/health` | Application and DB health check |
+| GET | `/api/health` | Application and DB health check (no login needed) |
+| POST | `/api/auth/login` | Log in with e-mail and password; returns a signed token (no login needed) |
+| GET | `/api/auth/me` | The logged-in user (`id`, `fullName`, `role`) |
 | GET | `/api/users` | Users sorted by name (`id`, `fullName`, `role`; optional `role` filter) — for picking a project owner |
 | GET / POST | `/api/projects` | List / create projects |
 | GET / PUT / DELETE | `/api/projects/{id}` | Project detail / update / delete |
@@ -254,7 +263,8 @@ entity change.
 | GET | `/api/work-items` | Cross-project work item list: filtered, paged, sorted |
 | GET | `/api/dashboard/summary` | CTO portfolio summary, with optional filters |
 
-The full, interactive contract is in Swagger UI. Key business rules (see pre-analysis §H-03/H-04):
+The full, interactive contract is in Swagger UI (use **Authorize** with a token from
+`/api/auth/login`). Key business rules (see pre-analysis §H-03/H-04):
 
 - A project can have only **one report per week of a year** — a duplicate `(project, year, week)`
   returns **409**. The same week number in another year is a separate report.
@@ -281,6 +291,31 @@ The full, interactive contract is in Swagger UI. Key business rules (see pre-ana
 > **Scope note (from the pre-analysis):** progress uses a single staged model, so there is no
 > separate "target %"; the schedule (`scheduleStatus`) field is out of MVP scope. Both are
 > documented decisions in the analysis document.
+
+## Authentication
+
+The API is stateless: logging in returns a signed JWT, and every later request carries it.
+
+```bash
+curl -s -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email": "cto@example.com", "password": "Demo1234!"}'
+# {"token":"eyJ...","expiresAt":"...","user":{"id":3,"fullName":"Zeynep Demir","role":"CTO"}}
+
+curl -s http://localhost:8080/api/projects -H "Authorization: Bearer <token>"
+```
+
+- Passwords are stored only as **BCrypt** hashes (`users.password_hash`, Flyway V4) and never
+  appear in a response. A user without a password cannot log in.
+- A wrong password and an unknown e-mail get the same **401** `INVALID_CREDENTIALS` answer, so the
+  API does not reveal which e-mails exist.
+- The token is signed with `JWT_SECRET` (HS256) and holds the user's id, e-mail, name and role. It
+  expires after `JWT_TOKEN_TTL` (8 hours); there is no refresh token, the user logs in again.
+- No token, or an invalid / expired one → **401** `UNAUTHORIZED` with a `WWW-Authenticate: Bearer`
+  header; a logged-in user whose role is not allowed → **403** `FORBIDDEN`. Both use the
+  [error format](#error-format).
+- The token travels in a header, not a cookie, so CSRF protection is not needed; CORS allows the
+  `Authorization` header from the frontend origin.
 
 ## Filtering, paging and sorting
 
@@ -329,14 +364,15 @@ Under the `demo` profile (the default), `DataSeeder` loads sample data on startu
 is empty, so Swagger and the endpoints are usable immediately without manual setup. Records already
 in the database are kept; reset with `docker compose down -v` to get the original demo data back.
 
-**Sample users** (no password — authentication is out of MVP scope):
+**Sample users** — all with the demo password **`Demo1234!`** (demo data only; a database seeded
+before passwords existed gets the same password for users that have none):
 
-| id | email | role |
-|---|---|---|
-| 1 | `ayse@example.com` | PROJECT_MANAGER |
-| 2 | `mehmet@example.com` | PROJECT_MANAGER |
-| 3 | `cto@example.com` | CTO |
-| 4 | `admin@example.com` | ADMIN |
+| id | email | name | role |
+|---|---|---|---|
+| 1 | `ayse@example.com` | Ayse Yilmaz | PROJECT_MANAGER |
+| 2 | `mehmet@example.com` | Mehmet Kaya | PROJECT_MANAGER |
+| 3 | `cto@example.com` | Zeynep Demir | CTO |
+| 4 | `admin@example.com` | Sistem Admin | ADMIN |
 
 - **Projects:** Atlas IK (owner: Ayşe), e-Belge (owner: Mehmet), Nova POS (owner: Ayşe, no report yet)
 - **Weekly reports:** Atlas IK weeks 29–31, e-Belge week 30, with a few work items. Atlas IK week 31 has
@@ -350,6 +386,8 @@ All sample data is fictional (project, customer and person names are made up; em
 A typical end-to-end walkthrough (run against the seeded data via Swagger UI or `curl`). `{id}`
 values come from the responses of the previous steps.
 
+0. **Log in:** `POST /api/auth/login` with `admin@example.com` / `Demo1234!`, then send the returned
+   token as `Authorization: Bearer <token>` on every request (in Swagger UI: **Authorize**).
 1. **CTO opens the dashboard** — see every project's latest status in one view:
    `GET /api/dashboard/summary` → 200, portfolio counters + per-project rows
 2. **Filter the portfolio:** `GET /api/dashboard/summary?riskLevel=YUKSEK` → only e-Belge;
@@ -372,7 +410,8 @@ stage on update → **400**, deleting a project that still has reports → **409
 
 ```
 com.kolaysoft.ctotracker
-├── config/           Application configuration (OpenAPI/Swagger, demo data seeder)
+├── config/           Application configuration (OpenAPI/Swagger, CORS, demo data seeder)
+├── security/         Spring Security setup, token issuing, 401/403 responses in ApiError format
 ├── controller/       HTTP layer: request handling, DTO exchange
 ├── service/          Business rules (stage transitions, uniqueness, delay rule)
 ├── repository/       Database access via Spring Data JPA
@@ -382,7 +421,8 @@ com.kolaysoft.ctotracker
 │   └── filter/       Filter records passed from controllers to services
 └── common/
     ├── error/        ApiError, ErrorCode, GlobalExceptionHandler
-    ├── exception/    ResourceNotFoundException, DuplicateResourceException, BusinessRuleException
+    ├── exception/    ResourceNotFoundException, DuplicateResourceException, BusinessRuleException,
+    │                 InvalidCredentialsException
     └── web/          SortParameter (sort allow-list and validation)
 ```
 
@@ -427,6 +467,9 @@ Validation errors additionally include a `fieldErrors` array:
 | `METHOD_NOT_ALLOWED` | 405 | Endpoint does not support this HTTP method |
 | `DUPLICATE_RESOURCE` | 409 | Uniqueness violation (project+year+week, email) |
 | `RESOURCE_IN_USE` | 409 | Resource can't be deleted because other records depend on it (e.g. a project that still has reports) |
+| `UNAUTHORIZED` | 401 | No login token, or the token is invalid or expired |
+| `INVALID_CREDENTIALS` | 401 | Wrong e-mail or password at login (which one is not revealed) |
+| `FORBIDDEN` | 403 | Logged in, but the role is not allowed to do this |
 | `INTERNAL_ERROR` | 500 | Unexpected error; technical detail is logged, not leaked to the client |
 
 ## Tests
@@ -444,7 +487,8 @@ the schema comes from the same Flyway scripts as the application. Each test cont
 empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; every other test
 creates its own data. Service tests use Mockito and need no database.
 
-Backend tests (140 in total):
+Backend tests (150 in total). The HTTP tests of business rules run as an Admin
+(`@WithMockUser`); login and token handling are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
   (project → report → work item → dashboard), 404 / 400 / 409, stage skip, a report date outside
@@ -462,11 +506,15 @@ Backend tests (140 in total):
   uniqueness is per project + year + week, and the latest report compares the year before the week
 - `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
 - `HealthControllerTest` — health endpoint and DB connection (reports PostgreSQL)
+- `AuthControllerTest` — login returns a token that works on protected endpoints and `/me`; wrong
+  password, unknown e-mail and a user without a password get the same 401; empty fields (400); no
+  token, a tampered token and an expired token (401, `ApiError` + `WWW-Authenticate`); a deleted
+  user's token; public health and API docs; BCrypt storage; a JWT secret shorter than 32 bytes
 - `UserControllerTest` — user list sorted by name, role filter, e-mail not exposed, unknown role (400)
 - `CorsConfigTest` — CORS: the frontend origin passes preflight and gets the allow header, other
   origins get 403
-- `GlobalExceptionHandlerTest` — the error-format contract (400 / 404 / 405 / 409 / 500), including
-  invalid enum/type request parameters
+- `GlobalExceptionHandlerTest` — the error-format contract (400 / 403 / 404 / 405 / 409 / 500), including
+  invalid enum/type request parameters and a permission denial inside a controller (403, not 500)
 - `WeeklyReportServiceTest` — business rules: uniqueness (409), stage skip/backward (400),
   report date before its week or after the following week and a missing week 53 (400 with the
   field), year of the described week, percentage derivation, not-found (404)
@@ -525,6 +573,8 @@ Frontend tests (130, Vitest + Testing Library on jsdom; component tests never re
 MVP scope decisions, with rationale, are in sections 7–8 of the pre-analysis document.
 Not yet implemented at this stage:
 
-- Authentication (login) and role-based authorization — out of MVP scope; `User.password` is
-  omitted for now and will arrive with authentication
+- Role-based permissions (who may change what, project managers seeing only their own projects) —
+  in progress; for now every logged-in user can do everything
+- No user management or password change yet: users and their passwords come from the demo data
+- No token refresh or server-side logout: a token stays valid until it expires
 - Report locking, audit log, export — out of MVP scope

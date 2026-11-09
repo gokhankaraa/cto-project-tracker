@@ -39,4 +39,11 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
+
+    /**
+     * Parolanin BCrypt ozeti; parolanin kendisi hicbir yerde saklanmaz. Bos ise kullanici giris yapamaz.
+     * Hicbir API yanitina eklenmez (bkz. UserResponse).
+     */
+    @Column(name = "password_hash", length = 100)
+    private String passwordHash;
 }

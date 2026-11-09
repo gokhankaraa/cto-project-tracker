@@ -1,6 +1,7 @@
 package com.kolaysoft.ctotracker.dto;
 
 import com.kolaysoft.ctotracker.entity.Role;
+import com.kolaysoft.ctotracker.entity.User;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -18,4 +19,8 @@ public record UserResponse(
 
         @Schema(description = "Rol", example = "PROJECT_MANAGER")
         Role role) {
+
+    public static UserResponse from(User user) {
+        return new UserResponse(user.getId(), user.getFullName(), user.getRole());
+    }
 }

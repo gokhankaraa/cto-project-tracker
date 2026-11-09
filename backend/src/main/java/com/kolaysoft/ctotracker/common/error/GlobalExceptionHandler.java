@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -17,6 +19,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.kolaysoft.ctotracker.common.exception.BusinessRuleException;
 import com.kolaysoft.ctotracker.common.exception.DuplicateResourceException;
+import com.kolaysoft.ctotracker.common.exception.InvalidCredentialsException;
 import com.kolaysoft.ctotracker.common.exception.InvalidParameterException;
 import com.kolaysoft.ctotracker.common.exception.ResourceInUseException;
 import com.kolaysoft.ctotracker.common.exception.ResourceNotFoundException;
@@ -116,6 +119,32 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceInUseException.class)
     public ResponseEntity<ApiError> handleResourceInUse(ResourceInUseException ex, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, ErrorCode.RESOURCE_IN_USE, ex.getMessage(), request);
+    }
+
+    /** Giriste e-posta ya da parola hatali. */
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException ex,
+                                                             HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_CREDENTIALS, ex.getMessage(), request);
+    }
+
+    /**
+     * Controller icinde olusan kimlik hatasi (or. token gecerli ama kullanici silinmis). Filtrede olusan
+     * 401 ApiAuthenticationEntryPoint'ten gelir; ikisi ayni bicimdedir.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, ErrorCode.UNAUTHORIZED,
+                "Oturum gecersiz ya da suresi dolmus; yeniden giris yapin.", request);
+    }
+
+    /**
+     * Metot duzeyi yetki kontrolu (@PreAuthorize) reddetti. Bu handler olmasa hata genel Exception
+     * handler'ina duser ve 500 donerdi.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, "Bu islem icin yetkiniz yok.", request);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)

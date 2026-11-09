@@ -24,6 +24,15 @@ public enum ErrorCode {
     /** Is kurali ihlali: ornegin ilerleme kademesinde sira atlanmasi. */
     BUSINESS_RULE_VIOLATION,
 
+    /** Giris yapilmamis ya da token gecersiz/suresi dolmus (401). */
+    UNAUTHORIZED,
+
+    /** E-posta ya da parola hatali (401); hangisinin hatali oldugu soylenmez. */
+    INVALID_CREDENTIALS,
+
+    /** Giris yapilmis ama rol bu isleme yetmiyor (403). */
+    FORBIDDEN,
+
     /** Endpoint bu HTTP metodunu desteklemiyor. */
     METHOD_NOT_ALLOWED,
 

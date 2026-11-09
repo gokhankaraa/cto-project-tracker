@@ -14,6 +14,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import com.kolaysoft.ctotracker.TestcontainersConfiguration;
 import com.kolaysoft.ctotracker.entity.Role;
@@ -29,6 +30,8 @@ import com.kolaysoft.ctotracker.repository.UserRepository;
 @Import(TestcontainersConfiguration.class)
 @AutoConfigureMockMvc
 @Transactional
+// Butun istekler giris ister; bu testler yetki degil is kurallarini sinar, Admin olarak calisir.
+@WithMockUser(roles = "ADMIN")
 class UserControllerTest {
 
     @Autowired

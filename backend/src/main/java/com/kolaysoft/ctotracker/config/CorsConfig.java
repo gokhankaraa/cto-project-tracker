@@ -30,7 +30,8 @@ public class CorsConfig implements WebMvcConfigurer {
         registry.addMapping("/api/**")
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("Content-Type", "Accept")
+                // Authorization: giris token'i (Bearer) tarayicidan bu baslikla gelir.
+                .allowedHeaders("Content-Type", "Accept", "Authorization")
                 // Tarayici on kontrol (preflight) yanitini 1 saat onbellekte tutar.
                 .maxAge(3600);
     }

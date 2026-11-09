@@ -1,11 +1,13 @@
 package com.kolaysoft.ctotracker.config;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import com.kolaysoft.ctotracker.entity.OverallStatus;
@@ -43,23 +45,32 @@ public class DataSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
 
+    /**
+     * Tum demo kullanicilarin parolasi (README'de yazilidir). Yalnizca demo verisi icindir; demo profili
+     * disinda bu sinif hic calismaz.
+     */
+    public static final String DEMO_PASSWORD = "Demo1234!";
+
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
     private final WeeklyReportRepository weeklyReportRepository;
     private final WorkItemRepository workItemRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public DataSeeder(UserRepository userRepository, ProjectRepository projectRepository,
                       WeeklyReportRepository weeklyReportRepository,
-                      WorkItemRepository workItemRepository) {
+                      WorkItemRepository workItemRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.projectRepository = projectRepository;
         this.weeklyReportRepository = weeklyReportRepository;
         this.workItemRepository = workItemRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public void run(String... args) {
         if (userRepository.count() > 0) {
+            assignMissingDemoPasswords();
             return;
         }
 
@@ -117,7 +128,24 @@ public class DataSeeder implements CommandLineRunner {
         user.setEmail(email);
         user.setFullName(fullName);
         user.setRole(role);
+        user.setPasswordHash(passwordEncoder.encode(DEMO_PASSWORD));
         return userRepository.save(user);
+    }
+
+    /**
+     * Parola kolonu (V4) eklenmeden once doldurulmus bir demo veritabaninda kullanicilarin parolasi yoktur;
+     * giris yapabilmeleri icin demo parolasi atanir. Parolasi olan kullaniciya dokunulmaz.
+     */
+    private void assignMissingDemoPasswords() {
+        List<User> withoutPassword = userRepository.findAll().stream()
+                .filter(user -> user.getPasswordHash() == null)
+                .toList();
+        if (withoutPassword.isEmpty()) {
+            return;
+        }
+        withoutPassword.forEach(user -> user.setPasswordHash(passwordEncoder.encode(DEMO_PASSWORD)));
+        userRepository.saveAll(withoutPassword);
+        log.info("Parolasi olmayan {} demo kullanicisina demo parolasi atandi", withoutPassword.size());
     }
 
     private Project saveProject(String name, String customer, String description,
