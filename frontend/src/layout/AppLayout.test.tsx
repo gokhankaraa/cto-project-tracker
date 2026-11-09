@@ -1,7 +1,10 @@
 import { screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
+import { getSession, sessionEndReason } from '../auth/session'
 import { renderWithProviders } from '../test/render'
+import { signIn } from '../test/session'
 import { AppLayout } from './AppLayout'
 
 describe('AppLayout', () => {
@@ -29,5 +32,20 @@ describe('AppLayout', () => {
 
     expect(menu.getByRole('link', { name: active })).toHaveAttribute('data-active')
     expect(menu.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('data-active')
+  })
+
+  it('ust barda kullanicinin adi ve rolu; cikis oturumu kapatir ve onbellegi temizler', async () => {
+    signIn({ id: 3, fullName: 'Zeynep Demir', role: 'CTO' })
+    const { queryClient } = renderWithProviders(<AppLayout />, { route: '/' })
+    queryClient.setQueryData(['projects'], ['CTO nun gordugu veri'])
+
+    expect(screen.getByText('Zeynep Demir')).toBeInTheDocument()
+    expect(screen.getByText('CTO')).toBeInTheDocument()
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Çıkış' }))
+
+    expect(getSession()).toBeNull()
+    expect(sessionEndReason()).toBe('logout')
+    expect(queryClient.getQueryData(['projects'])).toBeUndefined()
   })
 })

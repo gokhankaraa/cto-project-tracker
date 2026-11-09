@@ -1,16 +1,26 @@
 import { createBrowserRouter } from 'react-router'
 
+import { RequireAuth } from './auth/RequireAuth'
 import { AppLayout } from './layout/AppLayout'
 import { NotFoundPage } from './pages/NotFoundPage'
 
 /**
  * Uygulamanin sayfalari. Her sayfa ilk acildiginda ayri bir parca olarak yuklenir (lazy): ilk acilista
  * yalnizca cerceve ve acilan sayfa indirilir, tablolar / formlar gibi bilesenler gerektikce gelir.
+ * Giris ekrani disindaki her sayfa oturum ister ({@link RequireAuth}).
  */
 export const router = createBrowserRouter([
   {
+    path: '/login',
+    lazy: () => import('./pages/LoginPage').then((m) => ({ Component: m.LoginPage })),
+  },
+  {
     path: '/',
-    element: <AppLayout />,
+    element: (
+      <RequireAuth>
+        <AppLayout />
+      </RequireAuth>
+    ),
     children: [
       {
         index: true,

@@ -3,6 +3,8 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, vi } from 'vitest'
 
+import { resetSession } from '../auth/session'
+
 // jsdom'da olmayan, Mantine'in kullandigi tarayici API'leri (Mantine test kurulumu onerisi).
 // Node ortaminda calisan testlerde (or. api/client.test.ts) window yoktur, bu kisim atlanir.
 if (typeof window !== 'undefined') {
@@ -47,4 +49,6 @@ if (typeof window !== 'undefined') {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  // Bir testte acilan oturum sonrakine tasinmaz.
+  resetSession()
 })

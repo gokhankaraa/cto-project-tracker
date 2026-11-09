@@ -11,8 +11,9 @@ Stack: **Java + Spring Boot, React + TypeScript** · Author: Gökhan Kara
 > delay rule). Data lives in PostgreSQL, with the schema managed by Flyway and tests running against
 > a real PostgreSQL via Testcontainers. Reports carry the year of the week they describe (Flyway V2,
 > corrected at year boundaries in V3), and the filters accept a `year`. The React frontend covers
-> all of these screens. The API requires a login (JWT) and enforces role-based permissions; the
-> frontend login screen comes next — until then the frontend's requests get **401**.
+> all of these screens behind a login screen. The API requires a login (JWT) and enforces
+> role-based permissions; hiding actions a role may not take in the frontend comes next (until
+> then the backend answers them with **403**).
 
 Project documents (in [`docs/`](docs/), Turkish):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, data model, endpoints, assumptions, scope)
@@ -145,8 +146,10 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-The home page calls `/api/health` and shows the backend and database status, so it also confirms
-that the browser can reach the API (CORS). The API address comes from `VITE_API_BASE_URL`
+Every page except `/login` needs a login; log in with one of the demo users
+(e.g. `admin@example.com` / `Demo1234!`, see [Sample users](#demo-data)). The top bar shows the
+backend and database status from `/api/health` (no login needed), so it also confirms that the
+browser can reach the API (CORS). The API address comes from `VITE_API_BASE_URL`
 (default `http://localhost:8080`); to change it, copy `frontend/.env.example` to
 `frontend/.env.local`. If the frontend runs on another address, add that address to the backend's
 `CORS_ALLOWED_ORIGINS`.
@@ -162,6 +165,19 @@ All API calls go through one client (`frontend/src/api/client.ts`). It turns the
 `ApiError` body into a typed `ApiRequestError` (`status`, `code`, `fieldErrors`), so screens can
 tell error types apart and forms can show `fieldErrors` next to the right input. Network failures
 get the code `NETWORK_ERROR`.
+
+Login (`src/auth/`, `src/pages/LoginPage.tsx`):
+
+- The login response (token, expiry, user) is kept in `localStorage`, so a page reload or a new tab
+  stays logged in; logging in or out in one tab applies to the other tabs too.
+- The client sends the token as `Authorization: Bearer …` on every request. A request that was
+  sent with a token and gets **401** (expired or invalid token) ends the session.
+- `RequireAuth` guards every page: without a session it redirects to `/login` and remembers the
+  address, so after logging in the user returns to it, with a note if the session had expired.
+  After a deliberate logout the address is not remembered, since the next user may not be allowed
+  to see that page.
+- Logging in and out clears the query cache, so one user's data is never shown to the next one.
+- The top bar shows the user's name and role and a logout button.
 
 Shared building blocks for the screens: `src/api/types.ts` (response types and enum values, same
 names as the backend), `src/lib/labels.ts` (Turkish labels and badge colors for every enum),
@@ -550,15 +566,26 @@ Backend tests (159 in total). The HTTP tests of business rules run as an Admin
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (130, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (149, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
-  with commas) and error handling (`ApiError` body, non-JSON error, network failure)
+  with commas), error handling (`ApiError` body, non-JSON error, network failure), the token sent
+  in the `Authorization` header, a 401 ending the session (403 does not)
+- `session.test.ts` — the session store: saved to `localStorage`, an expired token is no session,
+  logout reason kept when a 401 follows, login and logout in another tab
+- `LoginPage.test.tsx` — redirect to login and back to the requested address (query string
+  included) after logging in, trimmed e-mail, query cache cleared; wrong password (backend message,
+  password cleared), empty fields not sent, backend `fieldErrors` under the input, network error;
+  already logged in goes to the home page; a note after an expired session; no return to the old
+  page after a deliberate logout
+- `RequireAuth.test.tsx` — the page shows with a session; a 401 from the page's request returns to
+  login with the note
 - `QueryState.test.tsx` — the shared loading / empty / error (with retry) states
 - `EnumBadge.test.tsx` — enum values shown with their Turkish label, a dash when there is no value
 - `AppLayout.test.tsx` — every screen is a menu link; the current page's item is active, also on
-  sub-pages (`/projects/3`, `/reports/4`, `/work-items?page=2`)
+  sub-pages (`/projects/3`, `/reports/4`, `/work-items?page=2`); the user's name and role in the top
+  bar, logout ends the session and clears the cache
 - `searchParams.test.ts` — reading filters from the address (unknown enum values, out-of-range and
   non-numeric numbers dropped) and writing them back
 - `dashboard/filters.test.ts` — dashboard filters from the address: all filters, week without year

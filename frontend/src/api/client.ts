@@ -1,3 +1,4 @@
+import { endSession, getSession } from '../auth/session'
 import type { ApiError, FieldError } from './types'
 
 /** Backend adresi; .env.local'daki VITE_API_BASE_URL ile degistirilir (bkz. .env.example). */
@@ -73,6 +74,8 @@ export async function apiRequest<T>(method: string, path: string, options: Reque
   const { params, body, signal } = options
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
+  const token = getSession()?.token
+  if (token) headers.Authorization = `Bearer ${token}`
 
   let response: Response
   try {
@@ -88,7 +91,13 @@ export async function apiRequest<T>(method: string, path: string, options: Reque
     throw new ApiRequestError(0, NETWORK_ERROR, 'Sunucuya ulaşılamadı. Backend çalışıyor mu?')
   }
 
-  if (!response.ok) throw await toApiRequestError(response)
+  if (!response.ok) {
+    // Token'la gidip 401 donen istek: token'in suresi dolmus ya da gecersiz (or. sunucu anahtari degisti).
+    // Oturum kapanir, sayfa korumasi /login'e yonlendirir. Token'siz istegin 401'i (yanlis parola)
+    // oturumu ilgilendirmez; giris formu kendisi gosterir.
+    if (response.status === 401 && token) endSession('expired')
+    throw await toApiRequestError(response)
+  }
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
 }

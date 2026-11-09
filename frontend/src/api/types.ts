@@ -80,6 +80,15 @@ export interface User {
   role: Role
 }
 
+/** dto/LoginResponse.java */
+export interface LoginResponse {
+  /** Sonraki isteklerde 'Authorization: Bearer <token>' basliginda gonderilir. */
+  token: string
+  /** Token'in gecerlilik sonu (ISO-8601, UTC). */
+  expiresAt: string
+  user: User
+}
+
 /** dto/ProjectResponse.java */
 export interface Project {
   id: number

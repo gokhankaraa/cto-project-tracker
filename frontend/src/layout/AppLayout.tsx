@@ -1,7 +1,12 @@
-import { AppShell, Burger, Group, NavLink, Text, Title } from '@mantine/core'
+import { AppShell, Burger, Button, Group, NavLink, Text, Title } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link, Outlet, useLocation } from 'react-router'
 
+import { endSession } from '../auth/session'
+import { useSession } from '../auth/useSession'
+import { EnumBadge } from '../components/EnumBadge'
+import { ROLE_LABELS } from '../lib/labels'
 import { BackendStatus } from './BackendStatus'
 
 const NAV_ITEMS = [
@@ -40,6 +45,7 @@ export function AppLayout() {
               Haftalık proje durum raporlama
             </Text>
             <BackendStatus />
+            <UserMenu />
           </Group>
         </Group>
       </AppShell.Header>
@@ -61,5 +67,30 @@ export function AppLayout() {
         <Outlet />
       </AppShell.Main>
     </AppShell>
+  )
+}
+
+/** Ust bardaki oturum bilgisi: kullanicinin adi, rolu ve cikis. */
+function UserMenu() {
+  const session = useSession()
+  const queryClient = useQueryClient()
+  if (!session) return null
+
+  const logout = () => {
+    // Once oturum kapanir (sonraki istekler token'siz gider), sonra bu kullanicinin verisi onbellekten silinir.
+    endSession('logout')
+    queryClient.clear()
+  }
+
+  return (
+    <Group gap="xs" wrap="nowrap">
+      <Text size="sm" fw={500} visibleFrom="xs">
+        {session.user.fullName}
+      </Text>
+      <EnumBadge value={session.user.role} labels={ROLE_LABELS} visibleFrom="xs" />
+      <Button variant="subtle" size="compact-sm" onClick={logout}>
+        Çıkış
+      </Button>
+    </Group>
   )
 }

@@ -2,6 +2,8 @@
 // API istemcisi tarayici bilesi kullanmaz; Node'un kendi fetch/Response'u ile test edilir.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { getSession, sessionEndReason } from '../auth/session'
+import { signIn } from '../test/session'
 import { ApiRequestError, NETWORK_ERROR, api, buildUrl } from './client'
 
 function mockFetch(response: Response | Error) {
@@ -97,5 +99,39 @@ describe('apiRequest', () => {
         headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
       }),
     )
+  })
+})
+
+describe('oturum', () => {
+  function sentHeaders(fetchMock: ReturnType<typeof mockFetch>): Record<string, string> {
+    return fetchMock.mock.calls[0][1].headers
+  }
+
+  it("oturum varken token'i Authorization basliginda gonderir, yokken gondermez", async () => {
+    const withoutSession = mockFetch(json(200, {}))
+    await api.get('/api/health')
+    expect(sentHeaders(withoutSession)).not.toHaveProperty('Authorization')
+
+    signIn()
+    const withSession = mockFetch(json(200, {}))
+    await api.get('/api/projects')
+    expect(sentHeaders(withSession).Authorization).toBe('Bearer token-4')
+  })
+
+  it("token'la gidip 401 donen istek oturumu 'suresi doldu' diye kapatir", async () => {
+    signIn()
+    mockFetch(json(401, { status: 401, code: 'UNAUTHORIZED', message: 'Gecersiz token.' }))
+
+    await expect(api.get('/api/projects')).rejects.toMatchObject({ status: 401, code: 'UNAUTHORIZED' })
+    expect(getSession()).toBeNull()
+    expect(sessionEndReason()).toBe('expired')
+  })
+
+  it('403 oturumu kapatmaz', async () => {
+    signIn()
+    mockFetch(json(403, { status: 403, code: 'FORBIDDEN', message: 'Yetki yok.' }))
+
+    await expect(api.delete('/api/projects/1')).rejects.toMatchObject({ status: 403 })
+    expect(getSession()).not.toBeNull()
   })
 })
