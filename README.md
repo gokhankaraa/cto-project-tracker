@@ -1,15 +1,18 @@
-# Weekly Project Status Reporting and CTO Tracking System — Backend
+# Weekly Project Status Reporting and CTO Tracking System
 
-Backend API where project managers enter weekly status reports for the projects they own, and the
-CTO monitors the entire project portfolio from a single place.
+A web application where project managers enter weekly status reports for the projects they own,
+and the CTO monitors the entire project portfolio from a single place: a Spring Boot REST API with
+PostgreSQL, and a React frontend.
 
-Track: **Backend (Java + Spring Boot)** · Author: Gökhan Kara
+Track: **Full Stack (Java + Spring Boot, React + TypeScript)** · Author: Gökhan Kara
 
 > **Status:** MVP (T01–T12) complete. T13 (days 21–24) adds filtering on the CTO dashboard and two
 > cross-project list endpoints for reports and work items, with paging, sorting and a shared delay
 > rule. Data now lives in PostgreSQL, with the schema managed by Flyway and tests running against a
 > real PostgreSQL via Testcontainers. Reports carry a year derived from the report date (Flyway V2),
-> and the filters accept a `year`. Next: role-based authorization (T14).
+> and the filters accept a `year`. The repository now also holds the frontend: phase 0 (skeleton,
+> API client, CORS) is in place; the MVP screens (phase 1) come next, then role-based
+> authorization (T14).
 
 Project documents (in [`docs/`](docs/)):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, scope, user stories, acceptance criteria)
@@ -21,6 +24,16 @@ Project documents (in [`docs/`](docs/)):
 - Weekly internship reports and per-task reports
 
 ---
+
+## Repository layout
+
+```
+├── backend/             Spring Boot REST API (Maven project, Dockerfile)
+├── frontend/            React + TypeScript web app (Vite)
+├── docs/                Analysis notes, API contracts, reports
+├── docker-compose.yml   PostgreSQL and the backend container
+└── .env.example         Values docker compose reads
+```
 
 ## Tech stack
 
@@ -38,12 +51,24 @@ Project documents (in [`docs/`](docs/)):
 
 > springdoc's 2.x line targets Spring Boot 3; with Boot 4 the **3.x** line must be used.
 
+Frontend:
+
+| Layer | Choice | Rationale |
+|---|---|---|
+| Language / UI | TypeScript, React 19 | Typed API responses; the most widely used UI library |
+| Build / dev server | Vite 8 | Fast dev server with hot reload; static build output |
+| Components | Mantine 9 | Ready form, date picker and multi-select components that match the API's filters |
+| Server state | TanStack Query 5 | Caching, loading/error states and retries for API calls |
+| Routing | React Router 8 | Page routes |
+| Tests / lint | Vitest, oxlint | Unit tests for the API client; fast linting |
+
 ## Requirements
 
 - JDK 21 or newer (`java -version`)
 - No need to install Maven — the bundled Maven Wrapper (`./mvnw`) is used
 - Docker with Compose (e.g. Docker Desktop) — runs PostgreSQL, and is needed by the tests
   (Testcontainers). No local PostgreSQL installation is required.
+- For the frontend: Node.js 24 and npm 11 (`node -v`)
 
 ## Setup and run
 
@@ -112,6 +137,34 @@ curl http://localhost:8080/api/health
 
 The `databaseStatus` field is produced by actually issuing a query against the database; it confirms
 not just that the application is up, but that the DB connection works.
+
+### Frontend
+
+With the backend running on port 8080:
+
+```bash
+cd frontend
+npm install
+npm run dev          # http://localhost:5173
+```
+
+The home page calls `/api/health` and shows the backend and database status, so it also confirms
+that the browser can reach the API (CORS). The API address comes from `VITE_API_BASE_URL`
+(default `http://localhost:8080`); to change it, copy `frontend/.env.example` to
+`frontend/.env.local`. If the frontend runs on another address, add that address to the backend's
+`CORS_ALLOWED_ORIGINS`.
+
+| Command (in `frontend/`) | What it does |
+|---|---|
+| `npm run dev` | Dev server with hot reload |
+| `npm run build` | Type check and production build into `dist/` |
+| `npm test` | Unit tests (Vitest) |
+| `npm run lint` | Lint (oxlint) |
+
+All API calls go through one client (`frontend/src/api/client.ts`). It turns the backend's
+`ApiError` body into a typed `ApiRequestError` (`status`, `code`, `fieldErrors`), so screens can
+tell error types apart and forms can show `fieldErrors` next to the right input. Network failures
+get the code `NETWORK_ERROR`.
 
 ## Configuration
 
@@ -341,6 +394,9 @@ Validation errors additionally include a `fieldErrors` array:
 ```bash
 cd backend
 ./mvnw test        # Docker must be running
+
+cd frontend
+npm test           # frontend unit tests, no backend needed
 ```
 
 Spring tests run against a real PostgreSQL 17 started by Testcontainers (`TestcontainersConfiguration`);
@@ -348,7 +404,7 @@ the schema comes from the same Flyway scripts as the application. Each test cont
 empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; every other test
 creates its own data. Service tests use Mockito and need no database.
 
-Current tests (122 in total):
+Backend tests (125 in total):
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
   (project → report → work item → dashboard), 404 / 400 / 409, stage skip, dashboard filter
@@ -364,6 +420,8 @@ Current tests (122 in total):
   project + year + week, and the latest report compares the year before the week
 - `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
 - `HealthControllerTest` — health endpoint and DB connection (reports PostgreSQL)
+- `CorsConfigTest` — CORS: the frontend origin passes preflight and gets the allow header, other
+  origins get 403
 - `GlobalExceptionHandlerTest` — the error-format contract (400 / 404 / 405 / 409 / 500), including
   invalid enum/type request parameters
 - `WeeklyReportServiceTest` — business rules: uniqueness (409), stage skip/backward (400),
@@ -373,6 +431,9 @@ Current tests (122 in total):
 - `DashboardServiceTest` — portfolio aggregation, latest-report selection, risk and multi-value
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
+
+Frontend tests (6): `client.test.ts` — query string building (empty values skipped, multi-value
+parameters joined with commas) and error handling (`ApiError` body, non-JSON error, network failure).
 
 ## Known gaps
 
