@@ -130,6 +130,7 @@ git) to change them.
 | `DB_USER` | `ctotracker` | Database user |
 | `DB_PASSWORD` | `ctotracker_dev` | Database password (development only) |
 | `SPRING_PROFILES_ACTIVE` | *(none → `demo`)* | Active Spring profile, see below |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated origins allowed to call `/api/**` from a browser (the frontend); other origins get **403** |
 
 **Profiles:** when no profile is chosen, the `demo` profile is used and `DataSeeder` loads the demo
 data into an empty database. Choosing any other profile (e.g. `SPRING_PROFILES_ACTIVE=prod`) starts
