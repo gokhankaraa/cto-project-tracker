@@ -12,7 +12,8 @@ Stack: **Java + Spring Boot, React + TypeScript** · Author: Gökhan Kara
 > a real PostgreSQL via Testcontainers. Reports carry the year of the week they describe (Flyway V2,
 > corrected at year boundaries in V3), and the filters accept a `year`. The React frontend covers
 > all of these screens behind a login screen. The API requires a login (JWT) and enforces
-> role-based permissions; the frontend shows each role only the actions it may take.
+> role-based permissions; the frontend shows each role only the actions it may take. Test results,
+> open issues, risks and the next phase are under [Project status](#project-status).
 
 Project documents (in [`docs/`](docs/), Turkish):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, data model, endpoints, assumptions, scope)
@@ -444,28 +445,61 @@ All sample data is fictional (project, customer and person names are made up; em
 
 ## Demo scenario
 
-A typical end-to-end walkthrough (run against the seeded data via Swagger UI or `curl`). `{id}`
-values come from the responses of the previous steps.
+An end-to-end walkthrough on a freshly seeded database (`docker compose down -v` first if you have
+played with the data). Each step is done by the role that does it in real life; every user's
+password is `Demo1234!`.
 
-0. **Log in:** `POST /api/auth/login` with `admin@example.com` / `Demo1234!`, then send the returned
-   token as `Authorization: Bearer <token>` on every request (in Swagger UI: **Authorize**).
-1. **CTO opens the dashboard** — see every project's latest status in one view:
-   `GET /api/dashboard/summary` → 200, portfolio counters + per-project rows
-2. **Filter the portfolio:** `GET /api/dashboard/summary?riskLevel=YUKSEK` → only e-Belge;
-   `?delayed=true` → only Atlas IK, and `GET /api/work-items?delayed=true` shows the overdue item
-3. **Drill into a project:** `GET /api/projects/3` and `GET /api/projects/3/reports`
-   (Nova POS has no report yet)
-4. **PM files a weekly report** for Nova POS (id 3):
+### In the web app
+
+Start with `docker compose up -d --build` and open http://localhost:3000 (or run the dev servers
+and open http://localhost:5173, see [Frontend](#frontend)). Log out from the user menu in the top
+right between roles.
+
+1. **CTO — portfolio at a glance** (`cto@example.com`)
+   - The dashboard lists all three projects with their latest status; Nova POS has no report yet.
+   - Filter **Risk → Yüksek**: only e-Belge. Clear it and filter **Gecikme → Yalnızca gecikenler**:
+     only Atlas IK. Its status is "Yolunda", but a work item in week 31 is past its planned date.
+   - **İş kalemleri** with the same delay filter shows that item, "Rapor ekrani entegrasyonu".
+   - Open any project: there is no "Düzenle", "Sil" or "Yeni rapor" button, and typing
+     `/projects/new` into the address bar shows "Yetkiniz yok". The CTO reads, but does not write.
+2. **Project manager files a report** (`ayse@example.com`)
+   - The dashboard and every list show only Ayşe's projects, Atlas IK and Nova POS.
+   - Nova POS → **Yeni rapor**: the form starts at last week and today's date. Pick the general
+     status and the risk, then save; the report opens with the progress taken from its stage.
+   - **İş kalemi ekle** on the report: the item appears in the list and "Canlı task" goes up by one.
+   - Nova POS → **Yeni rapor** again with the same week: the save is refused (**409**), and the
+     message "Bu proje için … haftasına ait rapor zaten mevcut." appears under the week.
+   - Back on the dashboard, Nova POS now shows the new report.
+3. **Another project manager** (`mehmet@example.com`)
+   - Everything is limited to e-Belge: dashboard, projects, reports and work items.
+   - Opening Ayşe's Atlas IK report by address, http://localhost:3000/reports/4, shows "Kayıt
+     bulunamadı", exactly as for a record that does not exist (**404**).
+4. **Admin** (`admin@example.com`)
+   - Sees every project, including the Nova POS report Ayşe just filed, and can create, edit and
+     delete projects. **Sil** is disabled for a project that has reports.
+
+### Over the API
+
+The same flow with `curl` or Swagger UI (**Authorize** with the token). Log in with
+`POST /api/auth/login` and send the returned token as `Authorization: Bearer <token>`.
+
+1. **As the CTO:** `GET /api/dashboard/summary` → 200, portfolio counters and one row per project;
+   `?riskLevel=YUKSEK` → only e-Belge; `?delayed=true` → only Atlas IK, and
+   `GET /api/work-items?delayed=true` shows the overdue item.
+2. **As the CTO, try to write:** `POST /api/projects/3/reports` → **403** `FORBIDDEN`, whatever the body.
+3. **As Ayşe, file a report** for Nova POS (id 3):
    `POST /api/projects/3/reports` `{ "weekNumber": 33, "reportDate": "2026-08-13",
-   "progressStage": "ANALIZ", "overallStatus": "YOLUNDA", "riskLevel": "DUSUK" }` → 201, `progressPercentage: 25`
-5. **Add a work item** to that report: `POST /api/reports/{reportId}/work-items`
-   `{ "title": "Kickoff", "status": "DEVAM_EDIYOR", "assignee": "Ayşe" }` → 201
-6. **Re-read the report** — the live task count reflects the new item:
-   `GET /api/reports/{reportId}` → `liveTaskCount: 1`
-7. **Back to the dashboard** — Nova POS now shows `hasReport: true` with the fresh status.
+   "progressStage": "ANALIZ", "overallStatus": "YOLUNDA", "riskLevel": "DUSUK" }` → 201, `progressPercentage: 25`.
+   The same request again → **409**.
+4. **As Ayşe, add a work item:** `POST /api/reports/{reportId}/work-items`
+   `{ "title": "Kickoff", "status": "DEVAM_EDIYOR", "assignee": "Ayşe" }` → 201, and
+   `GET /api/reports/{reportId}` → `liveTaskCount: 1` (`{reportId}` comes from step 3).
+5. **As Mehmet:** `GET /api/reports/4` (Ayşe's Atlas IK report) → **404**, and
+   `GET /api/dashboard/summary` has only the e-Belge row.
+6. **As the CTO again:** the dashboard shows Nova POS with `hasReport: true` and the fresh status.
 
-Negative checks worth showing: a duplicate `(project, year, week)` report → **409**, skipping a progress
-stage on update → **400**, deleting a project that still has reports → **409**.
+Other negative checks: skipping a progress stage on update → **400**; deleting a project that still
+has reports (as the Admin) → **409**.
 
 ## Package and layer structure
 
@@ -660,11 +694,66 @@ Frontend tests (166, Vitest + Testing Library on jsdom; component tests never re
   range disabled without a year, earlier weeks disabled as the end of the range, sorting returns
   to page 1, empty result
 
-## Known gaps
+## Project status
 
-MVP scope decisions, with rationale, are in sections 7–8 of the pre-analysis document.
-Not yet implemented at this stage:
+**Done:** projects, weekly reports and work items (create, edit, delete, with their business
+rules); the CTO dashboard and the filtered, paged report and work item lists; login with JWT and
+role-based permissions in the API, mirrored in the UI; the whole stack (PostgreSQL, backend,
+frontend behind nginx) in Docker Compose; CI on every push.
 
-- No user management or password change yet: users and their passwords come from the demo data
-- No token refresh or server-side logout: a token stays valid until it expires
-- Report locking, audit log, export — out of MVP scope
+### Latest test run
+
+Run on 2026-11-09 against the current `main`:
+
+| Check | Command | Result |
+|---|---|---|
+| Backend tests | `cd backend && ./mvnw test` | 161 passed, 0 failed, 0 skipped |
+| Frontend tests | `cd frontend && npm test` | 166 passed in 23 files |
+| Frontend lint | `npm run lint` | no findings |
+| Frontend build | `npm run build` | builds; largest chunk 324 kB (100 kB gzip) |
+
+The [Tests](#tests) section lists what each test class covers.
+
+### Open issues
+
+- **Demo data without Turkish letters:** seeded names and texts are stored in ASCII ("Ayse Yilmaz",
+  "Demo Musteri A.S."), while the UI and the API messages use Turkish letters. Cosmetic only.
+- **A slow test can time out on a busy machine:** the new-report form test takes about 0.6 s, but
+  once exceeded Vitest's 5 s limit while the backend tests were running in parallel. It passes on
+  its own and in a normal full run.
+- **Unknown query parameters are ignored:** a typo such as `?risk=YUKSEK` returns the unfiltered
+  result instead of an error (see [Filtering](#filtering-paging-and-sorting)).
+- **No user management or password change:** users and their passwords come from the demo data.
+- **No token refresh or server-side logout:** a token stays valid until it expires (8 hours), even
+  after logging out in the UI.
+- Report locking, audit log and export are out of the MVP scope (sections 7–8 of the
+  pre-analysis document).
+
+### Risks
+
+- **Demo defaults in a real deployment.** The `demo` profile is the default and seeds users with a
+  publicly known password, and `JWT_SECRET` falls back to a development value that is in this
+  repository (anyone who knows it can sign a valid token). Both must be changed before the app
+  runs anywhere other than a developer machine; today nothing stops it from starting with them.
+- **The token is kept in `localStorage`,** so any script running on the page can read it. There are
+  no third-party scripts and React escapes the content it renders, but an XSS bug would expose the
+  token. An `httpOnly` cookie would avoid that, at the cost of adding CSRF protection.
+- **Ownership is a filter in each query.** A new read endpoint that forgets it would show a project
+  manager other people's data. `AuthorizationIntegrationTest` covers every current endpoint;
+  each new one needs a test there too.
+- **The ISO week rule exists twice,** in the backend and in `frontend/src/lib/isoWeek.ts`. Both are
+  tested against the same table of dates, but a change on one side must be repeated on the other.
+- **Not deployed yet:** it runs only locally in Docker, without HTTPS.
+
+### Next phase
+
+1. **Risk, decision and action records** for each project: who owns them, due dates and status,
+   linked to the weekly report where they were raised, and visible on the dashboard.
+2. **CTO metrics:** status and risk trends over the weeks for each project and the portfolio, with
+   charts, and export of the filtered lists (CSV / Excel).
+3. **User management for the Admin:** creating users, assigning roles and owners, resetting
+   passwords; a password change for every user. After that, the app no longer depends on demo data.
+4. **Production readiness:** a profile without demo data that refuses to start without a real
+   `JWT_SECRET`, HTTPS, a deployment target, and token refresh or revocation.
+5. **Quality:** browser end-to-end tests of the demo scenario in CI, Turkish letters in the demo
+   data, and a longer timeout for the slow form tests.
