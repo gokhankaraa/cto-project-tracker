@@ -8,5 +8,7 @@ export function useHealth() {
   return useQuery({
     queryKey: ['health'],
     queryFn: ({ signal }) => api.get<HealthResponse>('/api/health', undefined, signal),
+    // Ust bardaki gosterge dakikada bir tazelenir; backend dusup kalkarsa kendiliginden duzelir.
+    refetchInterval: 60_000,
   })
 }

@@ -20,8 +20,9 @@ export function EnumBadge<E extends string>({ value, labels, ...props }: EnumBad
     )
   }
   const { label, color } = labels[value]
+  // miw: dar bir tablo sutununda bile rozet metni kesilmez (Badge etiketi aksi halde "DEVAM E..." olur).
   return (
-    <Badge color={color} variant="light" {...props}>
+    <Badge color={color} variant="light" miw="max-content" {...props}>
       {label}
     </Badge>
   )

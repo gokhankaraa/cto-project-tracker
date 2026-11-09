@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 
 import { cleanup } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { afterEach, beforeEach, vi } from 'vitest'
 
 // jsdom'da olmayan, Mantine'in kullandigi tarayici API'leri (Mantine test kurulumu onerisi).
 // Node ortaminda calisan testlerde (or. api/client.test.ts) window yoktur, bu kisim atlanir.
@@ -30,8 +30,15 @@ if (typeof window !== 'undefined') {
     disconnect() {}
   }
   window.ResizeObserver = ResizeObserverStub
+
+  // Bilesen testleri gercek backend'e istek atmaz: mockApi() cagirmayan testte her istek
+  // ag hatasi olur (ust bardaki baglanti gostergesi "Bağlantı yok" gosterir).
+  beforeEach(() => {
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('fetch bu testte mocklanmadi')))
+  })
 }
 
 afterEach(() => {
   cleanup()
+  vi.unstubAllGlobals()
 })

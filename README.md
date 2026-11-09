@@ -11,8 +11,8 @@ Track: **Full Stack (Java + Spring Boot, React + TypeScript)** · Author: Gökha
 > rule. Data now lives in PostgreSQL, with the schema managed by Flyway and tests running against a
 > real PostgreSQL via Testcontainers. Reports carry a year derived from the report date (Flyway V2),
 > and the filters accept a `year`. The repository now also holds the frontend: phase 0 (skeleton,
-> API client, CORS) is in place; the MVP screens (phase 1) come next, then role-based
-> authorization (T14).
+> API client, CORS) is in place, and phase 1 (the MVP screens) has started with the CTO dashboard;
+> projects, weekly reports and work items come next, then role-based authorization (T14).
 
 Project documents (in [`docs/`](docs/)):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, scope, user stories, acceptance criteria)
@@ -169,6 +169,17 @@ get the code `NETWORK_ERROR`.
 Shared building blocks for the screens: `src/api/types.ts` (response types and enum values, same
 names as the backend), `src/lib/labels.ts` (Turkish labels and badge colors for every enum),
 `EnumBadge` and `QueryState` (one way to show loading, empty and error states).
+
+Screens:
+
+| Address | Screen |
+|---|---|
+| `/` | CTO dashboard: counters, project table and filters (year / week, owner, project status, overall status, risk, delay) |
+
+Filters are kept in the address (`/?riskLevel=ORTA,YUKSEK&year=2026`), so a filtered view survives
+a reload and can be shared as a link. Invalid values in a hand-edited address are ignored, the same
+way the backend would reject them (for example a week without a year). The header shows whether the
+backend is reachable (`/api/health`, refreshed every minute).
 
 ## Configuration
 
@@ -438,13 +449,20 @@ Backend tests (128 in total):
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (12, Vitest + Testing Library on jsdom):
+Frontend tests (33, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+`src/test/mockApi.ts` stands in for it):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
   with commas) and error handling (`ApiError` body, non-JSON error, network failure)
 - `QueryState.test.tsx` — the shared loading / empty / error (with retry) states
 - `EnumBadge.test.tsx` — enum values shown with their Turkish label, a dash when there is no value
 - `AppLayout.test.tsx` — the current page's menu item is active; screens not built yet are not links
+- `searchParams.test.ts` — reading filters from the address (unknown enum values, out-of-range and
+  non-numeric numbers dropped) and writing them back
+- `dashboard/filters.test.ts` — dashboard filters from the address: all filters, week without year
+  dropped, invalid values dropped, round trip
+- `DashboardPage.test.tsx` — counters and rows (including a project without a report), address
+  filters sent to the API, reference text for year / week, clearing filters, empty result
 
 ## Known gaps
 

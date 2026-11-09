@@ -2,6 +2,8 @@ import { AppShell, Burger, Group, NavLink, Text, Title } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { Link, Outlet, useLocation } from 'react-router'
 
+import { BackendStatus } from './BackendStatus'
+
 interface NavItem {
   to: string
   label: string
@@ -40,9 +42,12 @@ export function AppLayout() {
               CTO Takip
             </Title>
           </Group>
-          <Text size="sm" c="dimmed" visibleFrom="sm">
-            Haftalık proje durum raporlama
-          </Text>
+          <Group gap="md">
+            <Text size="sm" c="dimmed" visibleFrom="md">
+              Haftalık proje durum raporlama
+            </Text>
+            <BackendStatus />
+          </Group>
         </Group>
       </AppShell.Header>
 
