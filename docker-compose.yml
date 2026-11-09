@@ -4,6 +4,9 @@
 #   docker compose up -d db       (yalnizca veritabani; uygulama: cd backend && ./mvnw spring-boot:run)
 #   docker compose up -d --build  (veritabani + uygulama, http://localhost:8080)
 #   docker compose down           (veri volume'da kalir; silmek icin: docker compose down -v)
+# Proje adi sabit: volume ve ag adlari klasor adina bagli kalmasin (or. repo baska adla klonlansa da).
+name: cto-project-tracker
+
 services:
   db:
     image: postgres:17-alpine

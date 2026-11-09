@@ -74,7 +74,7 @@ Frontend:
 
 ```bash
 git clone <repository-url>
-cd cto-project-tracker-backend
+cd cto-project-tracker
 
 docker compose up -d db         # starts PostgreSQL (host port 5433)
 cd backend
