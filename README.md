@@ -166,6 +166,10 @@ All API calls go through one client (`frontend/src/api/client.ts`). It turns the
 tell error types apart and forms can show `fieldErrors` next to the right input. Network failures
 get the code `NETWORK_ERROR`.
 
+Shared building blocks for the screens: `src/api/types.ts` (response types and enum values, same
+names as the backend), `src/lib/labels.ts` (Turkish labels and badge colors for every enum),
+`EnumBadge` and `QueryState` (one way to show loading, empty and error states).
+
 ## Configuration
 
 All settings live in [`backend/src/main/resources/application.yml`](backend/src/main/resources/application.yml).
@@ -210,6 +214,7 @@ entity change.
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/health` | Application and DB health check |
+| GET | `/api/users` | Users sorted by name (`id`, `fullName`, `role`; optional `role` filter) — for picking a project owner |
 | GET / POST | `/api/projects` | List / create projects |
 | GET / PUT / DELETE | `/api/projects/{id}` | Project detail / update / delete |
 | GET / POST | `/api/projects/{projectId}/reports` | List / create weekly reports for a project |
@@ -404,7 +409,7 @@ the schema comes from the same Flyway scripts as the application. Each test cont
 empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; every other test
 creates its own data. Service tests use Mockito and need no database.
 
-Backend tests (125 in total):
+Backend tests (128 in total):
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
   (project → report → work item → dashboard), 404 / 400 / 409, stage skip, dashboard filter
@@ -420,6 +425,7 @@ Backend tests (125 in total):
   project + year + week, and the latest report compares the year before the week
 - `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
 - `HealthControllerTest` — health endpoint and DB connection (reports PostgreSQL)
+- `UserControllerTest` — user list sorted by name, role filter, e-mail not exposed, unknown role (400)
 - `CorsConfigTest` — CORS: the frontend origin passes preflight and gets the allow header, other
   origins get 403
 - `GlobalExceptionHandlerTest` — the error-format contract (400 / 404 / 405 / 409 / 500), including
@@ -432,8 +438,13 @@ Backend tests (125 in total):
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (6): `client.test.ts` — query string building (empty values skipped, multi-value
-parameters joined with commas) and error handling (`ApiError` body, non-JSON error, network failure).
+Frontend tests (12, Vitest + Testing Library on jsdom):
+
+- `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
+  with commas) and error handling (`ApiError` body, non-JSON error, network failure)
+- `QueryState.test.tsx` — the shared loading / empty / error (with retry) states
+- `EnumBadge.test.tsx` — enum values shown with their Turkish label, a dash when there is no value
+- `AppLayout.test.tsx` — the current page's menu item is active; screens not built yet are not links
 
 ## Known gaps
 

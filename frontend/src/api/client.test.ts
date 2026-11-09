@@ -1,3 +1,5 @@
+// @vitest-environment node
+// API istemcisi tarayici bilesi kullanmaz; Node'un kendi fetch/Response'u ile test edilir.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiRequestError, NETWORK_ERROR, api, buildUrl } from './client'
