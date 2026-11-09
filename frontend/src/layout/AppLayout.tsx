@@ -4,18 +4,11 @@ import { Link, Outlet, useLocation } from 'react-router'
 
 import { BackendStatus } from './BackendStatus'
 
-interface NavItem {
-  to: string
-  label: string
-  /** Ekran henuz hazir degilse menude pasif gorunur (Faz 1 adim adim tamamlaniyor). */
-  ready: boolean
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Dashboard', ready: true },
-  { to: '/projects', label: 'Projeler', ready: true },
-  { to: '/reports', label: 'Raporlar', ready: false },
-  { to: '/work-items', label: 'İş kalemleri', ready: true },
+const NAV_ITEMS = [
+  { to: '/', label: 'Dashboard' },
+  { to: '/projects', label: 'Projeler' },
+  { to: '/reports', label: 'Raporlar' },
+  { to: '/work-items', label: 'İş kalemleri' },
 ]
 
 /** Menu ogesi, adresi kendisiyle ya da alt sayfasiyla (/projects/3) eslesince aktif gorunur. */
@@ -52,20 +45,16 @@ export function AppLayout() {
       </AppShell.Header>
 
       <AppShell.Navbar p="xs" aria-label="Ana menü">
-        {NAV_ITEMS.map((item) =>
-          item.ready ? (
-            <NavLink
-              key={item.to}
-              component={Link}
-              to={item.to}
-              label={item.label}
-              active={isActive(pathname, item.to)}
-              onClick={close}
-            />
-          ) : (
-            <NavLink key={item.to} label={item.label} description="Yakında" disabled />
-          ),
-        )}
+        {NAV_ITEMS.map((item) => (
+          <NavLink
+            key={item.to}
+            component={Link}
+            to={item.to}
+            label={item.label}
+            active={isActive(pathname, item.to)}
+            onClick={close}
+          />
+        ))}
       </AppShell.Navbar>
 
       <AppShell.Main>

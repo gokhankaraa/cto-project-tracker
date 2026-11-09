@@ -1,6 +1,13 @@
 import { WORK_ITEM_STATUSES } from '../../api/types'
 import { WORK_ITEM_SORTS, type WorkItemFilters, type WorkItemSort } from '../../api/workItems'
-import { parseBoolean, parseEnumList, parseIntInRange, toSearchString } from '../../lib/searchParams'
+import {
+  parseBoolean,
+  parseEnumList,
+  parseIntInRange,
+  parsePage,
+  parseSort,
+  toSearchString,
+} from '../../lib/searchParams'
 
 export const DEFAULT_WORK_ITEM_SORT: WorkItemSort = 'plannedDate,asc'
 
@@ -18,7 +25,6 @@ export interface WorkItemListState {
 export function parseWorkItemList(params: URLSearchParams): WorkItemListState {
   const year = parseIntInRange(params.get('year'), 2000, 2100)
   const assignee = params.get('assignee')?.trim().slice(0, 255) ?? ''
-  const sort = params.get('sort')
   return {
     filters: {
       projectId: parseIntInRange(params.get('projectId'), 1, Number.MAX_SAFE_INTEGER),
@@ -28,8 +34,8 @@ export function parseWorkItemList(params: URLSearchParams): WorkItemListState {
       status: parseEnumList(params.get('status'), WORK_ITEM_STATUSES),
       delayed: parseBoolean(params.get('delayed')),
     },
-    page: parseIntInRange(params.get('page'), 1, Number.MAX_SAFE_INTEGER) ?? 1,
-    sort: WORK_ITEM_SORTS.find((value) => value === sort) ?? DEFAULT_WORK_ITEM_SORT,
+    page: parsePage(params.get('page')),
+    sort: parseSort(params.get('sort'), WORK_ITEM_SORTS, DEFAULT_WORK_ITEM_SORT),
   }
 }
 

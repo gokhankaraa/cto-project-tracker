@@ -1,10 +1,11 @@
-import { Anchor, Badge, Box, Group, Pagination, Paper, Select, Stack, Table, Text } from '@mantine/core'
+import { Anchor, Badge, Box, Paper, Stack, Table, Text } from '@mantine/core'
 import { useMemo } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 
 import type { WorkItem } from '../../api/types'
 import { useWorkItemSearch, type WorkItemFilters, type WorkItemSort } from '../../api/workItems'
 import { EnumBadge } from '../../components/EnumBadge'
+import { ListPagination, ResultHeader } from '../../components/ListControls'
 import { PageHeader } from '../../components/PageHeader'
 import { QueryState } from '../../components/QueryState'
 import { formatDate, formatWeek } from '../../lib/format'
@@ -18,8 +19,6 @@ const SORT_OPTIONS: { value: WorkItemSort; label: string }[] = [
   { value: 'title,asc', label: 'Başlık (A–Z)' },
   { value: 'projectName,asc', label: 'Proje (A–Z)' },
 ]
-
-const PAGINATION_LABELS = { first: 'İlk sayfa', previous: 'Önceki sayfa', next: 'Sonraki sayfa', last: 'Son sayfa' }
 
 function referenceText({ year, weekNumber }: WorkItemFilters) {
   if (year === null) return 'Her projenin en son haftalık raporundaki iş kalemleri.'
@@ -47,30 +46,15 @@ export function WorkItemListPage() {
         {(data) => (
           <Box style={{ opacity: result.isPlaceholderData ? 0.6 : 1, transition: 'opacity 150ms' }}>
             <Stack gap="sm">
-              <Group justify="space-between">
-                <Text size="sm" c="dimmed">
-                  {data.totalElements} iş kalemi
-                </Text>
-                <Select
-                  aria-label="Sıralama"
-                  data={SORT_OPTIONS}
-                  value={state.sort}
-                  onChange={(value) => value && go({ ...state, sort: value as WorkItemSort, page: 1 })}
-                  allowDeselect={false}
-                  w={240}
-                />
-              </Group>
+              <ResultHeader
+                total={data.totalElements}
+                noun="iş kalemi"
+                sortOptions={SORT_OPTIONS}
+                sort={state.sort}
+                onSortChange={(sort) => go({ ...state, sort, page: 1 })}
+              />
               <WorkItemTable items={data.content} />
-              {data.totalPages > 1 && (
-                <Group justify="center">
-                  <Pagination
-                    total={data.totalPages}
-                    value={state.page}
-                    onChange={(page) => go({ ...state, page })}
-                    getControlProps={(control) => ({ 'aria-label': PAGINATION_LABELS[control] })}
-                  />
-                </Group>
-              )}
+              <ListPagination totalPages={data.totalPages} page={state.page} onChange={(page) => go({ ...state, page })} />
             </Stack>
           </Box>
         )}

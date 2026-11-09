@@ -5,22 +5,29 @@ import { renderWithProviders } from '../test/render'
 import { AppLayout } from './AppLayout'
 
 describe('AppLayout', () => {
-  it('bulunulan sayfanin menu ogesi aktif, hazir olmayan ekranlar pasif', () => {
+  it('tum ekranlar menude baglanti; bulunulan sayfanin ogesi aktif', () => {
     renderWithProviders(<AppLayout />, { route: '/' })
     const menu = within(screen.getByLabelText('Ana menü'))
 
+    expect(menu.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
+      '/',
+      '/projects',
+      '/reports',
+      '/work-items',
+    ])
     expect(menu.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('data-active')
-    // Hazir olmayan ekran gorunur ama tiklanabilir bir baglanti degildir.
     expect(menu.getByRole('link', { name: 'Projeler' })).not.toHaveAttribute('data-active')
-    expect(menu.getByText('Raporlar')).toBeInTheDocument()
-    expect(menu.queryByRole('link', { name: /Raporlar/ })).not.toBeInTheDocument()
   })
 
-  it('alt sayfada (/projects/3) ust menu ogesi aktif', () => {
-    renderWithProviders(<AppLayout />, { route: '/projects/3' })
+  it.each([
+    ['/projects/3', 'Projeler'],
+    ['/reports/4', 'Raporlar'],
+    ['/work-items?page=2', 'İş kalemleri'],
+  ])('alt sayfada (%s) ust menu ogesi aktif', (route, active) => {
+    renderWithProviders(<AppLayout />, { route })
     const menu = within(screen.getByLabelText('Ana menü'))
 
-    expect(menu.getByRole('link', { name: 'Projeler' })).toHaveAttribute('data-active')
+    expect(menu.getByRole('link', { name: active })).toHaveAttribute('data-active')
     expect(menu.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('data-active')
   })
 })

@@ -20,6 +20,24 @@ export function parseIntInRange(raw: string | null, min: number, max: number): n
   return value >= min && value <= max ? value : null
 }
 
+/** Kullaniciya gorunen sayfa numarasi (1'den baslar); gecersizse 1. */
+export function parsePage(raw: string | null): number {
+  return parseIntInRange(raw, 1, Number.MAX_SAFE_INTEGER) ?? 1
+}
+
+/** Izin verilen siralamalardan biri; degilse varsayilan. */
+export function parseSort<S extends string>(raw: string | null, allowed: readonly S[], fallback: S): S {
+  return allowed.find((value) => value === raw) ?? fallback
+}
+
+/** "YYYY-MM-DD" biciminde gercek bir tarih mi (2026-02-30 degil). */
+export function parseIsoDate(raw: string | null): string | null {
+  if (raw === null || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null
+  const [year, month, day] = raw.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? raw : null
+}
+
 /** "true" / "false" disindaki her deger null (filtre yok). */
 export function parseBoolean(raw: string | null): boolean | null {
   if (raw === 'true') return true

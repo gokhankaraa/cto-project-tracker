@@ -1,10 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from './client'
 import { projectKeys } from './projects'
 import {
   PROGRESS_STAGES,
   type OverallStatus,
+  type PageResponse,
   type ProgressStage,
   type RiskLevel,
   type WeeklyReport,
@@ -46,9 +47,56 @@ export function allowedStages(current: ProgressStage): ProgressStage[] {
   return PROGRESS_STAGES.slice(index, index + 2)
 }
 
+/**
+ * GET /api/reports filtreleri (docs/filtre-sozlesmesi-T13.md, 3. bolum). year raporun yilina esitliktir;
+ * weekFrom/weekTo yalnizca year ile ve o yilin icinde gecerlidir; yillar arasi aralik icin tarih kullanilir.
+ */
+export type ReportFilters = {
+  projectId: number | null
+  ownerId: number | null
+  year: number | null
+  weekFrom: number | null
+  weekTo: number | null
+  dateFrom: string | null
+  dateTo: string | null
+  overallStatus: OverallStatus[]
+  riskLevel: RiskLevel[]
+  progressStage: ProgressStage[]
+}
+
+export const NO_REPORT_FILTERS: ReportFilters = {
+  projectId: null,
+  ownerId: null,
+  year: null,
+  weekFrom: null,
+  weekTo: null,
+  dateFrom: null,
+  dateTo: null,
+  overallStatus: [],
+  riskLevel: [],
+  progressStage: [],
+}
+
+/** Backend'in kabul ettigi siralamalar; ikinci anahtar (id) backend'de eklenir. */
+export const REPORT_SORTS = ['reportDate,desc', 'reportDate,asc', 'weekNumber,desc', 'projectName,asc'] as const
+export type ReportSort = (typeof REPORT_SORTS)[number]
+
+export const REPORT_PAGE_SIZE = 20
+
 export const reportKeys = {
   all: ['reports'] as const,
   detail: (id: number) => ['reports', id] as const,
+  search: (filters: ReportFilters, page: number, sort: ReportSort) => ['reports', 'search', filters, page, sort] as const,
+}
+
+/** Projeler arasi rapor listesi. page 0'dan baslar (backend). */
+export function useReportSearch(filters: ReportFilters, page: number, sort: ReportSort) {
+  return useQuery({
+    queryKey: reportKeys.search(filters, page, sort),
+    queryFn: ({ signal }) =>
+      api.get<PageResponse<WeeklyReport>>('/api/reports', { ...filters, page, size: REPORT_PAGE_SIZE, sort }, signal),
+    placeholderData: keepPreviousData,
+  })
 }
 
 export function useReport(id: number) {
@@ -97,6 +145,7 @@ export function useDeleteReport(report: WeeklyReport) {
     mutationFn: () => api.delete(`/api/reports/${report.id}`),
     onSuccess: () => {
       // Silinen raporun kendi sorgusuna dokunulmaz (bkz. useDeleteProject): yenilense 404 alirdi.
+      void queryClient.invalidateQueries({ queryKey: ['reports', 'search'] })
       void queryClient.invalidateQueries({ queryKey: projectKeys.reports(report.projectId) })
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       void queryClient.invalidateQueries({ queryKey: ['work-items'] })

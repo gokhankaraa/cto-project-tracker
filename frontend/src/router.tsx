@@ -6,7 +6,6 @@ import { NotFoundPage } from './pages/NotFoundPage'
 /**
  * Uygulamanin sayfalari. Her sayfa ilk acildiginda ayri bir parca olarak yuklenir (lazy): ilk acilista
  * yalnizca cerceve ve acilan sayfa indirilir, tablolar / formlar gibi bilesenler gerektikce gelir.
- * Faz 1'in kalan ekrani (rapor listesi) buraya eklenecek.
  */
 export const router = createBrowserRouter([
   {
@@ -36,6 +35,10 @@ export const router = createBrowserRouter([
       {
         path: 'projects/:id/reports/new',
         lazy: () => import('./pages/reports/ReportFormPage').then((m) => ({ Component: m.NewReportPage })),
+      },
+      {
+        path: 'reports',
+        lazy: () => import('./pages/reports/ReportListPage').then((m) => ({ Component: m.ReportListPage })),
       },
       {
         path: 'reports/:id',

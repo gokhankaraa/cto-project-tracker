@@ -76,7 +76,7 @@ export function useReportWorkItems(reportId: number) {
 
 /**
  * Is kalemi degisince eskiyenler: raporun kendisi ve is kalemleri (canli task sayisi), projenin rapor
- * gecmisi (canli task sutunu), dashboard (gecikme, canli task) ve projeler arasi liste.
+ * gecmisi ve rapor listesi (canli task sutunu), dashboard (gecikme, canli task) ve projeler arasi liste.
  */
 function useInvalidateWorkItems(reportId: number, projectId: number) {
   const queryClient = useQueryClient()
@@ -84,6 +84,7 @@ function useInvalidateWorkItems(reportId: number, projectId: number) {
     Promise.all([
       queryClient.invalidateQueries({ queryKey: reportKeys.detail(reportId) }),
       queryClient.invalidateQueries({ queryKey: projectKeys.reports(projectId) }),
+      queryClient.invalidateQueries({ queryKey: ['reports', 'search'] }),
       queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
       queryClient.invalidateQueries({ queryKey: workItemKeys.all }),
     ])

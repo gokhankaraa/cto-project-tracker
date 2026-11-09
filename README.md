@@ -11,9 +11,9 @@ Track: **Full Stack (Java + Spring Boot, React + TypeScript)** · Author: Gökha
 > rule. Data now lives in PostgreSQL, with the schema managed by Flyway and tests running against a
 > real PostgreSQL via Testcontainers. Reports carry a year derived from the report date (Flyway V2),
 > and the filters accept a `year`. The repository now also holds the frontend: phase 0 (skeleton,
-> API client, CORS) is in place, and phase 1 (the MVP screens) has the CTO dashboard, projects,
-> weekly reports and work items; the cross-project report list comes next, then role-based
-> authorization (T14).
+> API client, CORS) is in place, and phase 1 (the MVP screens) is complete: CTO dashboard,
+> projects, weekly reports, work items and the cross-project report and work item lists.
+> Role-based authorization (T14) comes next.
 
 Project documents (in [`docs/`](docs/)):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, scope, user stories, acceptance criteria)
@@ -169,7 +169,8 @@ get the code `NETWORK_ERROR`.
 
 Shared building blocks for the screens: `src/api/types.ts` (response types and enum values, same
 names as the backend), `src/lib/labels.ts` (Turkish labels and badge colors for every enum),
-`EnumBadge` and `QueryState` (one way to show loading, empty and error states).
+`EnumBadge` and `QueryState` (one way to show loading, empty and error states), `PageHeader`,
+`ProgressValue`, and `ListControls` (result count, sorting and paging for the paged lists).
 
 Screens:
 
@@ -181,6 +182,7 @@ Screens:
 | `/projects/new`, `/projects/:id/edit` | Project form; checks the backend's rules before sending and shows the backend's `fieldErrors` under the matching input |
 | `/reports/:id` | Weekly report: stage, progress, status, risk, live tasks and the four text fields; delete with confirmation (its work items are deleted too). Below it, the report's work items with add / edit in a dialog and delete with confirmation |
 | `/projects/:id/reports/new`, `/reports/:id/edit` | Weekly report form (see below) |
+| `/reports` | Weekly reports of all projects, past weeks included; filters for project, owner, year with a week range, report date range, stage, overall status and risk; paging and sorting, all kept in the address. A reversed range cannot be chosen (earlier weeks are disabled in "Son hafta", the date inputs limit each other) |
 | `/work-items` | Work items across projects, from each project's latest report (or the report up to a chosen year / week); filters for project, owner name, status and delay, paging and sorting, all kept in the address |
 
 Weekly report form:
@@ -469,14 +471,15 @@ Backend tests (128 in total):
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (98, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (112, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
   with commas) and error handling (`ApiError` body, non-JSON error, network failure)
 - `QueryState.test.tsx` — the shared loading / empty / error (with retry) states
 - `EnumBadge.test.tsx` — enum values shown with their Turkish label, a dash when there is no value
-- `AppLayout.test.tsx` — the current page's menu item is active; screens not built yet are not links
+- `AppLayout.test.tsx` — every screen is a menu link; the current page's item is active, also on
+  sub-pages (`/projects/3`, `/reports/4`, `/work-items?page=2`)
 - `searchParams.test.ts` — reading filters from the address (unknown enum values, out-of-range and
   non-numeric numbers dropped) and writing them back
 - `dashboard/filters.test.ts` — dashboard filters from the address: all filters, week without year
@@ -504,6 +507,11 @@ Frontend tests (98, Vitest + Testing Library on jsdom; component tests never rea
 - `WorkItemListPage.test.tsx` — links to project and report, address state sent to the API (page
   is 1-based in the address, 0-based for the backend), next page, clearing filters returns to page 1,
   owner search sends one request after typing stops, empty result
+- `reports/listFilters.test.ts` — report list state from the address: all filters, defaults, week
+  range without a year dropped, reversed week or date range drops the end, invalid values dropped
+- `ReportListPage.test.tsx` — links to project and report, address state sent to the API, week
+  range disabled without a year, earlier weeks disabled as the end of the range, sorting returns
+  to page 1, empty result
 
 ## Known gaps
 
