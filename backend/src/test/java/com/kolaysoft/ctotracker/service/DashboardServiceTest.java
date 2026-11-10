@@ -2,6 +2,7 @@ package com.kolaysoft.ctotracker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
@@ -9,7 +10,6 @@ import static org.mockito.Mockito.when;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +29,7 @@ import com.kolaysoft.ctotracker.entity.Project;
 import com.kolaysoft.ctotracker.entity.ProjectStatus;
 import com.kolaysoft.ctotracker.entity.RiskLevel;
 import com.kolaysoft.ctotracker.entity.WeeklyReport;
+import com.kolaysoft.ctotracker.entity.WorkItem;
 import com.kolaysoft.ctotracker.entity.WorkItemStatus;
 import com.kolaysoft.ctotracker.repository.ProjectRepository;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
@@ -104,6 +105,19 @@ class DashboardServiceTest {
         return r;
     }
 
+    /** Degerlendirilen raporlarin toplu sorgusu: verilen referans anahtariyla bu raporlar doner. */
+    private void evaluated(int referenceKey, WeeklyReport... reports) {
+        when(weeklyReportRepository.findEvaluatedByProjectIdIn(anyCollection(), eq(referenceKey)))
+                .thenReturn(List.of(reports));
+    }
+
+    private static WorkItem item(WeeklyReport report, WorkItemStatus status) {
+        WorkItem item = new WorkItem();
+        item.setWeeklyReport(report);
+        item.setStatus(status);
+        return item;
+    }
+
     @Test
     @DisplayName("Ozet: raporu olan ve olmayan projeler birlikte, son rapor ve sayaclar dogru")
     void summaryIncludesReportedAndUnreportedProjects() {
@@ -112,13 +126,11 @@ class DashboardServiceTest {
         when(projectRepository.findAll(anySpec(), any(Sort.class))).thenReturn(List.of(atlas, bos));
 
         WeeklyReport atlasLast = report(10L, 1L, 30, ProgressStage.TEST, RiskLevel.YUKSEK);
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(1L))
-                .thenReturn(Optional.of(atlasLast));
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(2L))
-                .thenReturn(Optional.empty());
-        when(workItemRepository.countByWeeklyReportIdAndStatus(10L, WorkItemStatus.DEVAM_EDIYOR))
-                .thenReturn(2L);
+        when(workItemRepository.findByWeeklyReportIdIn(List.of(10L))).thenReturn(List.of(
+                item(atlasLast, WorkItemStatus.DEVAM_EDIYOR), item(atlasLast, WorkItemStatus.DEVAM_EDIYOR),
+                item(atlasLast, WorkItemStatus.TAMAMLANDI)));
 
+        evaluated(WeeklyReportRepository.LATEST, atlasLast);
         DashboardSummaryResponse summary = service.getSummary(DashboardFilter.none());
 
         assertThat(summary.totalProjects()).isEqualTo(2);
@@ -149,13 +161,8 @@ class DashboardServiceTest {
 
         WeeklyReport atlasLast = report(10L, 1L, 30, ProgressStage.TEST, RiskLevel.DUSUK);
         WeeklyReport ebelgeLast = report(20L, 2L, 30, ProgressStage.ANALIZ, RiskLevel.YUKSEK);
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(1L))
-                .thenReturn(Optional.of(atlasLast));
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(2L))
-                .thenReturn(Optional.of(ebelgeLast));
-        lenient().when(workItemRepository.countByWeeklyReportIdAndStatus(any(), eq(WorkItemStatus.DEVAM_EDIYOR)))
-                .thenReturn(0L);
 
+        evaluated(WeeklyReportRepository.LATEST, atlasLast, ebelgeLast);
         DashboardSummaryResponse summary = service.getSummary(
                 new DashboardFilter(null, null, null, null, null, null, List.of(RiskLevel.YUKSEK), null));
 
@@ -194,11 +201,8 @@ class DashboardServiceTest {
         when(projectRepository.findAll(anySpec(), any(Sort.class))).thenReturn(List.of(atlas, ebelge));
 
         WeeklyReport atlasW29 = report(10L, 1L, 29, ProgressStage.GELISTIRME, RiskLevel.ORTA);
-        when(weeklyReportRepository.findLatestByProjectIdUpTo(1L, 202629))
-                .thenReturn(Optional.of(atlasW29));
-        when(weeklyReportRepository.findLatestByProjectIdUpTo(2L, 202629))
-                .thenReturn(Optional.empty());
 
+        evaluated(202629, atlasW29);
         DashboardSummaryResponse summary = service.getSummary(
                 new DashboardFilter(null, null, null, 2026, 29, null, null, null));
 
@@ -214,8 +218,8 @@ class DashboardServiceTest {
     void yearAloneSelectsLatestReportUpToEndOfYear() {
         when(projectRepository.findAll(anySpec(), any(Sort.class))).thenReturn(List.of(project(1L, "Atlas IK", null)));
         WeeklyReport atlasW52 = report(10L, 1L, 52, ProgressStage.TEST, RiskLevel.DUSUK);
-        when(weeklyReportRepository.findLatestByProjectIdUpTo(1L, 202653)).thenReturn(Optional.of(atlasW52));
 
+        evaluated(202653, atlasW52);
         DashboardSummaryResponse summary = service.getSummary(
                 new DashboardFilter(null, null, null, 2026, null, null, null, null));
 
@@ -231,16 +235,8 @@ class DashboardServiceTest {
         Project raporsuz = project(4L, "Raporsuz", null);
         when(projectRepository.findAll(anySpec(), any(Sort.class)))
                 .thenReturn(List.of(dusuk, orta, yuksek, raporsuz));
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(1L))
-                .thenReturn(Optional.of(report(10L, 1L, 30, ProgressStage.TEST, RiskLevel.DUSUK)));
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(2L))
-                .thenReturn(Optional.of(report(20L, 2L, 30, ProgressStage.TEST, RiskLevel.ORTA)));
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(3L))
-                .thenReturn(Optional.of(report(30L, 3L, 30, ProgressStage.TEST, RiskLevel.YUKSEK)));
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(4L)).thenReturn(Optional.empty());
-        lenient().when(workItemRepository.countByWeeklyReportIdAndStatus(any(), eq(WorkItemStatus.DEVAM_EDIYOR)))
-                .thenReturn(0L);
 
+        evaluated(WeeklyReportRepository.LATEST, report(10L, 1L, 30, ProgressStage.TEST, RiskLevel.DUSUK), report(20L, 2L, 30, ProgressStage.TEST, RiskLevel.ORTA), report(30L, 3L, 30, ProgressStage.TEST, RiskLevel.YUKSEK));
         DashboardSummaryResponse summary = service.getSummary(riskFilter(RiskLevel.ORTA, RiskLevel.YUKSEK));
 
         assertThat(summary.projects()).extracting(s -> s.projectId()).containsExactly(2L, 3L);
@@ -259,14 +255,10 @@ class DashboardServiceTest {
                 .thenReturn(List.of(geciken, zamaninda, raporsuz));
         WeeklyReport gecikenRapor = report(10L, 1L, 30, ProgressStage.TEST, RiskLevel.ORTA);
         WeeklyReport zamanindaRapor = report(20L, 2L, 30, ProgressStage.TEST, RiskLevel.DUSUK);
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(1L)).thenReturn(Optional.of(gecikenRapor));
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(2L)).thenReturn(Optional.of(zamanindaRapor));
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(3L)).thenReturn(Optional.empty());
-        when(delayPolicy.isDelayed(gecikenRapor)).thenReturn(true);
-        when(delayPolicy.isDelayed(zamanindaRapor)).thenReturn(false);
-        lenient().when(workItemRepository.countByWeeklyReportIdAndStatus(any(), eq(WorkItemStatus.DEVAM_EDIYOR)))
-                .thenReturn(0L);
+        when(delayPolicy.isDelayed(eq(gecikenRapor), anyCollection())).thenReturn(true);
+        
 
+        evaluated(WeeklyReportRepository.LATEST, gecikenRapor, zamanindaRapor);
         DashboardSummaryResponse all = service.getSummary(DashboardFilter.none());
         DashboardSummaryResponse onlyDelayed = service.getSummary(delayedFilter(true));
         DashboardSummaryResponse notDelayed = service.getSummary(delayedFilter(false));
@@ -285,14 +277,11 @@ class DashboardServiceTest {
         Project atlas = project(1L, "Atlas IK", null);
         Project ebelge = project(2L, "e-Belge", null);
         when(projectRepository.findAll(anySpec(), any(Sort.class))).thenReturn(List.of(atlas, ebelge));
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(1L))
-                .thenReturn(Optional.of(report(10L, 1L, 30, ProgressStage.TEST, RiskLevel.YUKSEK)));
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(2L))
-                .thenReturn(Optional.of(report(20L, 2L, 30, ProgressStage.ANALIZ, RiskLevel.DUSUK)));
         when(trackingItemService.openSummaries(List.of(1L, 2L))).thenReturn(Map.of(
                 1L, new TrackingSummary(3, 1, 1, 0, 1, RiskLevel.YUKSEK),
                 2L, new TrackingSummary(1, 0, 0, 1, 0, RiskLevel.ORTA)));
 
+        evaluated(WeeklyReportRepository.LATEST, report(10L, 1L, 30, ProgressStage.TEST, RiskLevel.YUKSEK), report(20L, 2L, 30, ProgressStage.ANALIZ, RiskLevel.DUSUK));
         DashboardSummaryResponse all = service.getSummary(DashboardFilter.none());
 
         assertThat(all.openRisks()).isEqualTo(1);
@@ -315,8 +304,8 @@ class DashboardServiceTest {
     @DisplayName("Takip kaydi olmayan proje: sayilar 0, en yuksek seviye null")
     void projectWithoutTrackingItems() {
         when(projectRepository.findAll(anySpec(), any(Sort.class))).thenReturn(List.of(project(3L, "Nova POS", null)));
-        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(3L)).thenReturn(Optional.empty());
 
+        evaluated(WeeklyReportRepository.LATEST);
         DashboardSummaryResponse summary = service.getSummary(DashboardFilter.none());
 
         assertThat(summary.projects().getFirst().openTrackingItems()).isZero();

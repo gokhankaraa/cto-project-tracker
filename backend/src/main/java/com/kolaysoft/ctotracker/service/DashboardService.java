@@ -2,7 +2,8 @@ package com.kolaysoft.ctotracker.service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import com.kolaysoft.ctotracker.entity.Project;
 import com.kolaysoft.ctotracker.entity.RiskLevel;
 import com.kolaysoft.ctotracker.entity.User;
 import com.kolaysoft.ctotracker.entity.WeeklyReport;
+import com.kolaysoft.ctotracker.entity.WorkItem;
 import com.kolaysoft.ctotracker.entity.WorkItemStatus;
 import com.kolaysoft.ctotracker.repository.ProjectRepository;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
@@ -29,6 +31,9 @@ import com.kolaysoft.ctotracker.security.CurrentUser;
  * icinde en yuksek hafta), yalnizca yil verilirse o yilin sonuna kadarki, yil + hafta verilirse o haftaya
  * kadarki en son rapor. Ilerleme, durum, risk, canli task ve
  * gecikme bilgisi bu rapordan turer. Raporu olmayan projeler de listelenir (ilerleme bilgisi bos/varsayilan).
+ *
+ * <p>Veri proje sayisindan bagimsiz birkac sorguyla yuklenir (projeler, her projenin degerlendirilen raporu,
+ * bu raporlarin is kalemleri, takip ozeti); canli task ve gecikme bellekte hesaplanir.
  *
  * <p>Filtreler iki asamada uygulanir: proje filtreleri (proje, durum, sorumlu) veritabani sorgusunda,
  * rapora dayali filtreler (rapor durumu, risk, gecikme) ozet satirlari uzerinde. Proje sayisi kucuk
@@ -75,8 +80,19 @@ public class DashboardService {
         Map<Long, TrackingSummary> tracking = trackingItemService.openSummaries(
                 projects.stream().map(Project::getId).toList());
 
+        List<Long> projectIds = projects.stream().map(Project::getId).toList();
+        Map<Long, WeeklyReport> evaluated = projectIds.isEmpty() ? Map.of() : weeklyReportRepository
+                .findEvaluatedByProjectIdIn(projectIds,
+                        filter.referenceKey() == null ? WeeklyReportRepository.LATEST : filter.referenceKey())
+                .stream()
+                .collect(Collectors.toMap(report -> report.getProject().getId(), Function.identity()));
+        Map<Long, List<WorkItem>> itemsByReport = evaluated.isEmpty() ? Map.of() : workItemRepository
+                .findByWeeklyReportIdIn(evaluated.values().stream().map(WeeklyReport::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(item -> item.getWeeklyReport().getId()));
+
         List<DashboardProjectSummary> summaries = projects.stream()
-                .map(project -> toSummary(project, filter.referenceKey(),
+                .map(project -> toSummary(project, evaluated.get(project.getId()), itemsByReport,
                         tracking.getOrDefault(project.getId(), TrackingSummary.EMPTY)))
                 .filter(summary -> matchesReportCriteria(summary, filter))
                 .toList();
@@ -116,36 +132,27 @@ public class DashboardService {
                 && (filter.delayed() == null || filter.delayed() == summary.delayed());
     }
 
-    private DashboardProjectSummary toSummary(Project project, Integer referenceKey, TrackingSummary tracking) {
+    /** @param report projenin degerlendirilen raporu; raporu yoksa null */
+    private DashboardProjectSummary toSummary(Project project, WeeklyReport report,
+                                              Map<Long, List<WorkItem>> itemsByReport, TrackingSummary tracking) {
         User owner = project.getOwner();
         String ownerName = owner != null ? owner.getFullName() : null;
 
-        Optional<WeeklyReport> evaluatedReport = findEvaluatedReport(project.getId(), referenceKey);
-
-        if (evaluatedReport.isEmpty()) {
+        if (report == null) {
             return new DashboardProjectSummary(
                     project.getId(), project.getName(), project.getCustomer(), ownerName,
                     project.getStatus(), false, null, null, null, 0, null, null, 0, false,
                     tracking.openItems(), tracking.overdueItems(), tracking.highestRiskLevel());
         }
 
-        WeeklyReport r = evaluatedReport.get();
-        long liveTaskCount = workItemRepository.countByWeeklyReportIdAndStatus(
-                r.getId(), WorkItemStatus.DEVAM_EDIYOR);
+        List<WorkItem> items = itemsByReport.getOrDefault(report.getId(), List.of());
+        long liveTaskCount = items.stream().filter(item -> item.getStatus() == WorkItemStatus.DEVAM_EDIYOR).count();
 
         return new DashboardProjectSummary(
                 project.getId(), project.getName(), project.getCustomer(), ownerName,
-                project.getStatus(), true, r.getYear(), r.getWeekNumber(),
-                r.getProgressStage(), r.getProgressStage().getPercentage(),
-                r.getOverallStatus(), r.getRiskLevel(), liveTaskCount, delayPolicy.isDelayed(r),
+                project.getStatus(), true, report.getYear(), report.getWeekNumber(),
+                report.getProgressStage(), report.getProgressStage().getPercentage(),
+                report.getOverallStatus(), report.getRiskLevel(), liveTaskCount, delayPolicy.isDelayed(report, items),
                 tracking.openItems(), tracking.overdueItems(), tracking.highestRiskLevel());
-    }
-
-    /** Referans yoksa en guncel rapor, varsa anahtari referansa kadar (dahil) olan en son rapor. */
-    private Optional<WeeklyReport> findEvaluatedReport(Long projectId, Integer referenceKey) {
-        if (referenceKey == null) {
-            return weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(projectId);
-        }
-        return weeklyReportRepository.findLatestByProjectIdUpTo(projectId, referenceKey);
     }
 }

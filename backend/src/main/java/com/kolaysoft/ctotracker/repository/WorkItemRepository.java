@@ -12,6 +12,9 @@ import com.kolaysoft.ctotracker.entity.WorkItemStatus;
 /** Filtreli sorgular icin bkz. {@code repository.spec.WorkItemSpecifications}. */
 public interface WorkItemRepository extends JpaRepository<WorkItem, Long>, JpaSpecificationExecutor<WorkItem> {
 
+    /** Verilen raporlarin is kalemleri (dashboard: canli task ve gecikme bellekte, tek sorguyla). */
+    List<WorkItem> findByWeeklyReportIdIn(Collection<Long> reportIds);
+
     /** Verilen projelerin raporlarindaki tum is kalemleri (trend: gecikme kurali bellekte, tek sorguyla). */
     List<WorkItem> findByWeeklyReportProjectIdIn(Collection<Long> projectIds);
 

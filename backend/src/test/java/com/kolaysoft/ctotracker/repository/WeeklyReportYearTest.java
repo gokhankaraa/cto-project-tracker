@@ -8,6 +8,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.List;
 import java.time.temporal.IsoFields;
 
 import javax.sql.DataSource;
@@ -170,7 +171,10 @@ class WeeklyReportYearTest {
         WeeklyReport newest = report(1, LocalDate.of(2027, 1, 4));
         em.flush();
 
-        assertThat(repository.findTopByProjectIdOrderByYearDescWeekNumberDesc(project.getId()))
-                .contains(newest);
+        assertThat(repository.findEvaluatedByProjectIdIn(List.of(project.getId()), WeeklyReportRepository.LATEST))
+                .containsExactly(newest);
+        // Referansla: 2026 h53'e kadar 2026 h52 secilir (2027 h1 referanstan sonra).
+        assertThat(repository.findEvaluatedByProjectIdIn(List.of(project.getId()), WeeklyReport.weekKey(2026, 53)))
+                .extracting(WeeklyReport::getWeekNumber).containsExactly(52);
     }
 }

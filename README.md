@@ -717,7 +717,8 @@ Backend tests (212 in total). The HTTP tests of business rules run as an Admin
 - `WeeklyReportYearTest` — report year on PostgreSQL: the year of the described week at year
   boundaries, and the V3 migration SQL (re-run on rows stored with the V2 rule) gives the same year
   as the Java rule; the year follows both week and report date, week 53 only in 53-week years,
-  uniqueness is per project + year + week, and the latest report compares the year before the week
+  uniqueness is per project + year + week, and the dashboard's one-query "evaluated report per
+  project" compares the year before the week, with and without a year / week reference
 - `ExportIntegrationTest` — the Excel file read back with POI: the four sheets, the file name with
   today's date, the counters, project rows with Turkish labels (progress as a number, empty for a
   project without a report), open records with the overdue one first and the follow-up date as a
@@ -851,7 +852,8 @@ Frontend tests (203, Vitest + Testing Library on jsdom; component tests never re
 
 **Done:** projects, weekly reports and work items (create, edit, delete, with their business
 rules); risks, blockers, decisions and actions with assignees, follow-up dates and overdue
-tracking; the CTO dashboard and the filtered, paged report, work item and risk / action lists; login with JWT and
+tracking; the CTO dashboard with a 12-week trend and an Excel export, and the filtered, paged
+report, work item and risk / action lists; login with JWT and
 role-based permissions in the API, mirrored in the UI; the whole stack (PostgreSQL, backend,
 frontend behind nginx) in Docker Compose; CI on every push.
 
@@ -866,9 +868,41 @@ Run on 2026-11-10 against the current `main`:
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
 | CI | GitHub Actions on push to `main` | backend, frontend and Docker image jobs passed |
-| End-to-end | The demo scenarios in a browser on a clean Docker setup (local Playwright script) | report flow (14 checks), risks and actions flow (12 checks) and the API scenario (14 checks) passed, no console errors |
+| End-to-end | The demo scenarios in a browser on a clean Docker setup (local Playwright script) | report flow (14 checks), risks and actions flow (12 checks), the API scenario (14 checks) and the trend and Excel flow (5 checks: tooltip, week-31 numbers, filtered download and its content, a project manager's own data, no sideways scroll on a phone) passed, no console errors |
 
 The [Tests](#tests) section lists what each test class covers.
+
+### Performance
+
+Measured on 2026-11-10 with the Docker setup on a laptop, after loading 200 extra projects with a
+report for every week of 2026 (10,404 reports, 31,206 work items, 1,005 risk and action records),
+logged in as the CTO (whole portfolio). Each endpoint was called 3 times to warm up, then 5 times;
+the SQL count is the statements PostgreSQL logged for one call.
+
+| Endpoint | Median | SQL statements |
+|---|---|---|
+| `GET /api/dashboard/summary` | 8–20 ms (was 65 ms) | 7 (was 562) |
+| `GET /api/dashboard/summary?year=2026&weekNumber=20` | 6–12 ms | 7 |
+| `GET /api/dashboard/trend` (12 weeks) | 50 ms | 5 |
+| `GET /api/dashboard/trend?weeks=52` | 48 ms | 5 |
+| `GET /api/dashboard/export` (Excel, 37 kB) | 80–100 ms (was 119 ms) | 12 (was 567) |
+| `GET /api/reports` (first page) | 8–10 ms | 43 |
+| `GET /api/work-items` (first page) | 180–290 ms | 41 |
+| `GET /api/tracking-items` (first page) | 3 ms | 11 |
+
+- The dashboard summary used to run a few queries **per project** (562 for 200 projects). On a
+  laptop that is fast, but with the database on another server every query adds a network round
+  trip (1–2 ms), which would have made the dashboard and the Excel export take 0.5–1 s. It now
+  loads each project's evaluated report in one query (PostgreSQL `DISTINCT ON`; a correlated
+  `MAX` subquery took 46 ms here, this takes 9 ms) and their work items in another, so the number
+  of queries no longer grows with the number of projects. The trend was written this way from the
+  start.
+- The paged lists still look up each row's project and report separately (about 2 queries per
+  row, at most 20 rows per page), and the work item list's "evaluated report" condition is a
+  subquery per row, which makes it the slowest call here. Both are bounded by the page size and
+  are left for later.
+- Timings on a laptop vary between runs (the same unchanged call measured 181 and 288 ms); the SQL
+  counts do not.
 
 ### Open issues
 
@@ -909,13 +943,10 @@ The [Tests](#tests) section lists what each test class covers.
 
 ### Next phase
 
-1. **CTO metrics:** status and risk trends over the weeks for each project and the portfolio (from
-   the weekly reports, and from the creation and closing dates of risks and actions), with charts,
-   and export of the filtered lists (CSV / Excel).
-2. **User management for the Admin:** creating users, assigning roles and owners, resetting
+1. **User management for the Admin:** creating users, assigning roles and owners, resetting
    passwords; a password change for every user. After that, the app no longer depends on demo data.
-3. **Production readiness:** a profile without demo data that refuses to start without a real
+2. **Production readiness:** a profile without demo data that refuses to start without a real
    `JWT_SECRET`, HTTPS, a deployment target, and token refresh or revocation.
-4. **Quality:** browser end-to-end tests of the demo scenarios in CI (today they run from a local
-   Playwright script), Turkish letters in the demo
+3. **Quality:** browser end-to-end tests of the demo scenarios in CI (today they run from a local
+   Playwright script), the per-row queries of the paged lists (see [Performance](#performance)), Turkish letters in the demo
    data, and a longer timeout for the slow form tests.
