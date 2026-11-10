@@ -3,6 +3,10 @@ package com.kolaysoft.ctotracker.repository;
 import java.util.Collection;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -42,4 +46,9 @@ public interface WeeklyReportRepository extends JpaRepository<WeeklyReport, Long
 
     /** Proje + yil + hafta benzersizlik kontrolu icin (on analiz H-03, V2). */
     boolean existsByProjectIdAndYearAndWeekNumber(Long projectId, Integer year, Integer weekNumber);
+
+    /** Projeler arasi rapor listesi: proje ayni sorguda gelir (satir basina bir sorgu yerine). */
+    @Override
+    @EntityGraph(attributePaths = "project")
+    Page<WeeklyReport> findAll(Specification<WeeklyReport> spec, Pageable pageable);
 }

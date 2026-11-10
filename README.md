@@ -937,7 +937,7 @@ from local scripts (see [Latest test run](#latest-test-run)); `e2e/` keeps their
 | Login, token, roles | `AuthControllerTest`, `AuthorizationIntegrationTest`, `CorsConfigTest`, `UserControllerTest`, `JwtSecretTest` | `LoginPage`, `session`, `RequireAuth`, `RequirePermission`, `AppLayout`, `client` | `01-access`; every flow logs in as the role that does the work | — |
 | Production settings, first admin | `ProductionSetupIntegrationTest`, `AdminBootstrapTest`, `JwtSecretTest` | — | smoke test on the production setup | — |
 | Projects | `ProjectServiceTest`, `MvpIntegrationTest` | `ProjectListPage`, `ProjectDetailPage`, `ProjectFormPage` | Admin: create, edit, delete blocked | — |
-| Weekly reports and work items | `WeeklyReportServiceTest`, `WorkItemServiceTest`, `WeeklyReportYearTest`, `WeeklyReportQueryTest`, `WorkItemQueryTest`, `FilterIntegrationTest` | `ReportFormPage`, `ReportDetailPage`, `ReportListPage`, `WorkItemsSection`, `WorkItemListPage`, `isoWeek`, `listFilters` | `03-report-flow`; `02-dashboard` delay filter | per-row queries in the paged lists |
+| Weekly reports and work items | `WeeklyReportServiceTest`, `WorkItemServiceTest`, `WeeklyReportYearTest`, `WeeklyReportQueryTest`, `WorkItemQueryTest`, `FilterIntegrationTest` | `ReportFormPage`, `ReportDetailPage`, `ReportListPage`, `WorkItemsSection`, `WorkItemListPage`, `isoWeek`, `listFilters` | `03-report-flow`; `02-dashboard` delay filter | — |
 | Risks, blockers, decisions, actions | `TrackingItemServiceTest`, `TrackingItemQueryTest`, `TrackingItemIntegrationTest` | `TrackingItemsSection`, `TrackingItemListPage`, `filters` | `04-tracking-and-history` | — |
 | Dashboard, trend, Excel | `DashboardServiceTest`, `TrendIntegrationTest`, `ExportIntegrationTest`, `DataSeederIntegrationTest` | `DashboardPage`, `TrendSection`, `filters` | `02-dashboard` | — |
 | Change history | `AuditServiceTest`, `AuditIntegrationTest`, `AuditHistoryProtectionTest` | `ProjectHistorySection`, `historyFormat` | `04-tracking-and-history`; locally also token identity, refused writes, XSS, paging | — |
@@ -967,7 +967,7 @@ empty database. Tests that rely on the demo data ask for the `demo` profile on p
 creates its own data. Service tests use Mockito and need no database; they run as an Admin
 (a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
-Backend tests (247 in total). The HTTP tests of business rules run as an Admin
+Backend tests (249 in total). The HTTP tests of business rules run as an Admin
 (`@WithMockUser`); login, tokens and permissions are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
@@ -1015,6 +1015,9 @@ Backend tests (247 in total). The HTTP tests of business rules run as an Admin
 - `DataSeederIntegrationTest` — the demo data's trend project: the default 12-week trend moves week
   by week (no report, then on track, at risk, delayed, blocked, back on track), its latest report
   leaves the dashboard counters unchanged, and a demo database without it gets it once on the next start
+- `ListQueryCountIntegrationTest` — the paged report and work item lists take a fixed number of
+  queries (3 and 2 for 20 rows; 23 and 22 without loading the project and report with the page),
+  with correct live task counts and only each project's evaluated week
 - `TrackingItemIntegrationTest` — risks, blockers, decisions and actions over HTTP: create, read,
   close (closing date set), reopen (cleared) and delete; the project list order and the overdue
   flag on the seed data; field errors (`riskLevel` by type, a past follow-up date, a missing
@@ -1065,7 +1068,11 @@ Backend tests (247 in total). The HTTP tests of business rules run as an Admin
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
 Frontend tests (215, Vitest + Testing Library on jsdom; component tests never reach the real backend,
-`src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
+`src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data).
+A form or list test takes 1–2.5 s on its own (Mantine rendering on jsdom). Run in parallel on a
+busy machine, a few went past Vitest's default 5 s limit, so the limit is 15 s (`vite.config.ts`);
+it is there to catch a hung test, and still does. The report form test that typed a sentence key
+by key now pastes it (2.3 s → 1.4 s):
 
 - `client.test.ts` — file download: the file and its suggested name (UTF-8 name first, a fallback
   when there is none), the token sent and any type accepted, errors and 401 handled like JSON
@@ -1165,7 +1172,7 @@ Run on 2026-11-10 against the current `main`:
 
 | Check | Command | Result |
 |---|---|---|
-| Backend tests | `cd backend && ./mvnw test` | 247 passed, 0 failed, 0 skipped |
+| Backend tests | `cd backend && ./mvnw test` | 249 passed, 0 failed, 0 skipped |
 | Frontend tests | `cd frontend && npm test` | 215 passed in 29 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
@@ -1189,8 +1196,8 @@ the SQL count is the statements PostgreSQL logged for one call.
 | `GET /api/dashboard/trend` (12 weeks) | 50 ms | 5 |
 | `GET /api/dashboard/trend?weeks=52` | 48 ms | 5 |
 | `GET /api/dashboard/export` (Excel, 37 kB) | 80–100 ms (was 119 ms) | 12 (was 567) |
-| `GET /api/reports` (first page) | 8–10 ms | 43 |
-| `GET /api/work-items` (first page) | 180–290 ms | 41 |
+| `GET /api/reports` (first page) | 8 ms (was 7–10 ms) | 4 (was 43) |
+| `GET /api/work-items` (first page) | 11–12 ms (was 180–290 ms) | 3 (was 41) |
 | `GET /api/tracking-items` (first page) | 3 ms | 11 |
 
 - The dashboard summary used to run a few queries **per project** (562 for 200 projects). On a
@@ -1200,12 +1207,19 @@ the SQL count is the statements PostgreSQL logged for one call.
   `MAX` subquery took 46 ms here, this takes 9 ms) and their work items in another, so the number
   of queries no longer grows with the number of projects. The trend was written this way from the
   start.
-- The paged lists still look up each row's project and report separately (about 2 queries per
-  row, at most 20 rows per page), and the work item list's "evaluated report" condition is a
-  subquery per row, which makes it the slowest call here. Both are bounded by the page size and
-  are left for later.
-- Timings on a laptop vary between runs (the same unchanged call measured 181 and 288 ms); the SQL
-  counts do not.
+- The paged lists used to load each row's project and report separately (about 2 queries per
+  row). They now arrive with the page query, and the report list's live task counts come from one
+  grouped query; `ListQueryCountIntegrationTest` keeps both lists at a fixed number of queries.
+- The work item list's "evaluated report" condition used to be a correlated `MAX` subquery that
+  PostgreSQL ran once per report (10,414 times), for the page and again for the total: 180 ms each.
+  It is now `weekly_report_id IN (the evaluated reports)`, and the inner query ("no newer report in
+  the same project", `NOT EXISTS`) runs once as an anti-join: about 20 ms each in `EXPLAIN ANALYZE`.
+  A first attempt that referred to the work item's report inside the subquery was rewritten by
+  Hibernate into a join per work item and took 113 ms. Checking the SQL Hibernate actually sends
+  (PostgreSQL `log_statement`) showed it.
+- Timings on a laptop vary with what else is running. The list numbers above come from the old and
+  the new code measured one after the other under the same load; an unchanged call measured
+  181 ms in one run and 288 ms in another. The SQL counts do not vary.
 
 ### Open issues
 
@@ -1251,5 +1265,4 @@ the SQL count is the statements PostgreSQL logged for one call.
 2. **Production readiness:** HTTPS in front of the [production setup](#production-setup), backups, a
    public deployment target, token refresh or revocation, a database role that is not the table
    owner (only adds to and reads the change history), and a retention period for the history.
-3. **Quality:** the per-row queries of the paged lists (see [Performance](#performance)), Turkish letters in the demo
-   data, and a longer timeout for the slow form tests.
+3. **Quality:** Turkish letters in the demo data (`Ayse Yilmaz` → `Ayşe Yılmaz`).

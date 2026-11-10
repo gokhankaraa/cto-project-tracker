@@ -44,22 +44,33 @@ public final class WorkItemSpecifications {
      * {@code referenceKey}'den büyük olmayan en son raporu. Anahtar yıl ve haftayı birlikte taşıdığı için
      * "2026'nın 29. haftasına kadar" önceki yılların raporlarını da kapsar.
      *
+     * <p>Koşul iş kalemine bağlanmadan yazılır: {@code weekly_report_id IN (değerlendirilen raporlar)}. İç sorgu
+     * yalnızca raporlar arasında çalışır ("aynı projede, referansı aşmayan daha yeni rapor yok", {@code NOT EXISTS})
+     * ve PostgreSQL onu bir kez hesaplar (anti-join + semi-join). 10.000 rapor ve 31.000 iş kalemiyle sayfa ve toplam
+     * sorgusu 20'şer ms. Önceki yazım ({@code anahtar = MAX(...)} bağıntılı alt sorgusu) her rapor için ayrı
+     * çalışıyordu: 180'er ms. Alt sorgu dış sorgunun rapor yolunu ({@code wi.weeklyReport.project}) kullansaydı
+     * Hibernate onu iş kalemi başına yeniden bağlardı; bu yüzden dış sorguya yalnızca rapor id'si üzerinden bağlanır.
+     * (proje, yıl, hafta) tekil olduğu için her projede tek rapor seçilir.
+     *
      * @param referenceKey {@code WorkItemFilter#referenceKey()}; or. 2026 h29 için 202629
      */
     public static Specification<WorkItem> inEvaluatedReport(Integer referenceKey) {
         return (root, query, cb) -> {
-            Path<WeeklyReport> report = root.get("weeklyReport");
+            Subquery<Long> evaluated = query.subquery(Long.class);
+            Root<WeeklyReport> report = evaluated.from(WeeklyReport.class);
 
-            Subquery<Integer> latestKey = query.subquery(Integer.class);
-            Root<WeeklyReport> candidate = latestKey.from(WeeklyReport.class);
-            Predicate sameProject = cb.equal(
-                    candidate.get("project").get("id"), report.get("project").get("id"));
-            Predicate upToReference = referenceKey == null
-                    ? cb.conjunction()
-                    : cb.le(weekKey(cb, candidate), referenceKey);
-            latestKey.select(cb.max(weekKey(cb, candidate))).where(sameProject, upToReference);
+            Subquery<Integer> newer = evaluated.subquery(Integer.class);
+            Root<WeeklyReport> candidate = newer.from(WeeklyReport.class);
+            newer.select(cb.literal(1)).where(
+                    cb.equal(candidate.get("project").get("id"), report.get("project").get("id")),
+                    cb.gt(weekKey(cb, candidate), weekKey(cb, report)),
+                    referenceKey == null ? cb.conjunction() : cb.le(weekKey(cb, candidate), referenceKey));
 
-            return cb.equal(weekKey(cb, report), latestKey);
+            evaluated.select(report.get("id")).where(
+                    cb.not(cb.exists(newer)),
+                    referenceKey == null ? cb.conjunction() : cb.le(weekKey(cb, report), referenceKey));
+
+            return root.get("weeklyReport").get("id").in(evaluated);
         };
     }
 

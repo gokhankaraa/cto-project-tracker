@@ -4,7 +4,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ import com.kolaysoft.ctotracker.entity.WorkItemStatus;
 import com.kolaysoft.ctotracker.repository.ProjectRepository;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
 import com.kolaysoft.ctotracker.repository.WorkItemRepository;
+import com.kolaysoft.ctotracker.repository.WorkItemRepository.ReportCount;
 import com.kolaysoft.ctotracker.repository.spec.WeeklyReportSpecifications;
 import com.kolaysoft.ctotracker.security.CurrentUser;
 
@@ -99,10 +102,13 @@ public class WeeklyReportService {
     public PageResponse<WeeklyReportResponse> search(ReportFilter filter, int page, int size, String sort) {
         validateRanges(filter);
         Pageable pageable = PageRequest.of(page, size, SortParameter.parse(sort, SORT_FIELDS, DEFAULT_SORT));
-        return PageResponse.of(
-                weeklyReportRepository.findAll(WeeklyReportSpecifications.matching(filter)
-                        .and(WeeklyReportSpecifications.ownedBy(currentUser.viewer().visibleOwnerId())), pageable),
-                this::toResponse);
+        Page<WeeklyReport> reports = weeklyReportRepository.findAll(WeeklyReportSpecifications.matching(filter)
+                .and(WeeklyReportSpecifications.ownedBy(currentUser.viewer().visibleOwnerId())), pageable);
+        // Sayfadaki raporlarin canli task sayilari tek sorguda (rapor basina bir sorgu yerine).
+        Map<Long, Long> liveTasks = reports.isEmpty() ? Map.of() : workItemRepository
+                .countByWeeklyReportIdInAndStatus(reports.map(WeeklyReport::getId).toList(), WorkItemStatus.DEVAM_EDIYOR)
+                .stream().collect(Collectors.toMap(ReportCount::getReportId, ReportCount::getCount));
+        return PageResponse.of(reports, r -> toResponse(r, liveTasks.getOrDefault(r.getId(), 0L)));
     }
 
     public WeeklyReportResponse create(Long projectId, WeeklyReportRequest request) {
@@ -233,8 +239,10 @@ public class WeeklyReportService {
 
     private WeeklyReportResponse toResponse(WeeklyReport r) {
         // Canli task: durumu DEVAM_EDIYOR olan is kalemleri (on analiz H-05); ayri alan tutulmaz.
-        long liveTaskCount = workItemRepository.countByWeeklyReportIdAndStatus(
-                r.getId(), WorkItemStatus.DEVAM_EDIYOR);
+        return toResponse(r, workItemRepository.countByWeeklyReportIdAndStatus(r.getId(), WorkItemStatus.DEVAM_EDIYOR));
+    }
+
+    private static WeeklyReportResponse toResponse(WeeklyReport r, long liveTaskCount) {
         return new WeeklyReportResponse(
                 r.getId(),
                 r.getProject().getId(),

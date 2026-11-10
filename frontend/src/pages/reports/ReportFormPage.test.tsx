@@ -65,7 +65,9 @@ describe('NewReportPage', () => {
     expect(screen.getByText('Bu rapor 2026 / 32. hafta olarak kaydedilir (03.08.2026 haftası).')).toBeInTheDocument()
     await choose(/Genel durum/, 'Riskli')
     await choose(/Risk/, 'Yüksek')
-    await userEvent.type(screen.getByRole('textbox', { name: 'Bu hafta yapılanlar' }), '  Entegrasyon bitti.  ')
+    // Tus tus yazmak her tusta formu yeniden cizer (testi ~2 sn yapiyordu); kirpma kurali icin yapistirmak yeter.
+    await userEvent.click(screen.getByRole('textbox', { name: 'Bu hafta yapılanlar' }))
+    await userEvent.paste('  Entegrasyon bitti.  ')
     await userEvent.click(screen.getByRole('button', { name: 'Oluştur' }))
 
     expect(await screen.findByText('Rapor detayı 9')).toBeInTheDocument()
