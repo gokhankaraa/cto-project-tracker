@@ -142,6 +142,14 @@ class AuthorizationIntegrationTest {
                 .andExpect(jsonPath("$.openRisks").value(0))
                 .andExpect(jsonPath("$.openBlockers").value(1))
                 .andExpect(jsonPath("$.pendingDecisions").value(1));
+        // Trend de ayni kumeden: her haftada yalnizca gorunen projeler sayilir.
+        as("cto", get("/api/dashboard/trend?year=2026&weekNumber=31&weeks=1"))
+                .andExpect(jsonPath("$.weeks[0].totalProjects").value(3));
+        as("ayse", get("/api/dashboard/trend?year=2026&weekNumber=31&weeks=1"))
+                .andExpect(jsonPath("$.weeks[0].totalProjects").value(2))
+                .andExpect(jsonPath("$.weeks[0].projectsWithReport").value(1));
+        as("mehmet", get("/api/dashboard/trend?year=2026&weekNumber=31&weeks=1"))
+                .andExpect(jsonPath("$.weeks[0].totalProjects").value(1));
         // Baskasinin sorumlu filtresi hata degil, bos sonuc (filtre sozlesmesi, bolum 8).
         as("ayse", get("/api/dashboard/summary").param("ownerId", "2"))
                 .andExpect(status().isOk())

@@ -316,6 +316,7 @@ Every endpoint except health, login and the API docs requires a login token in t
 | GET / PUT / DELETE | `/api/tracking-items/{id}` | Risk, blocker, decision or action detail / update / delete |
 | GET | `/api/tracking-items` | Cross-project risk / blocker / decision / action list: filtered, paged, sorted |
 | GET | `/api/dashboard/summary` | CTO portfolio summary, with optional filters |
+| GET | `/api/dashboard/trend` | The portfolio week by week (default: the last 12 weeks), with the dashboard's project filters |
 
 The full, interactive contract is in Swagger UI (use **Authorize** with a token from
 `/api/auth/login`). Key business rules (see pre-analysis §H-03/H-04):
@@ -342,6 +343,13 @@ The full, interactive contract is in Swagger UI (use **Authorize** with a token 
 - The dashboard summary reports each project's **latest** report (latest year, then highest week). Projects with
   no report are still listed, with empty/default progress. Portfolio counters (total, high-risk,
   without-report, total live tasks) accompany the per-project rows.
+- The weekly **trend** applies the dashboard's week reference to every week of a window (default
+  12 weeks, ending this week or at the given `year` / `weekNumber`): for each week, the projects by
+  overall status, high-risk and delayed projects and the average progress, each project judged by
+  its latest report up to that week. So the last week matches the dashboard opened with the same
+  reference. Risks, blockers, decisions and actions open at the end of each week come from their
+  creation and closing dates, plus how many were opened and closed that week. Their risk level
+  history is not kept, so there is no level breakdown over time.
 - The dashboard also summarizes risks, blockers, decisions and actions: open risks, open blockers,
   pending decisions and overdue follow-ups across the listed projects, and on each row the
   project's open and overdue records and the highest level among its open risks and blockers. These
@@ -429,6 +437,7 @@ Swagger UI with an example value.
 | `GET /api/dashboard/summary` | `projectId`, `projectStatus`, `ownerId`, `year`, `weekNumber`, `overallStatus`, `riskLevel`, `delayed` | None; rows ordered by project id |
 | `GET /api/reports` | `projectId`, `ownerId`, `year`, `weekFrom`, `weekTo`, `dateFrom`, `dateTo`, `overallStatus`, `riskLevel`, `progressStage` | Default `reportDate,desc`; sortable by `reportDate`, `weekNumber`, `projectName` |
 | `GET /api/work-items` | `projectId`, `year`, `weekNumber`, `assignee`, `status`, `delayed` | Default `plannedDate,asc` (items without a date last); sortable by `plannedDate`, `title`, `projectName` |
+| `GET /api/dashboard/trend` | `projectId`, `projectStatus`, `ownerId`, `year`, `weekNumber`, `weeks` (1–52, default 12) | None; weeks oldest first |
 | `GET /api/tracking-items` | `projectId`, `type`, `status`, `riskLevel`, `overdue`, `assignee` | Default `followUpDate,asc` (records without a date last); sortable by `followUpDate`, `createdAt`, `title`, `projectName` |
 
 - Different parameters combine with **AND**. Status, risk and stage parameters accept several
@@ -673,7 +682,7 @@ empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; ev
 creates its own data. Service tests use Mockito and need no database; they run as an Admin
 (a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
-Backend tests (194 in total). The HTTP tests of business rules run as an Admin
+Backend tests (205 in total). The HTTP tests of business rules run as an Admin
 (`@WithMockUser`); login, tokens and permissions are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
@@ -690,6 +699,11 @@ Backend tests (194 in total). The HTTP tests of business rules run as an Admin
   boundaries, and the V3 migration SQL (re-run on rows stored with the V2 rule) gives the same year
   as the Java rule; the year follows both week and report date, week 53 only in 53-week years,
   uniqueness is per project + year + week, and the latest report compares the year before the week
+- `TrendIntegrationTest` — the weekly trend over HTTP with its own data and fixed dates: each week
+  judged by the latest report up to it (status counts, high risk, delay with an overdue work item,
+  average progress), records open at the end of each week from creation and closing dates, a week
+  starting at midnight in Turkey rather than UTC, a window across the year boundary, the last week
+  equal to the dashboard, an empty portfolio, invalid parameters
 - `TrackingItemIntegrationTest` — risks, blockers, decisions and actions over HTTP: create, read,
   close (closing date set), reopen (cleared) and delete; the project list order and the overdue
   flag on the seed data; field errors (`riskLevel` by type, a past follow-up date, a missing
@@ -702,7 +716,7 @@ Backend tests (194 in total). The HTTP tests of business rules run as an Admin
 - `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
 - `HealthControllerTest` — health endpoint and DB connection (reports PostgreSQL)
 - `AuthorizationIntegrationTest` — the permission matrix end to end with the demo users logging in:
-  lists, dashboard (rows and counters), cross-project lists scoped to the project manager's own
+  lists, dashboard (rows and counters) and its weekly trend, cross-project lists scoped to the project manager's own
   projects; someone else's records (tracking items included) 404 with the same message as a missing
   one; the CTO gets 403 on every write, also with an invalid body or a missing record (no `fieldErrors` leak); a write
   without a rule is denied even for the Admin; project managers can't manage projects (403) and
@@ -817,7 +831,7 @@ Run on 2026-11-10 against the current `main`:
 
 | Check | Command | Result |
 |---|---|---|
-| Backend tests | `cd backend && ./mvnw test` | 194 passed, 0 failed, 0 skipped |
+| Backend tests | `cd backend && ./mvnw test` | 205 passed, 0 failed, 0 skipped |
 | Frontend tests | `cd frontend && npm test` | 189 passed in 26 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; largest chunk 324 kB (100 kB gzip) |

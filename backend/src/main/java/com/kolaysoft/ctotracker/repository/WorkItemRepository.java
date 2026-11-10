@@ -1,5 +1,6 @@
 package com.kolaysoft.ctotracker.repository;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,6 +11,9 @@ import com.kolaysoft.ctotracker.entity.WorkItemStatus;
 
 /** Filtreli sorgular icin bkz. {@code repository.spec.WorkItemSpecifications}. */
 public interface WorkItemRepository extends JpaRepository<WorkItem, Long>, JpaSpecificationExecutor<WorkItem> {
+
+    /** Verilen projelerin raporlarindaki tum is kalemleri (trend: gecikme kurali bellekte, tek sorguyla). */
+    List<WorkItem> findByWeeklyReportProjectIdIn(Collection<Long> projectIds);
 
     /** Bir haftalık rapora bağlı iş kalemleri. */
     List<WorkItem> findByWeeklyReportId(Long weeklyReportId);

@@ -15,6 +15,9 @@ public interface TrackingItemRepository extends JpaRepository<TrackingItem, Long
 
     List<TrackingItem> findByProjectId(Long projectId);
 
+    /** Verilen projelerin tum kayitlari (trend: hafta sonundaki acik kayitlar olusturulma / kapanis tarihinden). */
+    List<TrackingItem> findByProjectIdIn(Collection<Long> projectIds);
+
     /** Verilen projelerin belirli bir durumda olmayan kayitlari (dashboard: kapanmamis kayitlar). */
     List<TrackingItem> findByProjectIdInAndStatusNot(Collection<Long> projectIds, TrackingItemStatus status);
 

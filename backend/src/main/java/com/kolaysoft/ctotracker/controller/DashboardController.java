@@ -9,11 +9,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.kolaysoft.ctotracker.dto.DashboardSummaryResponse;
+import com.kolaysoft.ctotracker.dto.DashboardTrendResponse;
 import com.kolaysoft.ctotracker.dto.filter.DashboardFilter;
+import com.kolaysoft.ctotracker.dto.filter.TrendFilter;
 import com.kolaysoft.ctotracker.entity.OverallStatus;
 import com.kolaysoft.ctotracker.entity.ProjectStatus;
 import com.kolaysoft.ctotracker.entity.RiskLevel;
 import com.kolaysoft.ctotracker.service.DashboardService;
+import com.kolaysoft.ctotracker.service.TrendService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,9 +37,47 @@ import jakarta.validation.constraints.Min;
 public class DashboardController {
 
     private final DashboardService dashboardService;
+    private final TrendService trendService;
 
-    public DashboardController(DashboardService dashboardService) {
+    public DashboardController(DashboardService dashboardService, TrendService trendService) {
         this.dashboardService = dashboardService;
+        this.trendService = trendService;
+    }
+
+    @Operation(summary = "Portföyün haftalık trendi",
+            description = "Referans haftada biten penceredeki her hafta için portföyün o haftaki hali: her proje o haftaya "
+                    + "kadarki en son raporuyla değerlendirilir (summary'deki hafta referansı kuralı). Risk, engel, karar ve "
+                    + "aksiyon sayıları hafta sonunda açık olan kayıtlardır (oluşturulma ve kapanış tarihinden). Proje "
+                    + "filtreleri summary'dekilerle aynıdır; rapora dayalı filtre yoktur.")
+    @GetMapping("/trend")
+    public DashboardTrendResponse trend(
+            @Parameter(description = "Yalnizca bu proje", example = "1")
+            @RequestParam(required = false) Long projectId,
+
+            @Parameter(description = "Proje durumu; birden cok deger virgulle verilebilir", example = "DEVAM_EDIYOR")
+            @RequestParam(required = false) List<ProjectStatus> projectStatus,
+
+            @Parameter(description = "Sorumlu proje yoneticisinin kullanici id'si", example = "1")
+            @RequestParam(required = false) Long ownerId,
+
+            @Parameter(description = "Pencerenin bittiği yıl. Yalnızca yıl verilirse o yılın son haftası; verilmezse "
+                    + "bu hafta", example = "2026")
+            @RequestParam(required = false)
+            @Min(value = 2000, message = "Yıl en az 2000 olmalıdır.")
+            @Max(value = 2100, message = "Yıl en fazla 2100 olmalıdır.") Integer year,
+
+            @Parameter(description = "Pencerenin bittiği hafta (1-53), yalnızca year ile birlikte; year olmadan 400 döner",
+                    example = "31")
+            @RequestParam(required = false)
+            @Min(value = 1, message = "Hafta numarası en az 1 olmalıdır.")
+            @Max(value = 53, message = "Hafta numarası en fazla 53 olmalıdır.") Integer weekNumber,
+
+            @Parameter(description = "Pencere uzunluğu, hafta (1-52)", example = "12")
+            @RequestParam(defaultValue = "" + TrendService.DEFAULT_WEEKS)
+            @Min(value = 1, message = "Hafta sayısı en az 1 olmalıdır.")
+            @Max(value = TrendService.MAX_WEEKS, message = "Hafta sayısı en fazla 52 olabilir.") int weeks) {
+
+        return trendService.getTrend(new TrendFilter(projectId, projectStatus, ownerId, year, weekNumber, weeks));
     }
 
     @Operation(summary = "CTO portfoy ozeti",

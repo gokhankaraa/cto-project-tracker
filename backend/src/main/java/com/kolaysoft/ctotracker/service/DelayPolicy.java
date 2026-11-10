@@ -1,6 +1,7 @@
 package com.kolaysoft.ctotracker.service;
 
 import java.time.LocalDate;
+import java.util.Collection;
 
 import org.springframework.stereotype.Component;
 
@@ -51,5 +52,14 @@ public class DelayPolicy {
                 || workItemRepository.exists(
                         WorkItemSpecifications.inReport(report.getId())
                                 .and(WorkItemSpecifications.delayed(true)));
+    }
+
+    /**
+     * Ayni kural, raporun is kalemleri zaten yuklenmisken: trend her hafta her proje icin ayri sorgu atmaz.
+     *
+     * @param items raporun is kalemleri
+     */
+    public boolean isDelayed(WeeklyReport report, Collection<WorkItem> items) {
+        return report.getOverallStatus() == OverallStatus.GECIKMELI || items.stream().anyMatch(this::isDelayed);
     }
 }

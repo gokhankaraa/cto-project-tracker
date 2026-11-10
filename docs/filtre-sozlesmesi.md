@@ -24,6 +24,9 @@ yazılan raporu artık 2027 değil 2026 yılındadır.
 alanları eklendi (bölüm 2). Bu kayıtlar haftaya bağlı olmadığı için yıl / hafta referansı onlara
 uygulanmaz; gecikme bugünün tarihine göredir.
 
+**Güncelleme (10 Kasım 2026, haftalık trend):** `GET /api/dashboard/trend` eklendi (bölüm 2a). Dashboard'un
+proje filtrelerini ve hafta referansı kuralını her haftaya ayrı ayrı uygular.
+
 Bu doküman dört liste endpoint'inin filtre parametrelerini, doğrulama kurallarını, yanıt yapısını ve hata
 davranışını tanımlar. Geliştirme ve testler bu sözleşmeye göre yapıldı.
 
@@ -115,6 +118,56 @@ bağlı olmadığından her zaman bugünkü durum gösterilir.
 | `?delayed=true` | Yalnızca Atlas IK: hafta 31'de planlanan tarihi geçmiş, bitmemiş bir iş kalemi var |
 | `GET /api/dashboard/summary` (takip alanları) | `openRisks: 1`, `openBlockers: 1`, `pendingDecisions: 1`, `overdueTrackingItems: 1`. Atlas IK 2 açık kayıt (1 gecikmiş, en yüksek `YUKSEK`), e-Belge 2 açık kayıt (`ORTA`), Nova POS 0 (`null`) |
 | `?projectId=2` | Takip sayaçları yalnızca e-Belge'den: `openBlockers: 1`, `openRisks: 0` |
+
+---
+
+## 2a. `GET /api/dashboard/trend` (haftalık trend)
+
+Referans haftada biten bir penceredeki her hafta için portföyün **o haftaki** halini döner. Her hafta için
+bölüm 2'deki hafta referansı kuralı uygulanır: her proje o haftaya kadarki (dahil) en son raporuyla
+değerlendirilir. Bu yüzden son hafta, aynı `year` / `weekNumber` ile açılan dashboard'un sayaçlarıyla aynıdır.
+
+### Parametreler
+
+| Parametre | Tip | Çoklu | Doğrulama | Açıklama |
+|---|---|---|---|---|
+| `projectId` | Long | — | — | Bölüm 2'deki gibi |
+| `projectStatus` | `ProjectStatus` | ✓ | Tanımlı enum | Bölüm 2'deki gibi |
+| `ownerId` | Long | — | — | Bölüm 2'deki gibi |
+| `year` | Integer | — | 2000–2100 | Pencerenin bittiği yıl. Yalnızca yıl verilirse o yılın son haftası (52 ya da 53) |
+| `weekNumber` | Integer | — | 1–53, yalnızca `year` ile | Pencerenin bittiği hafta |
+| `weeks` | Integer | — | 1–52, varsayılan `12` | Pencere uzunluğu |
+
+- `year` verilmezse pencere bugünün haftasında biter. Pencere yıl sınırını geçebilir (2026 h2'de biten
+  4 hafta: 2025 h51, 2025 h52, 2026 h1, 2026 h2).
+- Rapora dayalı filtreler (`overallStatus`, `riskLevel`, `delayed`) yoktur: trend bunların haftadan haftaya
+  dağılımını gösterir.
+
+### Yanıt
+
+`{ weeks: TrendWeek[] }`, eskiden yeniye. Her `TrendWeek`:
+
+| Alan | Açıklama |
+|---|---|
+| `year`, `weekNumber`, `weekStart` | ISO yılı, haftası ve haftanın pazartesisi |
+| `totalProjects`, `projectsWithReport` | Filtreye uyan proje sayısı; o haftaya kadar raporu olanlar |
+| `projectsByStatus` | Genel duruma göre proje sayıları; dört durum da her zaman yer alır |
+| `highRiskProjects`, `delayedProjects` | Bölüm 2'deki sayaçlarla aynı kural (gecikme: KF-01) |
+| `averageProgress` | Raporu olan projelerin ortalama ilerlemesi (yuvarlanmış); raporlu proje yoksa `null` |
+| `openRisks`, `openBlockers`, `pendingDecisions`, `openActions` | Hafta sonunda açık kayıtlar: haftanın sonundan önce oluşturulmuş ve o güne kadar kapanmamış |
+| `openedTrackingItems`, `closedTrackingItems` | Hafta içinde açılan ve kapanan kayıtlar |
+
+- Hafta, Türkiye saatiyle pazartesi 00:00'da başlar (`Europe/Istanbul`).
+- Kayıtların değişiklik geçmişi tutulmadığı için risk seviyesinin ya da takip tarihinin haftalar içindeki
+  değişimi izlenemez. Bu yüzden trendde seviye kırılımı ve "gecikmiş takip" yoktur.
+
+### Örnekler (seed verisi)
+
+| İstek | Sonuç |
+|---|---|
+| `?year=2026&weekNumber=31&weeks=4` | Hafta 28: raporlu proje yok. Hafta 29: Atlas IK (`ORTA`, %50). Hafta 30: Atlas IK `DUSUK` %75, e-Belge `RISKLI` `YUKSEK` %25 (ortalama %50). Hafta 31: Atlas IK gecikmede (`delayedProjects: 1`) |
+| `?weekNumber=31` | `400 VALIDATION_ERROR`, `fieldErrors[0].field: weekNumber` |
+| `?weeks=53` | `400 VALIDATION_ERROR`, `fieldErrors[0].field: weeks` |
 
 ---
 
@@ -338,6 +391,7 @@ Sayaçlar ve sayfa toplamları da bu kümeden hesaplanır. Bir proje yöneticisi
 | `GET /api/work-items`, Mehmet | Yalnızca e-Belge iş kalemleri |
 | `GET /api/tracking-items`, Mehmet | Yalnızca e-Belge'nin 2 kaydı; `?projectId=1` boş sonuç, `200` |
 | `GET /api/dashboard/summary`, Mehmet | Takip sayaçları yalnızca e-Belge'den: `openBlockers: 1`, `pendingDecisions: 1` |
+| `GET /api/dashboard/trend?year=2026&weekNumber=31&weeks=1`, Ayşe | `totalProjects: 2` (Atlas IK ve Nova POS) |
 | Herhangi biri, CTO veya Admin | Bölüm 2–4'teki örneklerle aynı (tüm projeler) |
 
 ## 9. Test eşlemesi
@@ -349,4 +403,5 @@ Sayaçlar ve sayfa toplamları da bu kümeden hesaplanır. Bir proje yöneticisi
 | `WorkItemQueryTest` (yeni, `@DataJpaTest`) | Değerlendirilen rapor alt sorgusu, `assignee` araması, gecikme koşulu |
 | `FilterIntegrationTest` (yeni, MockMvc) | Bölüm 2–4'teki örnekler ve bölüm 5'teki her hata satırı |
 | `TrackingItemQueryTest` (`@DataJpaTest`) | Bölüm 4a koşulları: gecikme (takip tarihi olmayan kapalı kayıt `false` sorgusunda kalır), çok değerli filtreler, `assignee` araması, proje sahibi |
+| `TrendIntegrationTest` (MockMvc) | Bölüm 2a: haftalık seriler, açılan / kapanan kayıtlar, Türkiye saatiyle hafta başlangıcı, yıl sınırı, son haftanın dashboard'la aynı olması, hata durumları |
 | `TrackingItemIntegrationTest` (MockMvc) | Bölüm 4a örnekleri, sayfa ve sıralama; bölüm 2'deki takip sayaçları ve hafta referansının onları değiştirmemesi |

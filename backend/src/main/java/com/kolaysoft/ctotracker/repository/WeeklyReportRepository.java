@@ -1,5 +1,6 @@
 package com.kolaysoft.ctotracker.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +16,9 @@ public interface WeeklyReportRepository extends JpaRepository<WeeklyReport, Long
 
     /** Bir projenin tum haftalik raporlari. */
     List<WeeklyReport> findByProjectId(Long projectId);
+
+    /** Verilen projelerin tum raporlari (trend: tek sorguda). */
+    List<WeeklyReport> findByProjectIdIn(Collection<Long> projectIds);
 
     /** Projenin hic raporu var mi (proje silme guard'i icin). */
     boolean existsByProjectId(Long projectId);
