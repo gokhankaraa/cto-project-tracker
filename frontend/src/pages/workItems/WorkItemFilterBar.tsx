@@ -1,10 +1,9 @@
-import { Button, Group, MultiSelect, Paper, Select, SimpleGrid, TextInput } from '@mantine/core'
-import { useDebouncedCallback } from '@mantine/hooks'
-import { useState } from 'react'
+import { Button, Group, MultiSelect, Paper, Select, SimpleGrid } from '@mantine/core'
 
 import { useProjects } from '../../api/projects'
 import { WORK_ITEM_STATUSES } from '../../api/types'
 import { NO_WORK_ITEM_FILTERS, type WorkItemFilters } from '../../api/workItems'
+import { AssigneeInput } from '../../components/AssigneeInput'
 import {
   booleanToValue,
   DELAYED_OPTIONS,
@@ -18,33 +17,6 @@ import { enumOptions, WORK_ITEM_STATUS_LABELS } from '../../lib/labels'
 interface WorkItemFilterBarProps {
   filters: WorkItemFilters
   onChange: (filters: WorkItemFilters) => void
-}
-
-/**
- * Sorumlu aramasi: kutu yazildikca guncellenir, filtre yazmayi birakinca (300 ms) uygulanir; her tusta
- * istek gitmez. Adresteki deger disaridan degisirse (Filtreleri temizle, geri tusu) kutu ona uyar.
- */
-function AssigneeInput({ value, onChange }: { value: string | null; onChange: (value: string | null) => void }) {
-  const [text, setText] = useState(value ?? '')
-  const [lastValue, setLastValue] = useState(value)
-  if (value !== lastValue) {
-    // Render sirasinda esitleme (effect yerine): React'in "onceki prop'a gore state ayarlama" kalibi.
-    setLastValue(value)
-    if ((value ?? '') !== text.trim()) setText(value ?? '')
-  }
-  const apply = useDebouncedCallback((next: string) => onChange(next.trim() === '' ? null : next.trim()), 300)
-
-  return (
-    <TextInput
-      label="Sorumlu"
-      placeholder="Ad ile ara"
-      value={text}
-      onChange={(event) => {
-        setText(event.currentTarget.value)
-        apply(event.currentTarget.value)
-      }}
-    />
-  )
 }
 
 export function WorkItemFilterBar({ filters, onChange }: WorkItemFilterBarProps) {

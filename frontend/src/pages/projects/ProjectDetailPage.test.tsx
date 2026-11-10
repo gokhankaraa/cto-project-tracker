@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { ATLAS, report } from '../../test/fixtures'
+import { ATLAS, report, trackingItem } from '../../test/fixtures'
 import { mockApi, requests } from '../../test/mockApi'
 import { renderWithProviders } from '../../test/render'
 import { CTO, PROJECT_MANAGER, signIn } from '../../test/session'
@@ -26,6 +26,7 @@ describe('ProjectDetailPage', () => {
   it('proje bilgilerini ve raporlari en yeni hafta ustte gosterir', async () => {
     mockApi({
       '/api/projects/1': ATLAS,
+      '/api/projects/1/tracking-items': [],
       // Backend sira garanti etmez.
       '/api/projects/1/reports': [report(1, 29), report(4, 31, { progressStage: 'TEST' }), report(2, 30)],
     })
@@ -34,7 +35,9 @@ describe('ProjectDetailPage', () => {
     expect(await screen.findByRole('heading', { name: 'Atlas IK' })).toBeInTheDocument()
     expect(screen.getByText('Insan kaynaklari surecleri urunu')).toBeInTheDocument()
 
-    const rows = (await screen.findAllByRole('row')).slice(1)
+    await screen.findByText('2026 / 31. hafta')
+    // Sayfanin son tablosu rapor gecmisi (ustte riskler ve aksiyonlar tablosu var).
+    const rows = within(screen.getAllByRole('table').at(-1)!).getAllByRole('row').slice(1)
     expect(rows.map((row) => within(row).getAllByRole('cell')[0].textContent)).toEqual([
       '2026 / 31. hafta',
       '2026 / 30. hafta',
@@ -44,9 +47,22 @@ describe('ProjectDetailPage', () => {
     expect(screen.getByRole('button', { name: 'Sil' })).toBeDisabled()
   })
 
+  it('risk / aksiyon kaydi olan proje silinemez', async () => {
+    mockApi({
+      '/api/projects/1': ATLAS,
+      '/api/projects/1/reports': [],
+      '/api/projects/1/tracking-items': [trackingItem(5)],
+    })
+    renderDetail()
+
+    expect(await screen.findByText('Kayit 5')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sil' })).toBeDisabled()
+  })
+
   it('silme onaylaninca listeye doner', async () => {
     const fetchMock = mockApi({
       '/api/projects/1': ATLAS,
+      '/api/projects/1/tracking-items': [],
       '/api/projects/1/reports': [],
       'DELETE /api/projects/1': () => ({ status: 204 }),
     })
@@ -69,6 +85,7 @@ describe('ProjectDetailPage', () => {
   it("backend 409 donerse mesaji onay penceresinde gosterir", async () => {
     mockApi({
       '/api/projects/1': ATLAS,
+      '/api/projects/1/tracking-items': [],
       '/api/projects/1/reports': [],
       'DELETE /api/projects/1': () => ({
         status: 409,
@@ -103,7 +120,8 @@ describe('ProjectDetailPage', () => {
 
   it('CTO hicbir yazma butonu gormez', async () => {
     signIn(CTO)
-    mockApi({ '/api/projects/1': ATLAS, '/api/projects/1/reports': [report(1, 29)] })
+    mockApi({ '/api/projects/1': ATLAS,
+      '/api/projects/1/tracking-items': [], '/api/projects/1/reports': [report(1, 29)] })
     renderDetail()
 
     expect(await screen.findByRole('heading', { name: 'Atlas IK' })).toBeInTheDocument()
@@ -116,7 +134,8 @@ describe('ProjectDetailPage', () => {
 
   it('proje yoneticisi rapor ekleyebilir ama projeyi duzenleyemez ve silemez', async () => {
     signIn(PROJECT_MANAGER)
-    mockApi({ '/api/projects/1': ATLAS, '/api/projects/1/reports': [] })
+    mockApi({ '/api/projects/1': ATLAS,
+      '/api/projects/1/tracking-items': [], '/api/projects/1/reports': [] })
     renderDetail()
 
     expect(await screen.findByRole('link', { name: 'Yeni rapor' })).toHaveAttribute('href', '/projects/1/reports/new')

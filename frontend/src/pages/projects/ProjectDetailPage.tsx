@@ -6,6 +6,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 
 import { errorMessage } from '../../api/client'
 import { useDeleteProject, useProject, useProjectReports } from '../../api/projects'
+import { useProjectTrackingItems } from '../../api/trackingItems'
 import type { Project, WeeklyReport } from '../../api/types'
 import { usePermissions } from '../../auth/permissions'
 import { EnumBadge } from '../../components/EnumBadge'
@@ -20,6 +21,7 @@ import {
   RISK_LEVEL_LABELS,
 } from '../../lib/labels'
 import { NotFoundPage } from '../NotFoundPage'
+import { TrackingItemsSection } from '../tracking/TrackingItemsSection'
 
 /** /projects/:id. Gecersiz id (/projects/abc) istek atilmadan "sayfa bulunamadi" gosterir. */
 export function ProjectDetailPage() {
@@ -30,6 +32,8 @@ export function ProjectDetailPage() {
 function ProjectDetail({ id }: { id: number }) {
   const project = useProject(id)
   const reports = useProjectReports(id)
+  // Bolumle ayni sorgu (ortak onbellek): silme dugmesi kayit olup olmadigini bilir.
+  const trackingItems = useProjectTrackingItems(id)
   const can = usePermissions()
 
   return (
@@ -45,13 +49,19 @@ function ProjectDetail({ id }: { id: number }) {
                   <Button component={Link} to={`/projects/${id}/edit`} variant="default">
                     Düzenle
                   </Button>
-                  <DeleteProjectButton project={data} reportCount={reports.data?.length} />
+                  <DeleteProjectButton
+                    project={data}
+                    reportCount={reports.data?.length}
+                    trackingItemCount={trackingItems.data?.length}
+                  />
                 </>
               )
             }
           />
 
           <ProjectInfo project={data} />
+
+          <TrackingItemsSection projectId={id} />
 
           <Group justify="space-between">
             <Title order={3}>Haftalık raporlar</Title>
@@ -155,14 +165,28 @@ function ReportHistoryTable({ reports }: { reports: WeeklyReport[] }) {
 }
 
 /**
- * Silme onayi tarayicinin confirm() penceresi yerine uygulama icinde sorulur. Raporu oldugu bilinen
- * projede dugme bastan pasiftir; yine de backend 409 donerse (rapor o arada eklendiyse) mesaji gosterilir.
+ * Silme onayi tarayicinin confirm() penceresi yerine uygulama icinde sorulur. Raporu ya da risk / aksiyon kaydi
+ * oldugu bilinen projede dugme bastan pasiftir; yine de backend 409 donerse (kayit o arada eklendiyse) mesaji
+ * gosterilir.
  */
-function DeleteProjectButton({ project, reportCount }: { project: Project; reportCount: number | undefined }) {
+function DeleteProjectButton({
+  project,
+  reportCount,
+  trackingItemCount,
+}: {
+  project: Project
+  reportCount: number | undefined
+  trackingItemCount: number | undefined
+}) {
   const [opened, { open, close }] = useDisclosure()
   const navigate = useNavigate()
   const deletion = useDeleteProject(project.id)
-  const hasReports = (reportCount ?? 0) > 0
+  const blockedBy =
+    (reportCount ?? 0) > 0
+      ? 'Haftalık raporu olan proje silinemez.'
+      : (trackingItemCount ?? 0) > 0
+        ? 'Risk, engel, karar ya da aksiyon kaydı olan proje silinemez.'
+        : null
 
   const closeModal = () => {
     close()
@@ -179,10 +203,10 @@ function DeleteProjectButton({ project, reportCount }: { project: Project; repor
 
   return (
     <>
-      <Tooltip label="Haftalık raporu olan proje silinemez." disabled={!hasReports}>
+      <Tooltip label={blockedBy} disabled={blockedBy === null}>
         {/* Pasif dugme fare olaylarini almaz; ipucu sarmalayicidaki span uzerinden gosterilir. */}
         <span>
-          <Button color="red" variant="light" onClick={open} disabled={hasReports}>
+          <Button color="red" variant="light" onClick={open} disabled={blockedBy !== null}>
             Sil
           </Button>
         </span>

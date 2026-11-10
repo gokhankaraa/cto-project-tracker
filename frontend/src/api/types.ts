@@ -29,6 +29,14 @@ export const WORK_ITEM_STATUSES = [
 ] as const
 export type WorkItemStatus = (typeof WORK_ITEM_STATUSES)[number]
 
+/** Risk seviyesi yalnizca RISK ve ENGEL kayitlarinda bulunur (bkz. hasRiskLevel). */
+export const TRACKING_ITEM_TYPES = ['RISK', 'ENGEL', 'KARAR', 'AKSIYON'] as const
+export type TrackingItemType = (typeof TRACKING_ITEM_TYPES)[number]
+
+/** KAPANDI disindaki durumlar "acik" sayilir: sorumlu ve takip tarihi zorunludur, gecikebilir. */
+export const TRACKING_ITEM_STATUSES = ['ACIK', 'DEVAM_EDIYOR', 'KAPANDI'] as const
+export type TrackingItemStatus = (typeof TRACKING_ITEM_STATUSES)[number]
+
 export const ROLES = ['PROJECT_MANAGER', 'CTO', 'ADMIN'] as const
 export type Role = (typeof ROLES)[number]
 
@@ -134,6 +142,26 @@ export interface WorkItem {
   plannedDate: string | null
   completedDate: string | null
   delayed: boolean
+}
+
+/** dto/TrackingItemResponse.java: projenin risk, engel, karar ya da aksiyon kaydi. */
+export interface TrackingItem {
+  id: number
+  projectId: number
+  projectName: string
+  type: TrackingItemType
+  title: string
+  description: string | null
+  riskLevel: RiskLevel | null
+  impact: string | null
+  actionPlan: string | null
+  assignee: string | null
+  followUpDate: string | null
+  status: TrackingItemStatus
+  closedDate: string | null
+  createdAt: string
+  /** Kapanmamis ve takip tarihi bugunden once. */
+  overdue: boolean
 }
 
 /** dto/DashboardProjectSummary.java; rapor yoksa rapora ait alanlar null. */

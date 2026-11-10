@@ -1,6 +1,15 @@
 import type { MantineColor } from '@mantine/core'
 
-import type { OverallStatus, ProgressStage, ProjectStatus, RiskLevel, Role, WorkItemStatus } from '../api/types'
+import type {
+  OverallStatus,
+  ProgressStage,
+  ProjectStatus,
+  RiskLevel,
+  Role,
+  TrackingItemStatus,
+  TrackingItemType,
+  WorkItemStatus,
+} from '../api/types'
 
 /** Bir enum degerinin ekranda gorunen adi ve rozet rengi. */
 export interface EnumLabel {
@@ -51,6 +60,30 @@ export const WORK_ITEM_STATUS_LABELS: EnumLabels<WorkItemStatus> = {
   RISKLI: { label: 'Riskli', color: 'yellow' },
   BLOKE: { label: 'Bloke', color: 'red' },
 }
+
+export const TRACKING_ITEM_TYPE_LABELS: EnumLabels<TrackingItemType> = {
+  RISK: { label: 'Risk', color: 'orange' },
+  ENGEL: { label: 'Engel', color: 'red' },
+  KARAR: { label: 'Karar', color: 'grape' },
+  AKSIYON: { label: 'Aksiyon', color: 'blue' },
+}
+
+export const TRACKING_ITEM_STATUS_LABELS: EnumLabels<TrackingItemStatus> = {
+  ACIK: { label: 'Açık', color: 'gray' },
+  DEVAM_EDIYOR: { label: 'Devam ediyor', color: 'blue' },
+  KAPANDI: { label: 'Kapandı', color: 'teal' },
+}
+
+/** Karar kaydinda durumlar ne oldugunu soyler: acik karar "bekleniyor", kapali karar "verildi". */
+export const DECISION_STATUS_LABELS: EnumLabels<TrackingItemStatus> = {
+  ACIK: { label: 'Karar bekleniyor', color: 'gray' },
+  DEVAM_EDIYOR: { label: 'Görüşülüyor', color: 'blue' },
+  KAPANDI: { label: 'Karar verildi', color: 'teal' },
+}
+
+/** Kaydin turune gore durum etiketleri. */
+export const trackingStatusLabels = (type: TrackingItemType) =>
+  type === 'KARAR' ? DECISION_STATUS_LABELS : TRACKING_ITEM_STATUS_LABELS
 
 export const ROLE_LABELS: EnumLabels<Role> = {
   PROJECT_MANAGER: { label: 'Proje yöneticisi', color: 'blue' },

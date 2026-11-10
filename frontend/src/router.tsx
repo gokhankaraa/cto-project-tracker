@@ -48,6 +48,11 @@ export const router = createBrowserRouter([
         lazy: () => import('./pages/workItems/WorkItemListPage').then((m) => ({ Component: m.WorkItemListPage })),
       },
       {
+        path: 'tracking-items',
+        lazy: () =>
+          import('./pages/tracking/TrackingItemListPage').then((m) => ({ Component: m.TrackingItemListPage })),
+      },
+      {
         // Yazma formlari: rolu uymayan, adresi elle yazsa da formu degil "yetkiniz yok" gorur.
         element: (
           <RequirePermission permission="manageProjects">

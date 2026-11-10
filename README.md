@@ -209,12 +209,24 @@ Screens:
 |---|---|
 | `/` | CTO dashboard: counters, project table and filters (year / week, owner, project status, overall status, risk, delay) |
 | `/projects` | Project list with search by project, customer or owner (Turkish letters and case ignored) |
-| `/projects/:id` | Project details and its weekly reports, newest week first; delete with confirmation (blocked while the project has reports) |
+| `/projects/:id` | Project details, its risks, blockers, decisions and actions (add / edit in a dialog, delete with confirmation), and its weekly reports, newest week first; delete with confirmation (blocked while the project has reports or such records) |
 | `/projects/new`, `/projects/:id/edit` | Project form; checks the backend's rules before sending and shows the backend's `fieldErrors` under the matching input |
 | `/reports/:id` | Weekly report: stage, progress, status, risk, live tasks and the four text fields; delete with confirmation (its work items are deleted too). Below it, the report's work items with add / edit in a dialog and delete with confirmation |
 | `/projects/:id/reports/new`, `/reports/:id/edit` | Weekly report form (see below) |
 | `/reports` | Weekly reports of all projects, past weeks included; filters for project, owner, year with a week range, report date range, stage, overall status and risk; paging and sorting, all kept in the address. A reversed range cannot be chosen (earlier weeks are disabled in "Son hafta", the date inputs limit each other) |
 | `/work-items` | Work items across projects, from each project's latest report (or the report up to a chosen year / week); filters for project, owner name, status and delay, paging and sorting, all kept in the address |
+| `/tracking-items` | Risks, blockers, decisions and actions across projects. Shows records that are not closed by default ("Kayıtlar": not closed / closed / all); filters for project, type, risk level, overdue and assignee, paging and sorting, all kept in the address |
+
+Risk, blocker, decision and action dialog:
+
+- The type is chosen at the top; the risk level field appears only for risks and blockers, and a
+  level chosen before switching to another type is not sent.
+- While the record is not closed, the assignee and the follow-up date are required, and a new or
+  changed follow-up date cannot be before today; an unchanged past date can stay. These are the
+  backend's rules, checked before sending with the same messages.
+- For a decision the statuses read "Karar bekleniyor" / "Görüşülüyor" / "Karar verildi".
+- In the tables, impact and action plan appear under the title, so a reader without write access
+  sees them too; an overdue record has a "Gecikmede" badge, a closed one shows its closing date.
 
 Weekly report form:
 
@@ -682,7 +694,7 @@ Backend tests (194 in total). The HTTP tests of business rules run as an Admin
   only from the listed projects
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (166, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (187, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
@@ -717,7 +729,7 @@ Frontend tests (166, Vitest + Testing Library on jsdom; component tests never re
 - `format.test.ts` — Turkish-insensitive search, date and week formatting, id parsing from the address
 - `ProjectListPage.test.tsx` — list with detail links, search typed or taken from the address
 - `ProjectDetailPage.test.tsx` — details and reports newest first, delete disabled when there are
-  reports, delete and return to the list (no request for the deleted project), 409 shown in the
+  reports or risk / action records, delete and return to the list (no request for the deleted project), 409 shown in the
   dialog, unknown and invalid ids
 - `ProjectFormPage.test.tsx` — required fields checked before sending, create (empty optional
   fields sent as `null`), backend `fieldErrors` under the input, other errors above the form, edit
@@ -739,6 +751,15 @@ Frontend tests (166, Vitest + Testing Library on jsdom; component tests never re
   owner search sends one request after typing stops, empty result
 - `reports/listFilters.test.ts` — report list state from the address: all filters, defaults, week
   range without a year dropped, reversed week or date range drops the end, invalid values dropped
+- `TrackingItemsSection.test.tsx` — a project's records with type, overdue badge, decision status
+  and closing date; adding a risk (request body), switching to an action drops the risk level, the
+  rules checked before sending (risk level, assignee, follow-up date, a past date), a closed record
+  without assignee or date, an overdue record edited with its old date kept, a backend field error
+  under the input, delete, the empty state; the CTO sees no write buttons, a project manager does
+- `tracking/filters.test.ts` — the list state in the address: defaults left out, invalid values
+  dropped, round trip; "not closed / closed / all" turned into the backend's status filter
+- `TrackingItemListPage.test.tsx` — open records requested by default, address filters sent to the
+  API ("all" sends no status), changing the scope returns to page 1, empty result
 - `ReportListPage.test.tsx` — links to project and report, address state sent to the API, week
   range disabled without a year, earlier weeks disabled as the end of the range, sorting returns
   to page 1, empty result
@@ -757,7 +778,7 @@ Run on 2026-11-10 against the current `main`:
 | Check | Command | Result |
 |---|---|---|
 | Backend tests | `cd backend && ./mvnw test` | 194 passed, 0 failed, 0 skipped |
-| Frontend tests | `cd frontend && npm test` | 166 passed in 23 files |
+| Frontend tests | `cd frontend && npm test` | 187 passed in 26 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; largest chunk 324 kB (100 kB gzip) |
 

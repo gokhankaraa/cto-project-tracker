@@ -17,6 +17,7 @@ describe('AppLayout', () => {
       '/projects',
       '/reports',
       '/work-items',
+      '/tracking-items',
     ])
     expect(menu.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('data-active')
     expect(menu.getByRole('link', { name: 'Projeler' })).not.toHaveAttribute('data-active')
@@ -26,6 +27,7 @@ describe('AppLayout', () => {
     ['/projects/3', 'Projeler'],
     ['/reports/4', 'Raporlar'],
     ['/work-items?page=2', 'İş kalemleri'],
+    ['/tracking-items?scope=all', 'Riskler ve aksiyonlar'],
   ])('alt sayfada (%s) ust menu ogesi aktif', (route, active) => {
     renderWithProviders(<AppLayout />, { route })
     const menu = within(screen.getByLabelText('Ana menü'))

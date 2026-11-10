@@ -1,4 +1,4 @@
-import type { Project, User, WeeklyReport, WorkItem } from '../api/types'
+import type { Project, TrackingItem, User, WeeklyReport, WorkItem } from '../api/types'
 
 /** Ekran testlerinin ortak verisi (seed verisinin kisaltilmisi). */
 export const USERS: User[] = [
@@ -58,6 +58,28 @@ export function workItem(id: number, overrides: Partial<WorkItem> = {}): WorkIte
     plannedDate: '2026-07-30',
     completedDate: null,
     delayed: false,
+    ...overrides,
+  }
+}
+
+/** Atlas IK'nin acik, gecikmemis bir riski; overrides ile tur, durum ve tarihler degistirilir. */
+export function trackingItem(id: number, overrides: Partial<TrackingItem> = {}): TrackingItem {
+  return {
+    id,
+    projectId: 1,
+    projectName: 'Atlas IK',
+    type: 'RISK',
+    title: `Kayit ${id}`,
+    description: null,
+    riskLevel: 'YUKSEK',
+    impact: null,
+    actionPlan: null,
+    assignee: 'Ayse Yilmaz',
+    followUpDate: '2026-11-17',
+    status: 'ACIK',
+    closedDate: null,
+    createdAt: '2026-11-01T08:00:00Z',
+    overdue: false,
     ...overrides,
   }
 }

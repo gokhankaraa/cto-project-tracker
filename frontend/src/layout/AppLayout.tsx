@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { to: '/projects', label: 'Projeler' },
   { to: '/reports', label: 'Raporlar' },
   { to: '/work-items', label: 'İş kalemleri' },
+  { to: '/tracking-items', label: 'Riskler ve aksiyonlar' },
 ]
 
 /** Menu ogesi, adresi kendisiyle ya da alt sayfasiyla (/projects/3) eslesince aktif gorunur. */
