@@ -19,6 +19,7 @@ import com.kolaysoft.ctotracker.entity.Role;
  * Dashboard, listeler, detaylar      tumu   tumu   yalnizca kendi projeleri
  * Proje olustur / duzenle / sil       ✓      ✗     ✗
  * Rapor ve is kalemi yaz / sil        ✓      ✗     yalnizca kendi projelerinde
+ * Risk/engel/karar/aksiyon yaz / sil   ✓      ✗     yalnizca kendi projelerinde
  * </pre>
  *
  * Kurallar adres + metot olarak guvenlik filtresinde uygulanir, controller'a gelmeden: rolu uymayan istegin
@@ -52,6 +53,10 @@ public final class Permissions {
                 .requestMatchers(POST, "/api/reports/*/work-items").hasAnyRole(REPORT_WRITERS)
                 .requestMatchers(PUT, "/api/work-items/*").hasAnyRole(REPORT_WRITERS)
                 .requestMatchers(DELETE, "/api/work-items/*").hasAnyRole(REPORT_WRITERS)
+                // Risk, engel, karar ve aksiyon kayitlari: raporlarla ayni roller.
+                .requestMatchers(POST, "/api/projects/*/tracking-items").hasAnyRole(REPORT_WRITERS)
+                .requestMatchers(PUT, "/api/tracking-items/*").hasAnyRole(REPORT_WRITERS)
+                .requestMatchers(DELETE, "/api/tracking-items/*").hasAnyRole(REPORT_WRITERS)
                 // Varsayilan ret: kurali yazilmamis yazma istegi kimseye acik degil.
                 .requestMatchers(POST, "/api/**").denyAll()
                 .requestMatchers(PUT, "/api/**").denyAll()

@@ -298,6 +298,8 @@ Every endpoint except health, login and the API docs requires a login token in t
 | GET / POST | `/api/reports/{reportId}/work-items` | List / create work items for a report |
 | GET / PUT / DELETE | `/api/work-items/{id}` | Work item detail / update / delete |
 | GET | `/api/work-items` | Cross-project work item list: filtered, paged, sorted |
+| GET / POST | `/api/projects/{projectId}/tracking-items` | List / create a project's risks, blockers, decisions and actions |
+| GET / PUT / DELETE | `/api/tracking-items/{id}` | Risk, blocker, decision or action detail / update / delete |
 | GET | `/api/dashboard/summary` | CTO portfolio summary, with optional filters |
 
 The full, interactive contract is in Swagger UI (use **Authorize** with a token from
@@ -320,10 +322,28 @@ The full, interactive contract is in Swagger UI (use **Authorize** with a token 
 - Work items belong to a report; deleting a report also deletes its work items (cascade). The
   report's **live task count** is derived from the number of `DEVAM_EDIYOR` work items — not stored
   separately.
-- A project that still has weekly reports cannot be deleted (**409**); delete its reports first.
+- A project that still has weekly reports, or risk / blocker / decision / action records, cannot
+  be deleted (**409**); delete those first.
 - The dashboard summary reports each project's **latest** report (latest year, then highest week). Projects with
   no report are still listed, with empty/default progress. Portfolio counters (total, high-risk,
   without-report, total live tasks) accompany the per-project rows.
+
+**Risks, blockers, decisions and actions** (tracking items) belong to a project, not to a week: a
+risk lives until it is closed. All four types share one table (`tracking_items`, Flyway V5) and
+one API; `type` is `RISK`, `ENGEL`, `KARAR` or `AKSIYON`.
+
+- `riskLevel` is required for risks and blockers and not accepted for decisions and actions.
+- A record that is not closed (`ACIK`, `DEVAM_EDIYOR`) needs an `assignee` (free text, like on work
+  items) and a `followUpDate`. A new or changed follow-up date cannot be before today; an unchanged
+  past date is kept, so an overdue record can still be edited without moving its date. All of these
+  return **400** `VALIDATION_ERROR` with the field in `fieldErrors`.
+- `closedDate` is set by the server: today when the record is closed (`KAPANDI`), cleared when it
+  is reopened. For a decision, open means "decision pending" and closed means "decided".
+- A record is **overdue** (`overdue: true`) when it is not closed and its follow-up date is before
+  today. Unlike work items, the reference is today, not a report date, because these records are
+  not tied to a week. "Today" is the date in Turkey (`Europe/Istanbul`), whatever the server's time
+  zone.
+- A project's list shows open records first, by follow-up date, and closed ones last.
 
 > **Scope note (from the pre-analysis):** progress uses a single staged model, so there is no
 > separate "target %"; the schedule (`scheduleStatus`) field is out of MVP scope. Both are
@@ -360,7 +380,7 @@ curl -s http://localhost:8080/api/projects -H "Authorization: Bearer <token>"
 |---|---|---|---|
 | Dashboard, lists, details | all projects | all projects | **only projects they own** |
 | Create / edit / delete projects | ✓ | ✗ | ✗ |
-| Write / delete weekly reports and work items | ✓ | ✗ | **only in projects they own** |
+| Write / delete weekly reports, work items, risks, blockers, decisions and actions | ✓ | ✗ | **only in projects they own** |
 | User list, `/api/auth/me` | ✓ | ✓ | ✓ |
 
 - **Role** (who may write what) is checked by method and path in the security filter, before the
@@ -439,6 +459,12 @@ before passwords existed gets the same password for users that have none):
 - **Projects:** Atlas IK (owner: Ayşe), e-Belge (owner: Mehmet), Nova POS (owner: Ayşe, no report yet)
 - **Weekly reports:** Atlas IK weeks 29–31, e-Belge week 30, with a few work items. Atlas IK week 31 has
   an overdue work item, so the project shows `delayed: true` even though its status is `YOLUNDA`.
+- **Risks, blockers, decisions and actions:** Atlas IK has an open high risk, an action whose
+  follow-up date has passed (overdue) and a decision already taken; e-Belge has a blocker in
+  progress and a pending decision. Their dates are relative to the day the data is loaded, so the
+  demo looks the same every day. Nova POS has none, so it can still be deleted. A database seeded
+  before these records existed gets them on the next start, as long as it has no records yet and
+  the demo projects are still there.
 
 All sample data is fictional (project, customer and person names are made up; emails use the reserved
 `example.com` domain). The repository is public, so no real company or customer data is used.
@@ -590,7 +616,7 @@ empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; ev
 creates its own data. Service tests use Mockito and need no database; they run as an Admin
 (a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
-Backend tests (161 in total). The HTTP tests of business rules run as an Admin
+Backend tests (178 in total). The HTTP tests of business rules run as an Admin
 (`@WithMockUser`); login, tokens and permissions are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
@@ -607,12 +633,16 @@ Backend tests (161 in total). The HTTP tests of business rules run as an Admin
   boundaries, and the V3 migration SQL (re-run on rows stored with the V2 rule) gives the same year
   as the Java rule; the year follows both week and report date, week 53 only in 53-week years,
   uniqueness is per project + year + week, and the latest report compares the year before the week
+- `TrackingItemIntegrationTest` — risks, blockers, decisions and actions over HTTP: create, read,
+  close (closing date set), reopen (cleared) and delete; the project list order and the overdue
+  flag on the seed data; field errors (`riskLevel` by type, a past follow-up date, a missing
+  assignee); a decision closed without a follow-up date; a project with records cannot be deleted
 - `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
 - `HealthControllerTest` — health endpoint and DB connection (reports PostgreSQL)
 - `AuthorizationIntegrationTest` — the permission matrix end to end with the demo users logging in:
   lists, dashboard (rows and counters), cross-project lists scoped to the project manager's own
-  projects; someone else's records 404 with the same message as a missing one; the CTO gets 403 on
-  every write, also with an invalid body or a missing record (no `fieldErrors` leak); a write
+  projects; someone else's records (tracking items included) 404 with the same message as a missing
+  one; the CTO gets 403 on every write, also with an invalid body or a missing record (no `fieldErrors` leak); a write
   without a rule is denied even for the Admin; project managers can't manage projects (403) and
   write only into their own (404 elsewhere); the Admin can do everything
 - `AuthControllerTest` — login returns a token that works on protected endpoints and `/me`; wrong
@@ -627,8 +657,13 @@ Backend tests (161 in total). The HTTP tests of business rules run as an Admin
 - `WeeklyReportServiceTest` — business rules: uniqueness (409), stage skip/backward (400),
   report date before its week or after the following week and a missing week 53 (400 with the
   field), year of the described week, percentage derivation, not-found (404)
-- `ProjectServiceTest` — project create/update/mapping, owner-not-found (404), delete-with-reports (409)
+- `ProjectServiceTest` — project create/update/mapping, owner-not-found (404), delete with reports or
+  tracking items (409)
 - `WorkItemServiceTest` — work item CRUD, report-not-found (404), delete
+- `TrackingItemServiceTest` — tracking item rules with the clock fixed: risk level by type, assignee
+  and follow-up date required while open, no past follow-up date on create, an unchanged past date
+  kept (and overdue) on update but a new past date rejected, the closing date following the status,
+  the project list order, someone else's project (404)
 - `DashboardServiceTest` — portfolio aggregation, latest-report selection, risk and multi-value
   filters, year and week reference, delay filter and counter, empty portfolio
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
@@ -703,11 +738,11 @@ frontend behind nginx) in Docker Compose; CI on every push.
 
 ### Latest test run
 
-Run on 2026-11-09 against the current `main`:
+Run on 2026-11-10 against the current `main`:
 
 | Check | Command | Result |
 |---|---|---|
-| Backend tests | `cd backend && ./mvnw test` | 161 passed, 0 failed, 0 skipped |
+| Backend tests | `cd backend && ./mvnw test` | 178 passed, 0 failed, 0 skipped |
 | Frontend tests | `cd frontend && npm test` | 166 passed in 23 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; largest chunk 324 kB (100 kB gzip) |

@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.annotation.Transactional;
 
 import com.jayway.jsonpath.JsonPath;
+import com.kolaysoft.ctotracker.config.ClockConfig;
 import com.kolaysoft.ctotracker.config.DataSeeder;
 
 /**
@@ -65,6 +67,9 @@ class AuthorizationIntegrationTest {
     private static final String PROJECT = """
             { "name": "Yeni Proje", "status": "PLANLANDI", "ownerId": 2 }
             """;
+    private static final String TRACKING_ITEM = """
+            { "type": "AKSIYON", "title": "Yetki testi", "assignee": "Ayse", "followUpDate": "%s", "status": "ACIK" }
+            """.formatted(LocalDate.now(ClockConfig.ZONE).plusDays(3));
 
     @Autowired
     private MockMvc mockMvc;
@@ -95,6 +100,14 @@ class AuthorizationIntegrationTest {
     /** e-Belge (Mehmet) raporundaki ilk is kaleminin id'si. */
     private int ebelgeWorkItemId() throws Exception {
         String body = as("admin", get("/api/reports/3/work-items")).andReturn().getResponse().getContentAsString();
+        List<Integer> ids = JsonPath.read(body, "$[*].id");
+        return ids.getFirst();
+    }
+
+    /** Projenin ilk takip kaydinin id'si (seed: Atlas IK = proje 1, e-Belge = proje 2). */
+    private int trackingItemId(int projectId) throws Exception {
+        String body = as("admin", get("/api/projects/" + projectId + "/tracking-items"))
+                .andReturn().getResponse().getContentAsString();
         List<Integer> ids = JsonPath.read(body, "$[*].id");
         return ids.getFirst();
     }
@@ -154,10 +167,15 @@ class AuthorizationIntegrationTest {
         as("mehmet", get("/api/reports/4/work-items")).andExpect(status().isNotFound());
         as("ayse", get("/api/projects/2")).andExpect(status().isNotFound());
         as("ayse", get("/api/work-items/" + ebelgeWorkItemId())).andExpect(status().isNotFound());
+        as("mehmet", get("/api/projects/1/tracking-items")).andExpect(status().isNotFound());
+        as("mehmet", get("/api/tracking-items/" + trackingItemId(1))).andExpect(status().isNotFound());
+        as("ayse", get("/api/tracking-items/" + trackingItemId(2))).andExpect(status().isNotFound());
 
         // Kendi kayitlari acik.
         as("mehmet", get("/api/projects/2")).andExpect(status().isOk());
         as("ayse", get("/api/reports/4/work-items")).andExpect(status().isOk());
+        as("mehmet", get("/api/projects/2/tracking-items")).andExpect(status().isOk());
+        as("cto", get("/api/tracking-items/" + trackingItemId(1))).andExpect(status().isOk());
     }
 
     @Test
@@ -172,7 +190,7 @@ class AuthorizationIntegrationTest {
     // --- Yazma: rol ---
 
     @Test
-    @DisplayName("CTO hicbir sey yazamaz: proje, rapor ve is kalemi yazmalari 403 FORBIDDEN")
+    @DisplayName("CTO hicbir sey yazamaz: proje, rapor, is kalemi ve takip kaydi yazmalari 403 FORBIDDEN")
     void ctoIsReadOnly() throws Exception {
         as("cto", json(post("/api/projects"), PROJECT))
                 .andExpect(status().isForbidden())
@@ -184,6 +202,9 @@ class AuthorizationIntegrationTest {
         as("cto", delete("/api/reports/4")).andExpect(status().isForbidden());
         as("cto", json(post("/api/reports/4/work-items"), WORK_ITEM)).andExpect(status().isForbidden());
         as("cto", delete("/api/work-items/" + ebelgeWorkItemId())).andExpect(status().isForbidden());
+        as("cto", json(post("/api/projects/1/tracking-items"), TRACKING_ITEM)).andExpect(status().isForbidden());
+        as("cto", json(put("/api/tracking-items/" + trackingItemId(1)), TRACKING_ITEM)).andExpect(status().isForbidden());
+        as("cto", delete("/api/tracking-items/" + trackingItemId(1))).andExpect(status().isForbidden());
     }
 
     @Test
@@ -196,6 +217,7 @@ class AuthorizationIntegrationTest {
         as("cto", json(put("/api/reports/4"), "{}")).andExpect(status().isForbidden());
         as("cto", json(post("/api/reports/4/work-items"), "json degil")).andExpect(status().isForbidden());
         as("cto", json(post("/api/projects/999999/reports"), "{}")).andExpect(status().isForbidden());
+        as("cto", json(post("/api/projects/1/tracking-items"), "{}")).andExpect(status().isForbidden());
         as("ayse", json(put("/api/projects/1"), "{}")).andExpect(status().isForbidden());
     }
 
@@ -215,7 +237,7 @@ class AuthorizationIntegrationTest {
     }
 
     @Test
-    @DisplayName("Proje yoneticisi yalnizca kendi projesine rapor ve is kalemi yazar; baskasininkine 404")
+    @DisplayName("Proje yoneticisi yalnizca kendi projesine rapor, is kalemi ve takip kaydi yazar; baskasininkine 404")
     void projectManagersWriteOnlyTheirOwnProjects() throws Exception {
         as("ayse", json(post("/api/projects/3/reports"), NOVA_REPORT)).andExpect(status().isCreated());
         as("ayse", json(put("/api/reports/4"), ATLAS_W31_UPDATE)).andExpect(status().isOk());
@@ -229,6 +251,14 @@ class AuthorizationIntegrationTest {
         int ebelgeItem = ebelgeWorkItemId();
         as("ayse", delete("/api/work-items/" + ebelgeItem)).andExpect(status().isNotFound());
         as("mehmet", delete("/api/work-items/" + ebelgeItem)).andExpect(status().isNoContent());
+
+        as("ayse", json(post("/api/projects/1/tracking-items"), TRACKING_ITEM)).andExpect(status().isCreated());
+        as("mehmet", json(post("/api/projects/1/tracking-items"), TRACKING_ITEM)).andExpect(status().isNotFound());
+        int ebelgeTrackingItem = trackingItemId(2);
+        as("ayse", json(put("/api/tracking-items/" + ebelgeTrackingItem), TRACKING_ITEM)).andExpect(status().isNotFound());
+        as("ayse", delete("/api/tracking-items/" + ebelgeTrackingItem)).andExpect(status().isNotFound());
+        as("mehmet", json(put("/api/tracking-items/" + ebelgeTrackingItem), TRACKING_ITEM)).andExpect(status().isOk());
+        as("mehmet", delete("/api/tracking-items/" + ebelgeTrackingItem)).andExpect(status().isNoContent());
     }
 
     @Test
@@ -238,6 +268,7 @@ class AuthorizationIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.ownerFullName").value("Mehmet Kaya"));
         as("admin", json(post("/api/reports/3/work-items"), WORK_ITEM)).andExpect(status().isCreated());
+        as("admin", json(post("/api/projects/2/tracking-items"), TRACKING_ITEM)).andExpect(status().isCreated());
         as("admin", delete("/api/projects/3")).andExpect(status().isNoContent());
     }
 }

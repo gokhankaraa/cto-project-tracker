@@ -12,6 +12,7 @@ import com.kolaysoft.ctotracker.dto.ProjectResponse;
 import com.kolaysoft.ctotracker.entity.Project;
 import com.kolaysoft.ctotracker.entity.User;
 import com.kolaysoft.ctotracker.repository.ProjectRepository;
+import com.kolaysoft.ctotracker.repository.TrackingItemRepository;
 import com.kolaysoft.ctotracker.repository.UserRepository;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
 import com.kolaysoft.ctotracker.repository.spec.ProjectSpecifications;
@@ -29,13 +30,16 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final WeeklyReportRepository weeklyReportRepository;
+    private final TrackingItemRepository trackingItemRepository;
     private final CurrentUser currentUser;
 
     public ProjectService(ProjectRepository projectRepository, UserRepository userRepository,
-                          WeeklyReportRepository weeklyReportRepository, CurrentUser currentUser) {
+                          WeeklyReportRepository weeklyReportRepository,
+                          TrackingItemRepository trackingItemRepository, CurrentUser currentUser) {
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.weeklyReportRepository = weeklyReportRepository;
+        this.trackingItemRepository = trackingItemRepository;
         this.currentUser = currentUser;
     }
 
@@ -70,6 +74,10 @@ public class ProjectService {
         if (weeklyReportRepository.existsByProjectId(id)) {
             throw new ResourceInUseException(
                     "Bu projenin haftalık raporları var; önce raporları silin.");
+        }
+        if (trackingItemRepository.existsByProjectId(id)) {
+            throw new ResourceInUseException(
+                    "Bu projenin risk, engel, karar ya da aksiyon kayıtları var; önce bu kayıtları silin.");
         }
         projectRepository.deleteById(id);
     }

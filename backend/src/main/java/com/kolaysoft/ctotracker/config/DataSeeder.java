@@ -1,6 +1,9 @@
 package com.kolaysoft.ctotracker.config;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -15,12 +18,16 @@ import com.kolaysoft.ctotracker.entity.ProgressStage;
 import com.kolaysoft.ctotracker.entity.Project;
 import com.kolaysoft.ctotracker.entity.ProjectStatus;
 import com.kolaysoft.ctotracker.entity.RiskLevel;
+import com.kolaysoft.ctotracker.entity.TrackingItem;
+import com.kolaysoft.ctotracker.entity.TrackingItemStatus;
+import com.kolaysoft.ctotracker.entity.TrackingItemType;
 import com.kolaysoft.ctotracker.entity.Role;
 import com.kolaysoft.ctotracker.entity.User;
 import com.kolaysoft.ctotracker.entity.WeeklyReport;
 import com.kolaysoft.ctotracker.entity.WorkItem;
 import com.kolaysoft.ctotracker.entity.WorkItemStatus;
 import com.kolaysoft.ctotracker.repository.ProjectRepository;
+import com.kolaysoft.ctotracker.repository.TrackingItemRepository;
 import com.kolaysoft.ctotracker.repository.UserRepository;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
 import com.kolaysoft.ctotracker.repository.WorkItemRepository;
@@ -55,15 +62,20 @@ public class DataSeeder implements CommandLineRunner {
     private final ProjectRepository projectRepository;
     private final WeeklyReportRepository weeklyReportRepository;
     private final WorkItemRepository workItemRepository;
+    private final TrackingItemRepository trackingItemRepository;
     private final PasswordEncoder passwordEncoder;
+    private final Clock clock;
 
     public DataSeeder(UserRepository userRepository, ProjectRepository projectRepository,
                       WeeklyReportRepository weeklyReportRepository,
-                      WorkItemRepository workItemRepository, PasswordEncoder passwordEncoder) {
+                      WorkItemRepository workItemRepository, TrackingItemRepository trackingItemRepository,
+                      PasswordEncoder passwordEncoder, Clock clock) {
         this.userRepository = userRepository;
         this.projectRepository = projectRepository;
         this.weeklyReportRepository = weeklyReportRepository;
         this.workItemRepository = workItemRepository;
+        this.trackingItemRepository = trackingItemRepository;
+        this.clock = clock;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -71,6 +83,7 @@ public class DataSeeder implements CommandLineRunner {
     public void run(String... args) {
         if (userRepository.count() > 0) {
             assignMissingDemoPasswords();
+            seedMissingTrackingItems();
             return;
         }
 
@@ -83,6 +96,7 @@ public class DataSeeder implements CommandLineRunner {
                 ProjectStatus.DEVAM_EDIYOR, ayse);
         Project ebelge = saveProject("e-Belge", "Demo Musteri A.S.", "e-Fatura / e-Arsiv cozumleri",
                 ProjectStatus.DEVAM_EDIYOR, mehmet);
+        // Nova POS'a takip kaydi eklenmez: raporsuz ve kayitsiz proje silinebilir kalir (yetki testi onu siler).
         saveProject("Nova POS", "Demo Musteri A.S.", "Perakende magazalar icin POS ve yazilim cozumu",
                 ProjectStatus.PLANLANDI, ayse);
 
@@ -118,9 +132,11 @@ public class DataSeeder implements CommandLineRunner {
         saveWorkItem(atlasW31, "Test senaryolari", "Regresyon senaryolarinin yazilmasi",
                 "Mehmet Kaya", WorkItemStatus.TAMAMLANDI, LocalDate.of(2026, 7, 30), LocalDate.of(2026, 7, 31));
 
-        log.info("Ornek veri yuklendi: {} kullanici, {} proje, {} rapor, {} is kalemi",
+        seedTrackingItems(atlas, ebelge);
+
+        log.info("Ornek veri yuklendi: {} kullanici, {} proje, {} rapor, {} is kalemi, {} takip kaydi",
                 userRepository.count(), projectRepository.count(),
-                weeklyReportRepository.count(), workItemRepository.count());
+                weeklyReportRepository.count(), workItemRepository.count(), trackingItemRepository.count());
     }
 
     private User saveUser(String email, String fullName, Role role) {
@@ -146,6 +162,68 @@ public class DataSeeder implements CommandLineRunner {
         withoutPassword.forEach(user -> user.setPasswordHash(passwordEncoder.encode(DEMO_PASSWORD)));
         userRepository.saveAll(withoutPassword);
         log.info("Parolasi olmayan {} demo kullanicisina demo parolasi atandi", withoutPassword.size());
+    }
+
+    /**
+     * Takip kayitlari (V5) eklenmeden once doldurulmus demo veritabanina ornek kayitlari ekler: tablo bossa
+     * ve demo projeleri yerindeyse. Kullanici kayitlarin hepsini silerse sonraki acilista ornekler geri gelir;
+     * bu yalnizca demo profilinde olur.
+     */
+    private void seedMissingTrackingItems() {
+        if (trackingItemRepository.count() > 0) {
+            return;
+        }
+        List<Project> projects = projectRepository.findAll();
+        Project atlas = projects.stream().filter(p -> p.getName().equals("Atlas IK")).findFirst().orElse(null);
+        Project ebelge = projects.stream().filter(p -> p.getName().equals("e-Belge")).findFirst().orElse(null);
+        if (atlas == null || ebelge == null) {
+            return;
+        }
+        seedTrackingItems(atlas, ebelge);
+        log.info("Demo projelerine {} takip kaydi eklendi", trackingItemRepository.count());
+    }
+
+    /**
+     * Her turden ve durumdan ornek: acik yuksek risk, takibi gecikmis aksiyon, verilmis karar, devam eden engel,
+     * bekleyen karar. Tarihler bugune goredir; boylece demo her gun ayni gorunur (bir kayit hep gecikmis).
+     */
+    private void seedTrackingItems(Project atlas, Project ebelge) {
+        LocalDate today = LocalDate.now(clock);
+        saveTrackingItem(atlas, TrackingItemType.RISK, "Entegrasyon API'si gec teslim edilebilir", RiskLevel.YUKSEK,
+                "Rapor ekrani entegrasyonu gecikir", "Musteriyle haftalik teslim takvimi yapilacak",
+                "Ayse Yilmaz", today.plusDays(7), TrackingItemStatus.ACIK, 12);
+        saveTrackingItem(atlas, TrackingItemType.AKSIYON, "Musteriyle kapsam toplantisi", null,
+                null, "Rapor ekranlarinin kapsami netlestirilecek",
+                "Ayse Yilmaz", today.minusDays(2), TrackingItemStatus.ACIK, 9);
+        saveTrackingItem(atlas, TrackingItemType.KARAR, "Raporlama kutuphanesi secimi", null,
+                "Disa aktarma ozelligini belirler", "Iki kutuphane karsilastirildi, hafif olan secildi",
+                "Zeynep Demir", null, TrackingItemStatus.KAPANDI, 20);
+        saveTrackingItem(ebelge, TrackingItemType.ENGEL, "Test ortamina erisim yok", RiskLevel.ORTA,
+                "Entegrasyon testleri baslayamiyor", "Musteri BT ekibinden VPN erisimi istendi",
+                "Mehmet Kaya", today.plusDays(3), TrackingItemStatus.DEVAM_EDIYOR, 5);
+        saveTrackingItem(ebelge, TrackingItemType.KARAR, "e-Arsiv saglayicisi secimi", null,
+                "Maliyet ve teslim tarihini etkiler", "Iki teklif CTO'ya sunulacak",
+                "Zeynep Demir", today.plusDays(10), TrackingItemStatus.ACIK, 3);
+    }
+
+    private void saveTrackingItem(Project project, TrackingItemType type, String title, RiskLevel riskLevel,
+                                  String impact, String actionPlan, String assignee, LocalDate followUpDate,
+                                  TrackingItemStatus status, int ageInDays) {
+        TrackingItem item = new TrackingItem();
+        item.setProject(project);
+        item.setType(type);
+        item.setTitle(title);
+        item.setRiskLevel(riskLevel);
+        item.setImpact(impact);
+        item.setActionPlan(actionPlan);
+        item.setAssignee(assignee);
+        item.setFollowUpDate(followUpDate);
+        item.setStatus(status);
+        item.setCreatedAt(Instant.now(clock).minus(ageInDays, ChronoUnit.DAYS));
+        if (!status.isOpen()) {
+            item.setClosedDate(LocalDate.now(clock).minusDays(ageInDays / 2));
+        }
+        trackingItemRepository.save(item);
     }
 
     private Project saveProject(String name, String customer, String description,

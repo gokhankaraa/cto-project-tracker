@@ -27,6 +27,7 @@ import com.kolaysoft.ctotracker.entity.ProjectStatus;
 import com.kolaysoft.ctotracker.entity.Role;
 import com.kolaysoft.ctotracker.entity.User;
 import com.kolaysoft.ctotracker.repository.ProjectRepository;
+import com.kolaysoft.ctotracker.repository.TrackingItemRepository;
 import com.kolaysoft.ctotracker.repository.UserRepository;
 import com.kolaysoft.ctotracker.repository.WeeklyReportRepository;
 import com.kolaysoft.ctotracker.security.CurrentUser;
@@ -44,6 +45,9 @@ class ProjectServiceTest {
 
     @Mock
     private WeeklyReportRepository weeklyReportRepository;
+
+    @Mock
+    private TrackingItemRepository trackingItemRepository;
 
     /** Bu testler is kurallarini sinar; oturumdaki kullanici her projeyi goren Admin'dir. */
 
@@ -180,6 +184,19 @@ class ProjectServiceTest {
 
         assertThatThrownBy(() -> service.delete(1L))
                 .isInstanceOf(ResourceInUseException.class);
+
+        verify(projectRepository, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("Silme: risk, engel, karar ya da aksiyon kaydi olan proje silinemez (409)")
+    void deleteRejectsProjectWithTrackingItems() {
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(new Project()));
+        when(trackingItemRepository.existsByProjectId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.delete(1L))
+                .isInstanceOf(ResourceInUseException.class)
+                .hasMessageContaining("aksiyon kayıtları var");
 
         verify(projectRepository, never()).deleteById(any());
     }
