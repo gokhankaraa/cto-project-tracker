@@ -180,6 +180,11 @@ export interface DashboardProjectSummary {
   riskLevel: RiskLevel | null
   liveTaskCount: number
   delayed: boolean
+  /** Kapanmamis risk, engel, karar ve aksiyon kaydi; hafta referansindan bagimsiz, bugunku durum. */
+  openTrackingItems: number
+  overdueTrackingItems: number
+  /** Kapanmamis risk ve engellerin en yuksek seviyesi; yoksa null. */
+  highestOpenRiskLevel: RiskLevel | null
 }
 
 /** GET /api/dashboard/summary */
@@ -189,5 +194,10 @@ export interface DashboardSummary {
   projectsWithoutReport: number
   totalLiveTasks: number
   delayedProjects: number
+  /** Takip kayitlari sayaclari: listelenen projelerden, bugunku durum. */
+  openRisks: number
+  openBlockers: number
+  pendingDecisions: number
+  overdueTrackingItems: number
   projects: DashboardProjectSummary[]
 }

@@ -207,7 +207,7 @@ Screens:
 
 | Address | Screen |
 |---|---|
-| `/` | CTO dashboard: counters, project table and filters (year / week, owner, project status, overall status, risk, delay) |
+| `/` | CTO dashboard: counters, project table and filters (year / week, owner, project status, overall status, risk, delay). A second row of counters covers risks, blockers, decisions and actions (open risks, open blockers, pending decisions, overdue follow-ups); each card opens the matching list, and a note says these show today's state whatever year / week is chosen. Each project row shows its open records, the highest open risk level and how many are overdue, linking to that project's records. The table fits a 1280 px screen without scrolling sideways |
 | `/projects` | Project list with search by project, customer or owner (Turkish letters and case ignored) |
 | `/projects/:id` | Project details, its risks, blockers, decisions and actions (add / edit in a dialog, delete with confirmation), and its weekly reports, newest week first; delete with confirmation (blocked while the project has reports or such records) |
 | `/projects/new`, `/projects/:id/edit` | Project form; checks the backend's rules before sending and shows the backend's `fieldErrors` under the matching input |
@@ -694,7 +694,7 @@ Backend tests (194 in total). The HTTP tests of business rules run as an Admin
   only from the listed projects
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (187, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (189, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
@@ -725,7 +725,9 @@ Frontend tests (187, Vitest + Testing Library on jsdom; component tests never re
 - `dashboard/filters.test.ts` — dashboard filters from the address: all filters, week without year
   dropped, invalid values dropped, round trip
 - `DashboardPage.test.tsx` — counters and rows (including a project without a report), address
-  filters sent to the API, reference text for year / week, clearing filters, empty result
+  filters sent to the API, reference text for year / week, clearing filters, empty result; the
+  risk and action cards link to the filtered list, a row's open records link to the project's
+  records, and the note that a year / week does not change these counters
 - `format.test.ts` — Turkish-insensitive search, date and week formatting, id parsing from the address
 - `ProjectListPage.test.tsx` — list with detail links, search typed or taken from the address
 - `ProjectDetailPage.test.tsx` — details and reports newest first, delete disabled when there are
@@ -778,7 +780,7 @@ Run on 2026-11-10 against the current `main`:
 | Check | Command | Result |
 |---|---|---|
 | Backend tests | `cd backend && ./mvnw test` | 194 passed, 0 failed, 0 skipped |
-| Frontend tests | `cd frontend && npm test` | 187 passed in 26 files |
+| Frontend tests | `cd frontend && npm test` | 189 passed in 26 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; largest chunk 324 kB (100 kB gzip) |
 

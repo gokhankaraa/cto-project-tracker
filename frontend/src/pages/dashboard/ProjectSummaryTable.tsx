@@ -31,10 +31,12 @@ export function ProjectSummaryTable({ projects }: { projects: DashboardProjectSu
               <Table.Th>Rapor haftası</Table.Th>
               {/* Ilerleme yuzdesi asamadan turetilir; ikisi tek sutunda (1280 px'de tablo yana kaymaz). */}
               <Table.Th>Aşama / ilerleme</Table.Th>
+              {/* Gecikme de degerlendirilen rapordan turer; genel durumun altinda rozet olarak (1280 px'de
+                  tablo yana kaymaz). Baslik kisa tutulur: hucreler satir kirmadigi icin sutunu baslik genisletir. */}
               <Table.Th>Genel durum</Table.Th>
               <Table.Th>Risk</Table.Th>
               <Table.Th ta="right">Canlı task</Table.Th>
-              <Table.Th>Gecikme</Table.Th>
+              <Table.Th>Açık kayıt</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -93,21 +95,48 @@ function ProjectRow({ project }: { project: DashboardProjectSummary }) {
         )}
       </Table.Td>
       <Table.Td>
-        <EnumBadge value={project.overallStatus} labels={OVERALL_STATUS_LABELS} />
+        <Stack gap={4} align="flex-start">
+          <EnumBadge value={project.overallStatus} labels={OVERALL_STATUS_LABELS} />
+          {project.delayed && (
+            <Badge color="orange" variant="filled" miw="max-content">
+              Gecikmede
+            </Badge>
+          )}
+        </Stack>
       </Table.Td>
       <Table.Td>
         <EnumBadge value={project.riskLevel} labels={RISK_LEVEL_LABELS} />
       </Table.Td>
       <Table.Td ta="right">{project.liveTaskCount}</Table.Td>
       <Table.Td>
-        {project.delayed ? (
-          <Badge color="orange" variant="filled" miw="max-content">
-            Gecikmede
-          </Badge>
-        ) : (
-          <Dash />
-        )}
+        <TrackingCell project={project} />
       </Table.Td>
     </Table.Tr>
+  )
+}
+
+/**
+ * Projenin kapanmamis risk / engel / karar / aksiyon kayitlari: sayi (projenin listesine baglanti), en yuksek
+ * risk seviyesi ve gecikmis olanlar. Alt alta durur; tablo 1280 px'de yana kaymasin diye sutun dar tutulur.
+ */
+function TrackingCell({ project }: { project: DashboardProjectSummary }) {
+  if (project.openTrackingItems === 0) return <Dash />
+  return (
+    <Stack gap={4} align="flex-start">
+      <Anchor
+        component={Link}
+        to={`/tracking-items?projectId=${project.projectId}`}
+        size="sm"
+        aria-label={`${project.name}: ${project.openTrackingItems} açık kayıt`}
+      >
+        {project.openTrackingItems} kayıt
+      </Anchor>
+      {project.highestOpenRiskLevel && <EnumBadge value={project.highestOpenRiskLevel} labels={RISK_LEVEL_LABELS} />}
+      {project.overdueTrackingItems > 0 && (
+        <Badge color="orange" variant="filled" miw="max-content">
+          {project.overdueTrackingItems} gecikmiş
+        </Badge>
+      )}
+    </Stack>
   )
 }

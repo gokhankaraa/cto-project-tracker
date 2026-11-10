@@ -16,6 +16,10 @@ const SUMMARY: DashboardSummary = {
   projectsWithoutReport: 1,
   totalLiveTasks: 1,
   delayedProjects: 1,
+  openRisks: 1,
+  openBlockers: 0,
+  pendingDecisions: 0,
+  overdueTrackingItems: 1,
   projects: [
     {
       projectId: 1,
@@ -32,6 +36,9 @@ const SUMMARY: DashboardSummary = {
       riskLevel: 'ORTA',
       liveTaskCount: 1,
       delayed: true,
+      openTrackingItems: 2,
+      overdueTrackingItems: 1,
+      highestOpenRiskLevel: 'YUKSEK',
     },
     {
       projectId: 3,
@@ -48,6 +55,9 @@ const SUMMARY: DashboardSummary = {
       riskLevel: null,
       liveTaskCount: 0,
       delayed: false,
+      openTrackingItems: 0,
+      overdueTrackingItems: 0,
+      highestOpenRiskLevel: null,
     },
   ],
 }
@@ -74,6 +84,35 @@ describe('DashboardPage', () => {
 
     expect(within(screen.getByRole('group', { name: 'Toplam proje' })).getByText('2')).toBeInTheDocument()
     expect(within(screen.getByRole('group', { name: 'Geciken' })).getByText('1')).toBeInTheDocument()
+  })
+
+  it('risk ve aksiyon kartlari sayilan kayitlarin listesine gider; proje satirinda acik kayitlar', async () => {
+    setup()
+
+    const overdue = await screen.findByRole('link', { name: 'Gecikmiş takip: 1, listeyi aç' })
+    expect(overdue).toHaveAttribute('href', '/tracking-items?overdue=true')
+    expect(screen.getByRole('link', { name: 'Açık risk: 1, listeyi aç' })).toHaveAttribute('href', '/tracking-items?type=RISK')
+    expect(screen.getByRole('link', { name: 'Bekleyen karar: 0, listeyi aç' })).toHaveAttribute(
+      'href',
+      '/tracking-items?type=KARAR',
+    )
+    expect(screen.getByText('Bugünkü durum.')).toBeInTheDocument()
+
+    const atlas = screen.getByText('Atlas IK').closest('tr')!
+    expect(within(atlas).getByRole('link', { name: 'Atlas IK: 2 açık kayıt' })).toHaveAttribute(
+      'href',
+      '/tracking-items?projectId=1',
+    )
+    expect(within(atlas).getByText('Yüksek')).toBeInTheDocument()
+    expect(within(atlas).getByText('1 gecikmiş')).toBeInTheDocument()
+    // Kaydi olmayan proje: tire.
+    const nova = screen.getByText('Nova POS').closest('tr')!
+    expect(within(nova).queryByRole('link', { name: /açık kayıt/ })).not.toBeInTheDocument()
+  })
+
+  it('yil secilince takip kartlari bu secimden etkilenmedigini soyler', async () => {
+    setup('/?year=2026&weekNumber=29')
+    expect(await screen.findByText('Bugünkü durum; seçilen yıl ve hafta bu sayıları değiştirmez.')).toBeInTheDocument()
   })
 
   it('adresteki filtreleri istege aktarir; yilsiz hafta gonderilmez', async () => {

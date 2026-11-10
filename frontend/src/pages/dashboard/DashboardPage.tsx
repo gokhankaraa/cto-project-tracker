@@ -8,7 +8,7 @@ import { QueryState } from '../../components/QueryState'
 import { DashboardFilterBar } from './DashboardFilterBar'
 import { dashboardSearch, parseDashboardFilters } from './filters'
 import { ProjectSummaryTable } from './ProjectSummaryTable'
-import { SummaryCards } from './SummaryCards'
+import { SummaryCards, TrackingCards } from './SummaryCards'
 
 /** Kartlarin ve tablonun hangi rapor noktasina gore hesaplandigini soyler. */
 function referenceText({ year, weekNumber }: DashboardFilters) {
@@ -42,6 +42,10 @@ export function DashboardPage() {
           <Box style={{ opacity: summary.isPlaceholderData ? 0.6 : 1, transition: 'opacity 150ms' }}>
             <Stack gap="md">
               <SummaryCards summary={data} />
+              <TrackingCards
+                summary={data}
+                hasWeekReference={filters.year !== null}
+              />
               <ProjectSummaryTable projects={data.projects} />
             </Stack>
           </Box>
