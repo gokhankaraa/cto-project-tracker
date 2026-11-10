@@ -472,6 +472,69 @@ curl -s http://localhost:8080/api/projects -H "Authorization: Bearer <token>"
   role may not take are not shown, and a form address typed by hand shows "Yetkiniz yok" instead
   of the form. This is only for usability; the backend checks above are what enforce the rules.
 
+## Change history
+
+A small prototype on top of the MVP: the app records who changed what and when, and shows it on the
+project page. The rules of what is recorded are under [API endpoints](#api-endpoints) ("Change
+history"); this section is the technical, security and validation note.
+
+**Design decisions**
+
+- **Explicit calls in the services, not Hibernate Envers or entity listeners.** Every write goes
+  through 12 service methods (4 record types × create / update / delete). Each takes a snapshot
+  before the change (`AuditSubject`) and hands it to `AuditService`. That gives one table, a diff of
+  readable field names and no extra tables per entity, and it is easy to test.
+- **Same transaction as the change** (`Propagation.MANDATORY`). A refused change leaves nothing, and
+  a change is never stored without its event. The alternative, writing after commit from an event
+  listener, could lose the event while keeping the change.
+- **Changed fields in their own table** (`audit_event_changes`), not a JSON column. The question
+  "when did this risk level change?" becomes a plain `WHERE field = 'riskLevel'`. It also avoids
+  depending on Hibernate's JSON mapping, which would need extra setup for the Jackson version Spring
+  Boot 4 ships with.
+- **Raw values, labels on screen.** Events store `YUKSEK` and `2026-11-13`; the frontend turns them
+  into "Yüksek" and "13.11.2026". A renamed label also changes old entries, and the Excel export's
+  duplicated labels do not grow.
+- **No foreign keys to the record or project**, so the history of a deleted record stays readable.
+
+**Security**
+
+- **The person comes from the login token** (`sub`, `name`), never from the request. A body with
+  `"actorName": "Zeynep Demir"` is ignored (checked end to end).
+- **Read-only over the API.** There is no endpoint to change or delete history. `POST`, `PUT`,
+  `PATCH` and `DELETE` on `/api/projects/{id}/history` get **403** even for the Admin, because
+  unlisted writes are denied for everyone (see [Permissions](#permissions)).
+- **Visibility follows the project.** A project manager reads only their own projects' history;
+  anyone else gets the same **404** as for a project that does not exist, so its existence does not
+  leak.
+- **Output is text.** Values are shown as text by React. A title such as `<img src=x onerror=…>`
+  appears literally and runs nothing (checked end to end).
+- **What it stores:** people's names, which the app already shows, and the record's own fields,
+  free texts cut at 500 characters. Passwords and users are not recorded.
+
+**Validation:** the success indicators set before building, and how each was measured
+
+| Indicator | Result | Measured by |
+|---|---|---|
+| Each of the 12 write paths writes exactly one event with the right person and fields | ✓ | `AuditIntegrationTest` |
+| A refused change (400, 403, 404, 409) leaves no event; a failed event rolls the change back | ✓ (the rollback test fails when the error is swallowed) | `AuditIntegrationTest`, end-to-end step 3 |
+| A project manager cannot read another project's history | ✓ 404, same as a missing project | `AuditIntegrationTest`, end-to-end step 5 |
+| "Who raised this risk level, and when?" answered on one screen | ✓ project page, "Risk seviyesi: ~~Orta~~ → Yüksek" | end-to-end steps 1 and 8 |
+| Small cost: a write adds one insert per event and one per changed field; a history page takes a fixed number of queries | ✓ at most 4 queries for a 20-event page (23 without batch loading) | `AuditIntegrationTest` with Hibernate statistics |
+
+**Limits and next steps**
+
+- History is tamper-proof only at the application level. A database user can still change or delete
+  rows. Next step: a database role that can only `INSERT` and `SELECT` on the history tables, or a
+  trigger that rejects `UPDATE` and `DELETE`.
+- No retention policy: events are kept forever.
+- The person's name comes from the token, so after a rename it can be up to 8 hours old (the app
+  has no rename yet).
+- The history of a deleted project stays in the database but cannot be read over the API.
+  Deleting a report also deletes its work items, and only the report's deletion is recorded.
+- There is no cross-project history page. The weekly trend does not use the history yet; it could
+  show how risk levels moved.
+- Changes made before Flyway V6, and the demo data, have no history.
+
 ## Filtering, paging and sorting
 
 The full contract, with examples against the demo data, is in
@@ -627,6 +690,23 @@ On a freshly seeded database (dates in the demo data are relative to the day it 
      and *Trend* (the same 12 weeks).
 2. **Ayşe** (`ayse@example.com`): the trend and the Excel file cover only Atlas IK and Nova POS.
 
+### Change history
+
+On a freshly seeded database the history is empty: the demo data is not recorded.
+
+1. **Ayşe** (`ayse@example.com`) opens Atlas IK. At the bottom, "Değişiklik geçmişi" says there are
+   no changes yet. In "Riskler ve aksiyonlar", **Düzenle** the risk "Entegrasyon API'si gec teslim
+   edilebilir" and set **Risk seviyesi** to **Orta**. Without reloading, the history shows
+   **Güncellendi**, "Risk / aksiyon: Entegrasyon API'si gec teslim edilebilir", her name, the time,
+   and "Risk seviyesi: ~~Yüksek~~ → Orta".
+2. **Mehmet** (`mehmet@example.com`): http://localhost:3000/projects/1 shows "Kayıt bulunamadı",
+   with no history; on e-Belge he sees only e-Belge's changes.
+3. **CTO** (`cto@example.com`) opens Atlas IK and sees Ayşe's change. **Kayıt türü → Risk /
+   aksiyon** keeps only those records. There is no button to change anything.
+4. **Admin** (`admin@example.com`): adds a work item to Atlas IK's week 31 report and deletes it. On
+   Atlas IK both show up, "Eklendi" with its fields and "Silindi" with its title; the record is gone,
+   its trace is not.
+
 ### Over the API
 
 The same flow with `curl` or Swagger UI (**Authorize** with the token). Log in with
@@ -671,6 +751,17 @@ Weekly trend and Excel over the API:
   (`Content-Disposition: attachment; filename="cto-ozeti-<today>.xlsx"`) with only e-Belge;
   `?weekNumber=31` without a year → **400** in JSON.
 - **As Ayşe:** the same two requests cover only her projects.
+
+Change history over the API:
+
+- **As Ayşe:** `PUT /api/tracking-items/{id}` on Atlas IK's risk with `"riskLevel": "ORTA"` (the
+  other fields unchanged), then `GET /api/projects/1/history` → one event, `"actorName": "Ayse
+  Yilmaz"`, `"changes": [{ "field": "riskLevel", "oldValue": "YUKSEK", "newValue": "ORTA" }]`. The
+  same request again adds nothing. Adding `"actorName": "Zeynep Demir"` to the body changes nothing:
+  the person comes from the token.
+- **As Mehmet:** `GET /api/projects/1/history` → **404**, as for `/api/projects/999/history`.
+- **As the Admin:** `DELETE /api/projects/1/history` → **403**: history cannot be changed over the
+  API. `GET /api/projects/1/history?entityId=4` → **400** (`entityId` needs `entityType`).
 
 ## Package and layer structure
 
@@ -936,7 +1027,8 @@ Frontend tests (215, Vitest + Testing Library on jsdom; component tests never re
 **Done:** projects, weekly reports and work items (create, edit, delete, with their business
 rules); risks, blockers, decisions and actions with assignees, follow-up dates and overdue
 tracking; the CTO dashboard with a 12-week trend and an Excel export, and the filtered, paged
-report, work item and risk / action lists; login with JWT and
+report, work item and risk / action lists; a change history of every write, shown on the project
+page; login with JWT and
 role-based permissions in the API, mirrored in the UI; the whole stack (PostgreSQL, backend,
 frontend behind nginx) in Docker Compose; CI on every push.
 
@@ -951,7 +1043,7 @@ Run on 2026-11-10 against the current `main`:
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
 | CI | GitHub Actions on push to `main` | backend, frontend and Docker image jobs passed |
-| End-to-end | The demo scenarios in a browser on a clean Docker setup (local Playwright script) | report flow (14 checks), risks and actions flow (12 checks), the API scenario (14 checks) and the trend and Excel flow (6 checks: tooltip, week-31 numbers, one owner's projects changing week by week, filtered download and its content, a project manager's own data, no sideways scroll on a phone) passed, no console errors |
+| End-to-end | The demo scenarios in a browser on a clean Docker setup (local Playwright script) | report flow (14 checks), risks and actions flow (12 checks), the API scenario (14 checks) the trend and Excel flow (6 checks: tooltip, week-31 numbers, one owner's projects changing week by week, filtered download and its content, a project manager's own data, no sideways scroll on a phone) and the change history flow (9 checks: a change in a dialog shown without reloading, the person taken from the token whatever the body says, refused changes leaving no trace, history writes refused even for the Admin, another project's history 404 like a missing one, HTML in a title shown as text, paging, a deleted record's trace and the type filter, no sideways scroll on a phone) passed, no console errors |
 
 The [Tests](#tests) section lists what each test class covers.
 
@@ -1029,7 +1121,8 @@ the SQL count is the statements PostgreSQL logged for one call.
 1. **User management for the Admin:** creating users, assigning roles and owners, resetting
    passwords; a password change for every user. After that, the app no longer depends on demo data.
 2. **Production readiness:** a profile without demo data that refuses to start without a real
-   `JWT_SECRET`, HTTPS, a deployment target, and token refresh or revocation.
+   `JWT_SECRET`, HTTPS, a deployment target, and token refresh or revocation. A database role that
+   can only add to and read the change history, and a retention period for it.
 3. **Quality:** browser end-to-end tests of the demo scenarios in CI (today they run from a local
    Playwright script), the per-row queries of the paged lists (see [Performance](#performance)), Turkish letters in the demo
    data, and a longer timeout for the slow form tests.
