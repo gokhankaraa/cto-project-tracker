@@ -929,6 +929,7 @@ PostgreSQL with the demo data. They share one database, so they run one at a tim
 | `03-report-flow` | writes | a report and a work item added through the forms, the same week refused with 409, the dashboard updated |
 | `04-tracking-and-history` | writes | a risk level changed in a dialog and shown in the change history with its author, another project manager unable to see it, the CTO filtering the history |
 | `05-mobile` | read-only | no sideways scrolling at 390 px |
+| `06-admin-projects` | writes, cleans up | the Admin creates a project for Mehmet and edits it, Mehmet sees it in his list, a project with reports cannot be deleted, the new project is deleted after confirmation |
 
 Every test also fails on an unexpected browser console error. Expected 401, 403, 404 and 409
 responses are allowed.
@@ -943,7 +944,7 @@ from local scripts (see [Latest test run](#latest-test-run)); `e2e/` keeps their
 |---|---|---|---|---|
 | Login, token, roles | `AuthControllerTest`, `AuthorizationIntegrationTest`, `CorsConfigTest`, `UserControllerTest`, `JwtSecretTest` | `LoginPage`, `session`, `RequireAuth`, `RequirePermission`, `AppLayout`, `client` | `01-access`; every flow logs in as the role that does the work | — |
 | Production settings, first admin | `ProductionSetupIntegrationTest`, `AdminBootstrapTest`, `JwtSecretTest` | — | smoke test on the production setup | — |
-| Projects | `ProjectServiceTest`, `MvpIntegrationTest` | `ProjectListPage`, `ProjectDetailPage`, `ProjectFormPage` | Admin: create, edit, delete blocked | — |
+| Projects | `ProjectServiceTest`, `MvpIntegrationTest` | `ProjectListPage`, `ProjectDetailPage`, `ProjectFormPage` | `06-admin-projects` | — |
 | Weekly reports and work items | `WeeklyReportServiceTest`, `WorkItemServiceTest`, `WeeklyReportYearTest`, `WeeklyReportQueryTest`, `WorkItemQueryTest`, `FilterIntegrationTest` | `ReportFormPage`, `ReportDetailPage`, `ReportListPage`, `WorkItemsSection`, `WorkItemListPage`, `isoWeek`, `listFilters` | `03-report-flow`; `02-dashboard` delay filter | — |
 | Risks, blockers, decisions, actions | `TrackingItemServiceTest`, `TrackingItemQueryTest`, `TrackingItemIntegrationTest` | `TrackingItemsSection`, `TrackingItemListPage`, `filters` | `04-tracking-and-history` | — |
 | Dashboard, trend, Excel | `DashboardServiceTest`, `TrendIntegrationTest`, `ExportIntegrationTest`, `DataSeederIntegrationTest` | `DashboardPage`, `TrendSection`, `filters` | `02-dashboard` | — |
@@ -1227,7 +1228,7 @@ Run on 2026-11-10 against the current `main`:
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
 | CI | GitHub Actions on push to `main` (run 42873440304, commit `dc78b94`) | backend (1.5 min), frontend (0.5 min), and Docker images with browser tests (2.5 min; 13 passed in 22 s) passed |
-| Browser tests | `cd e2e && npm test` on a clean demo setup (also a CI job) | 13 passed in 10 s, no unexpected console errors |
+| Browser tests | `cd e2e && npm test` on a clean demo setup (also a CI job) | 14 passed in 12 s, no unexpected console errors |
 | End-to-end, by feature | The demo scenarios in a browser on a clean Docker setup (local Playwright scripts, run once per feature) | report flow (14 checks), risks and actions flow (12 checks), the API scenario (14 checks) the trend and Excel flow (6 checks: tooltip, week-31 numbers, one owner's projects changing week by week, filtered download and its content, a project manager's own data, no sideways scroll on a phone) and the change history flow (9 checks: a change in a dialog shown without reloading, the person taken from the token whatever the body says, refused changes leaving no trace, history writes refused even for the Admin, another project's history 404 like a missing one, HTML in a title shown as text, paging, a deleted record's trace and the type filter, no sideways scroll on a phone) passed, no console errors |
 
 The [Tests](#tests) section lists what each test class covers.

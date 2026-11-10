@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 /**
  * Tarayicida uctan uca testler. Calisan bir demo kurulumuna karsi kosar (docker compose up -d --build; temiz
  * veritabani: docker compose down -v). Testler ayni demo verisini degistirdigi icin tek worker ile ve dosya
- * sirasiyla calisir: 01-02 yalnizca okur, 03-04 yazar, 05 yine okur.
+ * sirasiyla calisir: 01-02 yalnizca okur, 03-04 yazar, 05 yine okur, 06 olusturdugu projeyi sonunda siler.
  */
 export default defineConfig({
   testDir: './tests',
