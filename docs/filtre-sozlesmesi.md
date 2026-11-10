@@ -25,7 +25,8 @@ alanları eklendi (bölüm 2). Bu kayıtlar haftaya bağlı olmadığı için y�
 uygulanmaz; gecikme bugünün tarihine göredir.
 
 **Güncelleme (10 Kasım 2026, haftalık trend):** `GET /api/dashboard/trend` eklendi (bölüm 2a). Dashboard'un
-proje filtrelerini ve hafta referansı kuralını her haftaya ayrı ayrı uygular.
+proje filtrelerini ve hafta referansı kuralını her haftaya ayrı ayrı uygular. Dashboard'un Excel çıktısı
+`GET /api/dashboard/export` da bölüm 2'nin parametrelerini kullanır (bölüm 2a'nın sonu).
 
 Bu doküman dört liste endpoint'inin filtre parametrelerini, doğrulama kurallarını, yanıt yapısını ve hata
 davranışını tanımlar. Geliştirme ve testler bu sözleşmeye göre yapıldı.
@@ -168,6 +169,14 @@ değerlendirilir. Bu yüzden son hafta, aynı `year` / `weekNumber` ile açılan
 | `?year=2026&weekNumber=31&weeks=4` | Hafta 28: raporlu proje yok. Hafta 29: Atlas IK (`ORTA`, %50). Hafta 30: Atlas IK `DUSUK` %75, e-Belge `RISKLI` `YUKSEK` %25 (ortalama %50). Hafta 31: Atlas IK gecikmede (`delayedProjects: 1`) |
 | `?weekNumber=31` | `400 VALIDATION_ERROR`, `fieldErrors[0].field: weekNumber` |
 | `?weeks=53` | `400 VALIDATION_ERROR`, `fieldErrors[0].field: weeks` |
+
+### Excel çıktısı: `GET /api/dashboard/export`
+
+Bölüm 2'deki parametrelerin hepsini alır ve `cto-ozeti-<bugün>.xlsx` dosyası döner (Content-Type
+`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `Content-Disposition: attachment`).
+Sayfalar: *Özet* (uygulanan filtreler ve sayaçlar), *Projeler* (bölüm 2'deki satırlar), *Riskler ve
+aksiyonlar* (listelenen projelerin kapanmamış kayıtları), *Trend* (aynı referansla biten 12 hafta).
+Hatalı parametre bölüm 5'teki gibi JSON `400` döner; `Accept` başlığı sonucu değiştirmez.
 
 ---
 
@@ -403,5 +412,6 @@ Sayaçlar ve sayfa toplamları da bu kümeden hesaplanır. Bir proje yöneticisi
 | `WorkItemQueryTest` (yeni, `@DataJpaTest`) | Değerlendirilen rapor alt sorgusu, `assignee` araması, gecikme koşulu |
 | `FilterIntegrationTest` (yeni, MockMvc) | Bölüm 2–4'teki örnekler ve bölüm 5'teki her hata satırı |
 | `TrackingItemQueryTest` (`@DataJpaTest`) | Bölüm 4a koşulları: gecikme (takip tarihi olmayan kapalı kayıt `false` sorgusunda kalır), çok değerli filtreler, `assignee` araması, proje sahibi |
+| `ExportIntegrationTest` (MockMvc) | Excel çıktısı: sayfalar, filtrelerin uygulanması, hücre türleri, hata durumunda JSON 400 |
 | `TrendIntegrationTest` (MockMvc) | Bölüm 2a: haftalık seriler, açılan / kapanan kayıtlar, Türkiye saatiyle hafta başlangıcı, yıl sınırı, son haftanın dashboard'la aynı olması, hata durumları |
 | `TrackingItemIntegrationTest` (MockMvc) | Bölüm 4a örnekleri, sayfa ve sıralama; bölüm 2'deki takip sayaçları ve hafta referansının onları değiştirmemesi |

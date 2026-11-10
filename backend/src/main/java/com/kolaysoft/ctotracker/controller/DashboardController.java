@@ -1,8 +1,12 @@
 package com.kolaysoft.ctotracker.controller;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -15,11 +19,14 @@ import com.kolaysoft.ctotracker.dto.filter.TrendFilter;
 import com.kolaysoft.ctotracker.entity.OverallStatus;
 import com.kolaysoft.ctotracker.entity.ProjectStatus;
 import com.kolaysoft.ctotracker.entity.RiskLevel;
+import com.kolaysoft.ctotracker.export.DashboardExportService;
 import com.kolaysoft.ctotracker.service.DashboardService;
 import com.kolaysoft.ctotracker.service.TrendService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -38,10 +45,13 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
     private final TrendService trendService;
+    private final DashboardExportService exportService;
 
-    public DashboardController(DashboardService dashboardService, TrendService trendService) {
+    public DashboardController(DashboardService dashboardService, TrendService trendService,
+                               DashboardExportService exportService) {
         this.dashboardService = dashboardService;
         this.trendService = trendService;
+        this.exportService = exportService;
     }
 
     @Operation(summary = "Portföyün haftalık trendi",
@@ -122,5 +132,57 @@ public class DashboardController {
 
         return dashboardService.getSummary(new DashboardFilter(
                 projectId, projectStatus, ownerId, year, weekNumber, overallStatus, riskLevel, delayed));
+    }
+
+    @Operation(summary = "CTO özetini Excel (.xlsx) olarak indir",
+            description = "Dashboard'da görülenin dosya hali, aynı filtrelerle. Sayfalar: Özet (sayaçlar ve uygulanan "
+                    + "filtreler), Projeler (dashboard satırları), Riskler ve aksiyonlar (listelenen projelerin kapanmamış "
+                    + "kayıtları), Trend (aynı referansla biten son 12 hafta).")
+    @ApiResponse(responseCode = "200", description = "Excel dosyası",
+            content = @Content(mediaType = DashboardExportService.CONTENT_TYPE))
+    // produces verilmez: hatali parametrenin 400 govdesi JSON'dur ve "yalnizca xlsx" diyen bir esleme bunu 406'ya
+    // cevirirdi. Basarili yanitin tipi asagida acikca konur; Spring onceden konmus tipi oldugu gibi kullanir.
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> export(
+            @Parameter(description = "Yalnizca bu proje", example = "1")
+            @RequestParam(required = false) Long projectId,
+
+            @Parameter(description = "Proje durumu; birden cok deger virgulle verilebilir", example = "DEVAM_EDIYOR")
+            @RequestParam(required = false) List<ProjectStatus> projectStatus,
+
+            @Parameter(description = "Sorumlu proje yoneticisinin kullanici id'si", example = "1")
+            @RequestParam(required = false) Long ownerId,
+
+            @Parameter(description = "Referans yil (raporun anlattigi haftanin ISO yili). Yalnizca yil verilirse her proje "
+                    + "icin o yilin sonuna kadarki en son rapor esas alinir", example = "2026")
+            @RequestParam(required = false)
+            @Min(value = 2000, message = "Yıl en az 2000 olmalıdır.")
+            @Max(value = 2100, message = "Yıl en fazla 2100 olmalıdır.") Integer year,
+
+            @Parameter(description = "Referans hafta (1-53), yalnizca year ile birlikte: her proje icin bu yil ve "
+                    + "haftaya kadarki en son rapor esas alinir (onceki yillar dahil); o noktaya kadar raporu "
+                    + "olmayan projeler hasReport=false ile listelenir. year olmadan 400 doner", example = "29")
+            @RequestParam(required = false)
+            @Min(value = 1, message = "Hafta numarası en az 1 olmalıdır.")
+            @Max(value = 53, message = "Hafta numarası en fazla 53 olmalıdır.") Integer weekNumber,
+
+            @Parameter(description = "Raporun genel durumu; birden cok deger virgulle verilebilir", example = "RISKLI")
+            @RequestParam(required = false) List<OverallStatus> overallStatus,
+
+            @Parameter(description = "Raporun risk seviyesi; birden cok deger virgulle verilebilir",
+                    example = "ORTA,YUKSEK")
+            @RequestParam(required = false) List<RiskLevel> riskLevel,
+
+            @Parameter(description = "true: yalnizca gecikmedeki projeler, false: yalnizca gecikmede olmayanlar",
+                    example = "true")
+            @RequestParam(required = false) Boolean delayed) {
+
+        byte[] file = exportService.export(new DashboardFilter(
+                projectId, projectStatus, ownerId, year, weekNumber, overallStatus, riskLevel, delayed));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(exportService.fileName(), StandardCharsets.UTF_8).build().toString())
+                .contentType(MediaType.parseMediaType(DashboardExportService.CONTENT_TYPE))
+                .body(file);
     }
 }

@@ -125,6 +125,22 @@ public class TrackingItemService {
                         Collectors.collectingAndThen(Collectors.toList(), items -> summarize(items, today))));
     }
 
+    /**
+     * Verilen projelerin kapanmamis kayitlari, en yakin takip tarihi once (Excel ciktisi). Gorunurluk cagiranin
+     * sorumlulugundadir: yalnizca kullanicinin gorebildigi projelerin id'leri verilir.
+     */
+    @Transactional(readOnly = true)
+    public List<TrackingItemResponse> openItemsOf(Collection<Long> projectIds) {
+        if (projectIds.isEmpty()) {
+            return List.of();
+        }
+        LocalDate today = LocalDate.now(clock);
+        return trackingItemRepository.findByProjectIdInAndStatusNot(projectIds, TrackingItemStatus.KAPANDI).stream()
+                .sorted(PROJECT_ORDER)
+                .map(item -> toResponse(item, today))
+                .toList();
+    }
+
     private TrackingSummary summarize(List<TrackingItem> openItems, LocalDate today) {
         RiskLevel highest = openItems.stream()
                 .map(TrackingItem::getRiskLevel)

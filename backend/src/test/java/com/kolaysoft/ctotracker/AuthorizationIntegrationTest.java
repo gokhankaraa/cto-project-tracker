@@ -150,6 +150,12 @@ class AuthorizationIntegrationTest {
                 .andExpect(jsonPath("$.weeks[0].projectsWithReport").value(1));
         as("mehmet", get("/api/dashboard/trend?year=2026&weekNumber=31&weeks=1"))
                 .andExpect(jsonPath("$.weeks[0].totalProjects").value(1));
+        // Excel ciktisi da ayni kumeden: proje yoneticisi yalnizca kendi projelerini indirir.
+        byte[] file = as("ayse", get("/api/dashboard/export")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        try (var workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook(new java.io.ByteArrayInputStream(file))) {
+            org.assertj.core.api.Assertions.assertThat(workbook.getSheet("Projeler").getLastRowNum()).isEqualTo(2);
+        }
         // Baskasinin sorumlu filtresi hata degil, bos sonuc (filtre sozlesmesi, bolum 8).
         as("ayse", get("/api/dashboard/summary").param("ownerId", "2"))
                 .andExpect(status().isOk())

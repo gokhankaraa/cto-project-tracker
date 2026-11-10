@@ -317,6 +317,7 @@ Every endpoint except health, login and the API docs requires a login token in t
 | GET | `/api/tracking-items` | Cross-project risk / blocker / decision / action list: filtered, paged, sorted |
 | GET | `/api/dashboard/summary` | CTO portfolio summary, with optional filters |
 | GET | `/api/dashboard/trend` | The portfolio week by week (default: the last 12 weeks), with the dashboard's project filters |
+| GET | `/api/dashboard/export` | The CTO summary as an Excel file (`.xlsx`), with the dashboard's filters |
 
 The full, interactive contract is in Swagger UI (use **Authorize** with a token from
 `/api/auth/login`). Key business rules (see pre-analysis §H-03/H-04):
@@ -350,6 +351,13 @@ The full, interactive contract is in Swagger UI (use **Authorize** with a token 
   reference. Risks, blockers, decisions and actions open at the end of each week come from their
   creation and closing dates, plus how many were opened and closed that week. Their risk level
   history is not kept, so there is no level breakdown over time.
+- The **Excel export** (`cto-ozeti-<date>.xlsx`) is the dashboard as a file, with the same filters,
+  in four sheets: *Özet* (when it was made, the filters applied and every counter), *Projeler*
+  (the dashboard rows), *Riskler ve aksiyonlar* (the open records of the listed projects, overdue
+  first) and *Trend* (the 12 weeks ending at the same reference). Numbers are number cells and
+  dates are date cells, so the sheets can be sorted and filtered in Excel; the header row stays in
+  place and has filters. Text is always written as text, so a title starting with `=` is not run
+  as a formula. A project manager's file only contains their own projects.
 - The dashboard also summarizes risks, blockers, decisions and actions: open risks, open blockers,
   pending decisions and overdue follow-ups across the listed projects, and on each row the
   project's open and overdue records and the highest level among its open risks and blockers. These
@@ -682,7 +690,7 @@ empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; ev
 creates its own data. Service tests use Mockito and need no database; they run as an Admin
 (a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
-Backend tests (205 in total). The HTTP tests of business rules run as an Admin
+Backend tests (212 in total). The HTTP tests of business rules run as an Admin
 (`@WithMockUser`); login, tokens and permissions are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
@@ -699,6 +707,12 @@ Backend tests (205 in total). The HTTP tests of business rules run as an Admin
   boundaries, and the V3 migration SQL (re-run on rows stored with the V2 rule) gives the same year
   as the Java rule; the year follows both week and report date, week 53 only in 53-week years,
   uniqueness is per project + year + week, and the latest report compares the year before the week
+- `ExportIntegrationTest` — the Excel file read back with POI: the four sheets, the file name with
+  today's date, the counters, project rows with Turkish labels (progress as a number, empty for a
+  project without a report), open records with the overdue one first and the follow-up date as a
+  date cell, the trend sheet, dashboard filters applied and written into *Özet*, a title starting
+  with `=` stored as text, the file returned whatever `Accept` says while a bad parameter still gets
+  a JSON 400
 - `TrendIntegrationTest` — the weekly trend over HTTP with its own data and fixed dates: each week
   judged by the latest report up to it (status counts, high risk, delay with an overdue work item,
   average progress), records open at the end of each week from creation and closing dates, a week
@@ -716,7 +730,7 @@ Backend tests (205 in total). The HTTP tests of business rules run as an Admin
 - `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
 - `HealthControllerTest` — health endpoint and DB connection (reports PostgreSQL)
 - `AuthorizationIntegrationTest` — the permission matrix end to end with the demo users logging in:
-  lists, dashboard (rows and counters) and its weekly trend, cross-project lists scoped to the project manager's own
+  lists, dashboard (rows and counters), its weekly trend and Excel export, cross-project lists scoped to the project manager's own
   projects; someone else's records (tracking items included) 404 with the same message as a missing
   one; the CTO gets 403 on every write, also with an invalid body or a missing record (no `fieldErrors` leak); a write
   without a rule is denied even for the Admin; project managers can't manage projects (403) and
@@ -831,7 +845,7 @@ Run on 2026-11-10 against the current `main`:
 
 | Check | Command | Result |
 |---|---|---|
-| Backend tests | `cd backend && ./mvnw test` | 205 passed, 0 failed, 0 skipped |
+| Backend tests | `cd backend && ./mvnw test` | 212 passed, 0 failed, 0 skipped |
 | Frontend tests | `cd frontend && npm test` | 189 passed in 26 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; largest chunk 324 kB (100 kB gzip) |
@@ -870,6 +884,9 @@ The [Tests](#tests) section lists what each test class covers.
 - **Ownership is a filter in each query.** A new read endpoint that forgets it would show a project
   manager other people's data. `AuthorizationIntegrationTest` covers every current endpoint;
   each new one needs a test there too.
+- **Turkish labels exist twice:** the screens use `frontend/src/lib/labels.ts`, the Excel export
+  `backend/.../export/ExportLabels.java`. A new enum value fails to compile on both sides until it
+  gets a label, but a renamed label has to be changed in both places.
 - **The ISO week rule exists twice,** in the backend and in `frontend/src/lib/isoWeek.ts`. Both are
   tested against the same table of dates, but a change on one side must be repeated on the other.
 - **Not deployed yet:** it runs only locally in Docker, without HTTPS.
