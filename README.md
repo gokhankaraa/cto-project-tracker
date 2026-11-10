@@ -47,6 +47,7 @@ Project documents (in [`docs/`](docs/), Turkish):
 | Validation | Spring Validation (Bean Validation) | Field-level required/format/range checks |
 | Security | Spring Security 7, OAuth2 Resource Server (JWT, HS256), BCrypt | Stateless login tokens with Spring's own JWT support (no extra JWT library); passwords stored only as hashes |
 | API docs | springdoc-openapi 3.0.3 (Swagger UI) | Test endpoints from the browser and show the API in the demo |
+| Excel export | Apache POI 5.5.1 (`poi-ooxml`) | Writes the CTO summary as an `.xlsx` file with typed number and date cells |
 | Helper | Lombok | Reduce boilerplate getter/setter/constructor code |
 | Tests | JUnit 5, Mockito, Testcontainers | Integration tests run against a throwaway PostgreSQL container |
 
@@ -60,6 +61,7 @@ Frontend:
 | Build / dev server | Vite 8 | Fast dev server with hot reload; static build output |
 | Components | Mantine 9 (`core`, `form`, `notifications`) | Ready table, select / multi-select, modal and form components; `@mantine/form` maps the backend's `fieldErrors` to inputs |
 | Server state | TanStack Query 5 | Caching, loading/error states and retries for API calls |
+| Charts | `@mantine/charts` (Recharts) | The dashboard's weekly trend; same theme as the rest of the UI, loaded only with the charts |
 | Routing | React Router 8 | Page routes, loaded lazily per page; filters kept in the address |
 | Tests / lint | Vitest, Testing Library, oxlint | Unit and component tests on jsdom against a mocked API; fast linting |
 
@@ -209,7 +211,7 @@ Screens:
 
 | Address | Screen |
 |---|---|
-| `/` | CTO dashboard: counters, project table and filters (year / week, owner, project status, overall status, risk, delay). A second row of counters covers risks, blockers, decisions and actions (open risks, open blockers, pending decisions, overdue follow-ups); each card opens the matching list, and a note says these show today's state whatever year / week is chosen. Each project row shows its open records, the highest open risk level and how many are overdue, linking to that project's records. The table fits a 1280 px screen without scrolling sideways |
+| `/` | CTO dashboard: counters, project table and filters (year / week, owner, project status, overall status, risk, delay). A second row of counters covers risks, blockers, decisions and actions (open risks, open blockers, pending decisions, overdue follow-ups); each card opens the matching list, and a note says these show today's state whatever year / week is chosen. Each project row shows its open records, the highest open risk level and how many are overdue, linking to that project's records. The table fits a 1280 px screen without scrolling sideways. Below it, "Son 12 hafta" charts the projects by status and the open risks, blockers, decisions and actions week by week (stacked bars, a tooltip per week, and the same numbers as a table on demand), using the dashboard's owner, project status and year / week filters |
 | `/projects` | Project list with search by project, customer or owner (Turkish letters and case ignored) |
 | `/projects/:id` | Project details, its risks, blockers, decisions and actions (add / edit in a dialog, delete with confirmation), and its weekly reports, newest week first; delete with confirmation (blocked while the project has reports or such records) |
 | `/projects/new`, `/projects/:id/edit` | Project form; checks the backend's rules before sending and shows the backend's `fieldErrors` under the matching input |
@@ -243,6 +245,12 @@ Weekly report form:
   back or skipping a stage); the others are shown disabled.
 - Backend errors land where they belong: a second report for the same week (`409`) under the week,
   a stage rule violation under the stage, `fieldErrors` under their inputs, anything else above the form.
+
+The trend charts use the badge colors' hue families, at steps chosen with a color-vision
+check so neighboring segments stay apart for color-blind readers too (adjacent pairs ΔE ≥ 8.6 in
+simulated color blindness); legends keep the series order, values sit in neutral text, and the
+"Tablo olarak göster" button shows the numbers without relying on color. The chart library is
+a separate chunk, so the dashboard's cards and table appear before it loads.
 
 Filters are kept in the address (`/?riskLevel=ORTA,YUKSEK&year=2026`), so a filtered view survives
 a reload and can be shared as a link. Invalid values in a hand-edited address are ignored, the same
@@ -759,7 +767,7 @@ Backend tests (212 in total). The HTTP tests of business rules run as an Admin
   only from the listed projects
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (189, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (192, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
 
 - `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
@@ -793,6 +801,8 @@ Frontend tests (189, Vitest + Testing Library on jsdom; component tests never re
   filters sent to the API, reference text for year / week, clearing filters, empty result; the
   risk and action cards link to the filtered list, a row's open records link to the project's
   records, and the note that a year / week does not change these counters
+- `TrendSection.test.tsx` — only the project filters and the year / week reach the trend request
+  (report filters do not), the reference text, the table view with each week's numbers
 - `format.test.ts` — Turkish-insensitive search, date and week formatting, id parsing from the address
 - `ProjectListPage.test.tsx` — list with detail links, search typed or taken from the address
 - `ProjectDetailPage.test.tsx` — details and reports newest first, delete disabled when there are
@@ -846,9 +856,9 @@ Run on 2026-11-10 against the current `main`:
 | Check | Command | Result |
 |---|---|---|
 | Backend tests | `cd backend && ./mvnw test` | 212 passed, 0 failed, 0 skipped |
-| Frontend tests | `cd frontend && npm test` | 189 passed in 26 files |
+| Frontend tests | `cd frontend && npm test` | 192 passed in 27 files |
 | Frontend lint | `npm run lint` | no findings |
-| Frontend build | `npm run build` | builds; largest chunk 324 kB (100 kB gzip) |
+| Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
 | CI | GitHub Actions on push to `main` | backend, frontend and Docker image jobs passed |
 | End-to-end | The demo scenarios in a browser on a clean Docker setup (local Playwright script) | report flow (14 checks), risks and actions flow (12 checks) and the API scenario (14 checks) passed, no console errors |
 

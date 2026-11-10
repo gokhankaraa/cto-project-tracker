@@ -187,6 +187,34 @@ export interface DashboardProjectSummary {
   highestOpenRiskLevel: RiskLevel | null
 }
 
+/** dto/TrendWeek.java: portfoyun bir haftadaki hali (her proje o haftaya kadarki en son raporuyla). */
+export interface TrendWeek {
+  year: number
+  weekNumber: number
+  /** Haftanin pazartesisi (ISO tarih). */
+  weekStart: string
+  totalProjects: number
+  projectsWithReport: number
+  projectsByStatus: Record<OverallStatus, number>
+  highRiskProjects: number
+  delayedProjects: number
+  /** Raporlu proje yoksa null. */
+  averageProgress: number | null
+  /** Hafta sonunda acik kayitlar (olusturulma ve kapanis tarihinden). */
+  openRisks: number
+  openBlockers: number
+  pendingDecisions: number
+  openActions: number
+  openedTrackingItems: number
+  closedTrackingItems: number
+}
+
+/** GET /api/dashboard/trend */
+export interface DashboardTrend {
+  /** Eskiden yeniye. */
+  weeks: TrendWeek[]
+}
+
 /** GET /api/dashboard/summary */
 export interface DashboardSummary {
   totalProjects: number

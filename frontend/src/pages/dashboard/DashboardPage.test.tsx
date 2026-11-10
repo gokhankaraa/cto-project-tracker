@@ -65,7 +65,7 @@ const SUMMARY: DashboardSummary = {
 const SUMMARY_PATH = '/api/dashboard/summary'
 
 function setup(route = '/', summary: DashboardSummary = SUMMARY) {
-  const fetchMock = mockApi({ [SUMMARY_PATH]: summary, '/api/users': USERS })
+  const fetchMock = mockApi({ [SUMMARY_PATH]: summary, '/api/users': USERS, '/api/dashboard/trend': { weeks: [] } })
   renderWithProviders(<DashboardPage />, { route })
   return fetchMock
 }

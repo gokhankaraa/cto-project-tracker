@@ -1,5 +1,5 @@
-import { Box, Stack } from '@mantine/core'
-import { useMemo } from 'react'
+import { Box, Center, Loader, Stack } from '@mantine/core'
+import { lazy, Suspense, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 
 import { useDashboardSummary, type DashboardFilters } from '../../api/dashboard'
@@ -9,6 +9,12 @@ import { DashboardFilterBar } from './DashboardFilterBar'
 import { dashboardSearch, parseDashboardFilters } from './filters'
 import { ProjectSummaryTable } from './ProjectSummaryTable'
 import { SummaryCards, TrackingCards } from './SummaryCards'
+
+/**
+ * Grafikler ayri parca: grafik kutuphanesi (recharts) buyuk, dashboard ise giristen sonraki ilk sayfa. Kartlar ve
+ * tablo hemen gorunur, grafikler kendi parcasi inince gelir.
+ */
+const TrendSection = lazy(() => import('./TrendSection').then((m) => ({ default: m.TrendSection })))
 
 /** Kartlarin ve tablonun hangi rapor noktasina gore hesaplandigini soyler. */
 function referenceText({ year, weekNumber }: DashboardFilters) {
@@ -51,6 +57,17 @@ export function DashboardPage() {
           </Box>
         )}
       </QueryState>
+
+      {/* Kendi sorgusu var; ozet yuklenirken ya da hata verirken de bagimsiz gorunur. */}
+      <Suspense
+        fallback={
+          <Center h={120}>
+            <Loader size="sm" aria-label="Grafikler yükleniyor" />
+          </Center>
+        }
+      >
+        <TrendSection filters={filters} />
+      </Suspense>
     </Stack>
   )
 }
