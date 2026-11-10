@@ -12,8 +12,10 @@ Stack: **Java + Spring Boot, React + TypeScript** · Author: Gökhan Kara
 > a real PostgreSQL via Testcontainers. Reports carry the year of the week they describe (Flyway V2,
 > corrected at year boundaries in V3), and the filters accept a `year`. The React frontend covers
 > all of these screens behind a login screen. The API requires a login (JWT) and enforces
-> role-based permissions; the frontend shows each role only the actions it may take. Test results,
-> open issues, risks and the next phase are under [Project status](#project-status).
+> role-based permissions; the frontend shows each role only the actions it may take. Each project
+> also keeps its risks, blockers, decisions and actions with an assignee and a follow-up date
+> (Flyway V5); they have their own list and are summarized on the dashboard. Test results, open
+> issues, risks and the next phase are under [Project status](#project-status).
 
 Project documents (in [`docs/`](docs/), Turkish):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, data model, endpoints, assumptions, scope)
@@ -524,6 +526,29 @@ right between roles.
    - Sees every project, including the Nova POS report Ayşe just filed, and can create, edit and
      delete projects. **Sil** is disabled for a project that has reports.
 
+### Risks, blockers, decisions and actions
+
+On a freshly seeded database (dates in the demo data are relative to the day it is loaded):
+
+1. **Ayşe tracks her projects** (`ayse@example.com`)
+   - Under the dashboard's report counters, "Riskler ve aksiyonlar" shows only her projects:
+     1 open risk, 0 blockers, 0 pending decisions, 1 overdue follow-up.
+   - Nova POS → **Kayıt ekle**: choose **Engel**, a title, risk level **Yüksek**, an assignee and
+     yesterday as the follow-up date. The dialog refuses the date ("Takip tarihi bugünden önce
+     olamaz.") without sending anything; with a date three days ahead the blocker is added.
+   - Add a **Karar** the same way: its status reads "Karar bekleniyor".
+   - Atlas IK: the action "Musteriyle kapsam toplantisi" is marked **Gecikmede**. **Düzenle** →
+     status **Kapandı** → it moves down, dimmed, with today as its closing date.
+   - Back on the dashboard: 1 blocker, 1 pending decision, 0 overdue; the Nova POS row shows
+     2 open records with **Yüksek**.
+2. **Mehmet** (`mehmet@example.com`): **Riskler ve aksiyonlar** lists only e-Belge's two records;
+   choosing Atlas IK in the project filter gives an empty list.
+3. **CTO** (`cto@example.com`): the counters cover all projects (1 risk, 2 blockers, 2 pending
+   decisions, 0 overdue). The **Açık engel** card opens the list of both blockers (Nova POS and
+   e-Belge). Project pages show the records but no buttons to change them.
+4. **Admin** (`admin@example.com`): **Sil** is now disabled on Nova POS as well, since it has
+   records.
+
 ### Over the API
 
 The same flow with `curl` or Swagger UI (**Authorize** with the token). Log in with
@@ -546,6 +571,18 @@ The same flow with `curl` or Swagger UI (**Authorize** with the token). Log in w
 
 Other negative checks: skipping a progress stage on update → **400**; deleting a project that still
 has reports (as the Admin) → **409**.
+
+Risks, blockers, decisions and actions over the API:
+
+- **As Ayşe:** `POST /api/projects/3/tracking-items` `{ "type": "ENGEL", "title": "Kasa donanimi
+  gecikti", "riskLevel": "YUKSEK", "assignee": "Ayşe", "followUpDate": "<a date from today on>",
+  "status": "ACIK" }` → 201. Without `riskLevel`, or with a past `followUpDate` → **400** with the
+  field in `fieldErrors`.
+- **As the CTO:** `GET /api/tracking-items?overdue=true` → the overdue action;
+  `GET /api/dashboard/summary` → `openRisks`, `openBlockers`, `pendingDecisions`,
+  `overdueTrackingItems`. `POST /api/projects/1/tracking-items` → **403**.
+- **As Mehmet:** `GET /api/tracking-items/{id}` of an Atlas IK record → **404**.
+- **As the Admin:** `DELETE /api/projects/3` once Nova POS has a record → **409**.
 
 ## Package and layer structure
 
@@ -769,7 +806,8 @@ Frontend tests (189, Vitest + Testing Library on jsdom; component tests never re
 ## Project status
 
 **Done:** projects, weekly reports and work items (create, edit, delete, with their business
-rules); the CTO dashboard and the filtered, paged report and work item lists; login with JWT and
+rules); risks, blockers, decisions and actions with assignees, follow-up dates and overdue
+tracking; the CTO dashboard and the filtered, paged report, work item and risk / action lists; login with JWT and
 role-based permissions in the API, mirrored in the UI; the whole stack (PostgreSQL, backend,
 frontend behind nginx) in Docker Compose; CI on every push.
 
@@ -783,6 +821,8 @@ Run on 2026-11-10 against the current `main`:
 | Frontend tests | `cd frontend && npm test` | 189 passed in 26 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; largest chunk 324 kB (100 kB gzip) |
+| CI | GitHub Actions on push to `main` | backend, frontend and Docker image jobs passed |
+| End-to-end | The demo scenarios in a browser on a clean Docker setup (local Playwright script) | report flow (14 checks), risks and actions flow (12 checks) and the API scenario (14 checks) passed, no console errors |
 
 The [Tests](#tests) section lists what each test class covers.
 
@@ -798,6 +838,9 @@ The [Tests](#tests) section lists what each test class covers.
 - **No user management or password change:** users and their passwords come from the demo data.
 - **No token refresh or server-side logout:** a token stays valid until it expires (8 hours), even
   after logging out in the UI.
+- **No change history for risks and actions:** a record keeps its creation time and closing date,
+  but not who changed what or how its risk level moved. Trends over time can only use those two
+  dates until an audit log exists.
 - Report locking, audit log and export are out of the MVP scope (sections 7–8 of the
   pre-analysis document).
 
@@ -819,13 +862,13 @@ The [Tests](#tests) section lists what each test class covers.
 
 ### Next phase
 
-1. **Risk, decision and action records** for each project: who owns them, due dates and status,
-   linked to the weekly report where they were raised, and visible on the dashboard.
-2. **CTO metrics:** status and risk trends over the weeks for each project and the portfolio, with
-   charts, and export of the filtered lists (CSV / Excel).
-3. **User management for the Admin:** creating users, assigning roles and owners, resetting
+1. **CTO metrics:** status and risk trends over the weeks for each project and the portfolio (from
+   the weekly reports, and from the creation and closing dates of risks and actions), with charts,
+   and export of the filtered lists (CSV / Excel).
+2. **User management for the Admin:** creating users, assigning roles and owners, resetting
    passwords; a password change for every user. After that, the app no longer depends on demo data.
-4. **Production readiness:** a profile without demo data that refuses to start without a real
+3. **Production readiness:** a profile without demo data that refuses to start without a real
    `JWT_SECRET`, HTTPS, a deployment target, and token refresh or revocation.
-5. **Quality:** browser end-to-end tests of the demo scenario in CI, Turkish letters in the demo
+4. **Quality:** browser end-to-end tests of the demo scenarios in CI (today they run from a local
+   Playwright script), Turkish letters in the demo
    data, and a longer timeout for the slow form tests.
