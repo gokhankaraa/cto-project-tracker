@@ -846,9 +846,44 @@ Testcontainers on the runner's Docker), frontend checks (`npm ci`, lint, tests, 
 `docker compose build` (both images still build). If backend tests fail, the Surefire reports are
 attached to the run.
 
+### Regression plan
+
+Which tests guard each area before a release, and what is still missing. Backend and frontend tests
+run in CI on every push. The browser end-to-end checks still run from a local Playwright script
+against a clean Docker setup (see [Latest test run](#latest-test-run)).
+
+| Area | Backend (unit / integration) | Frontend (component) | Browser end to end | Gap, closed in |
+|---|---|---|---|---|
+| Login, token, roles | `AuthControllerTest`, `AuthorizationIntegrationTest`, `CorsConfigTest`, `UserControllerTest` | `LoginPage`, `session`, `RequireAuth`, `RequirePermission`, `AppLayout`, `client` | every flow logs in as the role that does the work | a setup without demo users and the first admin (prod profile) |
+| Projects | `ProjectServiceTest`, `MvpIntegrationTest` | `ProjectListPage`, `ProjectDetailPage`, `ProjectFormPage` | Admin: create, edit, delete blocked | — |
+| Weekly reports and work items | `WeeklyReportServiceTest`, `WorkItemServiceTest`, `WeeklyReportYearTest`, `WeeklyReportQueryTest`, `WorkItemQueryTest`, `FilterIntegrationTest` | `ReportFormPage`, `ReportDetailPage`, `ReportListPage`, `WorkItemsSection`, `WorkItemListPage`, `isoWeek`, `listFilters` | report flow: new report, work item, same week 409, delay filter | per-row queries in the paged lists |
+| Risks, blockers, decisions, actions | `TrackingItemServiceTest`, `TrackingItemQueryTest`, `TrackingItemIntegrationTest` | `TrackingItemsSection`, `TrackingItemListPage`, `filters` | risks and actions flow | — |
+| Dashboard, trend, Excel | `DashboardServiceTest`, `TrendIntegrationTest`, `ExportIntegrationTest`, `DataSeederIntegrationTest` | `DashboardPage`, `TrendSection`, `filters` | trend and Excel flow, file content | — |
+| Change history | `AuditServiceTest`, `AuditIntegrationTest` | `ProjectHistorySection`, `historyFormat` | change history flow (token identity, refused writes, XSS, paging) | history editable at the database level |
+| Errors, paging, formats | `GlobalExceptionHandlerTest`, `SortParameterTest` | `QueryState`, `client`, `searchParams`, `format` | console errors checked in every flow | — |
+| Build, health, setup | `HealthControllerTest`; images built in CI | production build in CI | local Docker demo | a production setup that refuses missing secrets, security headers, smoke test |
+| All of the above | | | **not in the repository or CI** | browser checks moved into the repository and CI |
+
+**Before a release** (smoke checklist, run on the production setup with an empty database):
+
+1. The production setup refuses to start without its secrets (database password, `JWT_SECRET`, first
+   admin).
+2. The images build, every container becomes healthy, and `GET /api/health` reports `UP` with the
+   database `UP`.
+3. The web app opens; the demo users cannot log in; the first admin can.
+4. Restarting does not create the admin again or change their password, and the data stays.
+5. As the Admin: create a project, a weekly report with a work item and a risk; the dashboard and
+   the Excel export show them; the project's change history lists each change.
+6. Responses carry the security headers; Swagger is not reachable; logs are at `INFO` and show no
+   secrets.
+
+A release goes out when CI is green and every smoke step passes.
+
 Spring tests run against a real PostgreSQL 17 started by Testcontainers (`TestcontainersConfiguration`);
 the schema comes from the same Flyway scripts as the application. Each test context starts with an
-empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; every other test
+empty database. Tests that rely on the demo data ask for the `demo` profile on purpose
+(`MvpIntegrationTest`, `AuthorizationIntegrationTest`, `TrackingItemIntegrationTest`,
+`ExportIntegrationTest`, `DataSeederIntegrationTest`, `AuditIntegrationTest`); every other test
 creates its own data. Service tests use Mockito and need no database; they run as an Admin
 (a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
