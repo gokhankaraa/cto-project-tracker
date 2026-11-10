@@ -63,8 +63,8 @@ class AuditIntegrationTest {
 
     /** e-Belge'nin seed engeli, risk seviyesi ORTA yerine YUKSEK; diger alanlar seed'deki gibi. */
     private static final String BLOCKER_HIGH = """
-            { "type": "ENGEL", "title": "Test ortamina erisim yok", "riskLevel": "YUKSEK",
-              "impact": "Entegrasyon testleri baslayamiyor", "actionPlan": "Musteri BT ekibinden VPN erisimi istendi",
+            { "type": "ENGEL", "title": "Test ortamına erişim yok", "riskLevel": "YUKSEK",
+              "impact": "Entegrasyon testleri başlayamıyor", "actionPlan": "Müşteri BT ekibinden VPN erişimi istendi",
               "assignee": "Mehmet Kaya", "followUpDate": "%s", "status": "DEVAM_EDIYOR" }
             """.formatted(TODAY_PLUS_3);
 
@@ -192,7 +192,7 @@ class AuditIntegrationTest {
             assertThat(event.getActorName()).isEqualTo("Mehmet Kaya");
             assertThat(event.getProjectId()).isEqualTo(2L);
             assertThat(event.getEntityId()).isEqualTo(blocker);
-            assertThat(event.getSummary()).isEqualTo("Test ortamina erisim yok");
+            assertThat(event.getSummary()).isEqualTo("Test ortamına erişim yok");
             assertThat(event.getChanges()).extracting(AuditChange::getField, AuditChange::getOldValue,
                     AuditChange::getNewValue).containsExactly(tuple("riskLevel", "ORTA", "YUKSEK"));
         });
@@ -235,7 +235,7 @@ class AuditIntegrationTest {
                 .andExpect(jsonPath("$.content[0].entityType").value("TAKIP_KAYDI"))
                 .andExpect(jsonPath("$.content[0].action").value("GUNCELLENDI"))
                 .andExpect(jsonPath("$.content[0].entityId").value(blocker))
-                .andExpect(jsonPath("$.content[0].summary").value("Test ortamina erisim yok"))
+                .andExpect(jsonPath("$.content[0].summary").value("Test ortamına erişim yok"))
                 .andExpect(jsonPath("$.content[0].actorId").value(2))
                 .andExpect(jsonPath("$.content[0].actorName").value("Mehmet Kaya"))
                 .andExpect(jsonPath("$.content[0].occurredAt").isNotEmpty())

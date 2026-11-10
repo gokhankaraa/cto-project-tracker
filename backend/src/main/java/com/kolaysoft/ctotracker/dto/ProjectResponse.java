@@ -14,7 +14,7 @@ public record ProjectResponse(
         @Schema(description = "Proje adi", example = "Atlas IK")
         String name,
 
-        @Schema(description = "Musteri", example = "Demo Musteri A.S.")
+        @Schema(description = "Musteri", example = "Demo Müşteri A.Ş.")
         String customer,
 
         @Schema(description = "Proje aciklamasi")
@@ -26,6 +26,6 @@ public record ProjectResponse(
         @Schema(description = "Sorumlu proje yoneticisinin id'si", example = "1")
         Long ownerId,
 
-        @Schema(description = "Sorumlu proje yoneticisinin adi", example = "Ayse Yilmaz")
+        @Schema(description = "Sorumlu proje yoneticisinin adi", example = "Ayşe Yılmaz")
         String ownerFullName) {
 }

@@ -3,7 +3,7 @@ import { choose, expect, login, test } from './fixtures'
 // Yazar: Ayse Atlas IK'nin riskini pencereden degistirir; degisiklik gecmisi ve gorunurluk. Temiz veritabani ister
 // (03 Nova POS'a rapor ve is kalemi ekledi; burada onlar da gecmiste gorunur).
 
-const RISK = "Entegrasyon API'si gec teslim edilebilir"
+const RISK = "Entegrasyon API'si geç teslim edilebilir"
 
 const history = (page: import('@playwright/test').Page) =>
   page.getByRole('list', { name: 'Değişiklikler' }).getByRole('listitem')
@@ -22,7 +22,7 @@ test('risk seviyesi degisikligi gecmise yazan kisiyle, sayfa yenilenmeden duser'
 
   await expect(history(page)).toHaveCount(1)
   const entry = history(page).first()
-  for (const text of ['Güncellendi', `Risk / aksiyon: ${RISK}`, 'Ayse Yilmaz', 'Risk seviyesi:', 'Yüksek', 'Orta']) {
+  for (const text of ['Güncellendi', `Risk / aksiyon: ${RISK}`, 'Ayşe Yılmaz', 'Risk seviyesi:', 'Yüksek', 'Orta']) {
     await expect(entry).toContainText(text)
   }
 })

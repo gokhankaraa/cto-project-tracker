@@ -32,7 +32,7 @@ Project documents (in [`docs/`](docs/), Turkish):
 ├── backend/                 Spring Boot REST API (Maven project, Dockerfile)
 ├── frontend/                React + TypeScript web app (Vite; Dockerfile + nginx.conf)
 ├── e2e/                     Browser end-to-end tests (Playwright) against the Docker setup
-├── scripts/                 smoke-test.sh: release check of a running setup from the outside
+├── scripts/                 smoke-test.sh: release check from the outside; demo-reset.sh: fresh demo data
 ├── docs/                    Analysis notes and the filter API contract
 ├── .github/workflows/       CI: backend tests, frontend checks, Docker images and browser tests
 ├── docker-compose.yml       Development setup: PostgreSQL, backend and frontend, demo profile
@@ -634,7 +634,7 @@ Swagger UI with an example value.
 - Paging: `page` starts at `0`, `size` is `1–100` (default `20`). The response is
   `{ content, page, size, totalElements, totalPages }`. Sorting is `field` or `field,asc|desc`,
   and `id` is always added as a tie-breaker so pages don't shift.
-- `assignee` is a case-insensitive "contains" search (`assignee=ayse` matches "Ayse Yilmaz").
+- `assignee` is a case-insensitive "contains" search (`assignee=ayse` matches "Ayşe Yılmaz").
 - **Delay rule:** a work item is delayed if its status is `GECIKTI`, or if its planned date is
   before its report's date and it is not `TAMAMLANDI`. A project is delayed if its evaluated report
   is `GECIKMELI` or contains a delayed work item. The report date is the reference, not today, so
@@ -647,16 +647,28 @@ Swagger UI with an example value.
 
 ## Demo data
 
-Under the `demo` profile (the default), `DataSeeder` loads sample data on startup when the database
-is empty, so Swagger and the endpoints are usable immediately without manual setup. Records already
-in the database are kept; reset with `docker compose down -v` to get the original demo data back.
+Under the `demo` profile (chosen by `docker-compose.yml` and the run command above; without a
+profile there is no demo data), `DataSeeder` loads sample data on startup when the database is
+empty, so Swagger and the endpoints are usable immediately without manual setup. Records already in
+the database are kept. To get the original demo data back, for example right before a
+presentation:
+
+```bash
+scripts/demo-reset.sh          # asks first; --yes to skip the question
+```
+
+It deletes the demo setup's containers and data volume, rebuilds and starts it, waits until the app
+answers and prints the addresses and demo logins. The production setup has its own volume and is
+not touched. Dates in the demo data are relative to the day it is loaded, so a reset demo looks the
+same every day. The texts use Turkish letters; a demo database seeded before they did keeps its
+ASCII texts until it is reset.
 
 **Sample users** — all with the demo password **`Demo1234!`** (demo data only; a database seeded
 before passwords existed gets the same password for users that have none):
 
 | id | email | name | role |
 |---|---|---|---|
-| 1 | `ayse@example.com` | Ayse Yilmaz | PROJECT_MANAGER |
+| 1 | `ayse@example.com` | Ayşe Yılmaz | PROJECT_MANAGER |
 | 2 | `mehmet@example.com` | Mehmet Kaya | PROJECT_MANAGER |
 | 3 | `cto@example.com` | Zeynep Demir | CTO |
 | 4 | `admin@example.com` | Sistem Admin | ADMIN |
@@ -696,7 +708,7 @@ right between roles.
    - The dashboard lists all four projects with their latest status; Nova POS has no report yet.
    - Filter **Risk → Yüksek**: only e-Belge. Clear it and filter **Gecikme → Yalnızca gecikenler**:
      only Atlas IK. Its status is "Yolunda", but a work item in week 31 is past its planned date.
-   - **İş kalemleri** with the same delay filter shows that item, "Rapor ekrani entegrasyonu".
+   - **İş kalemleri** with the same delay filter shows that item, "Rapor ekranı entegrasyonu".
    - Open any project: there is no "Düzenle", "Sil" or "Yeni rapor" button, and typing
      `/projects/new` into the address bar shows "Yetkiniz yok". The CTO reads, but does not write.
 2. **Project manager files a report** (`ayse@example.com`)
@@ -727,7 +739,7 @@ On a freshly seeded database (dates in the demo data are relative to the day it 
      yesterday as the follow-up date. The dialog refuses the date ("Takip tarihi bugünden önce
      olamaz.") without sending anything; with a date three days ahead the blocker is added.
    - Add a **Karar** the same way: its status reads "Karar bekleniyor".
-   - Atlas IK: the action "Musteriyle kapsam toplantisi" is marked **Gecikmede**. **Düzenle** →
+   - Atlas IK: the action "Müşteriyle kapsam toplantısı" is marked **Gecikmede**. **Düzenle** →
      status **Kapandı** → it moves down, dimmed, with today as its closing date.
    - Back on the dashboard: 1 blocker, 1 pending decision, 0 overdue; the Nova POS row shows
      2 open records with **Yüksek**.
@@ -761,7 +773,7 @@ On a freshly seeded database the history is empty: the demo data is not recorded
 1. **Ayşe** (`ayse@example.com`) opens Atlas IK. At the bottom, "Değişiklik geçmişi" says there are
    no changes yet. In "Riskler ve aksiyonlar", **Düzenle** the risk "Entegrasyon API'si gec teslim
    edilebilir" and set **Risk seviyesi** to **Orta**. Without reloading, the history shows
-   **Güncellendi**, "Risk / aksiyon: Entegrasyon API'si gec teslim edilebilir", her name, the time,
+   **Güncellendi**, "Risk / aksiyon: Entegrasyon API'si geç teslim edilebilir", her name, the time,
    and "Risk seviyesi: ~~Yüksek~~ → Orta".
 2. **Mehmet** (`mehmet@example.com`): http://localhost:3000/projects/1 shows "Kayıt bulunamadı",
    with no history; on e-Belge he sees only e-Belge's changes.
@@ -911,7 +923,7 @@ cd frontend
 npm test           # frontend unit tests, no backend needed
 
 # browser end-to-end tests: a clean demo setup first (this deletes the local demo data)
-docker compose down -v && docker compose up -d --build
+scripts/demo-reset.sh --yes
 cd e2e
 npm ci && npx playwright install chromium   # once
 npm test           # E2E_BASE_URL=http://host:port for another address (default http://localhost:3000)
@@ -1288,8 +1300,6 @@ the SQL count is the statements PostgreSQL logged for one call.
 
 ### Open issues
 
-- **Demo data without Turkish letters:** seeded names and texts are stored in ASCII ("Ayse Yilmaz",
-  "Demo Musteri A.S."), while the UI and the API messages use Turkish letters. Cosmetic only.
 - **Unknown query parameters are ignored:** a typo such as `?risk=YUKSEK` returns the unfiltered
   result instead of an error (see [Filtering](#filtering-paging-and-sorting)).
 - **No user management or password change:** in the production setup only the first admin exists,
@@ -1335,4 +1345,3 @@ the SQL count is the statements PostgreSQL logged for one call.
 2. **Production readiness:** HTTPS in front of the [production setup](#production-setup), backups, a
    public deployment target, token refresh or revocation, a database role that is not the table
    owner (only adds to and reads the change history), and a retention period for the history.
-3. **Quality:** Turkish letters in the demo data (`Ayse Yilmaz` → `Ayşe Yılmaz`).

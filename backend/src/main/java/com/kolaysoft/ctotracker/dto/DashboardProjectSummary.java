@@ -22,10 +22,10 @@ public record DashboardProjectSummary(
         @Schema(description = "Proje adi", example = "Atlas IK")
         String name,
 
-        @Schema(description = "Musteri", example = "Demo Musteri A.S.")
+        @Schema(description = "Musteri", example = "Demo Müşteri A.Ş.")
         String customer,
 
-        @Schema(description = "Sorumlu proje yoneticisi", example = "Ayse Yilmaz")
+        @Schema(description = "Sorumlu proje yoneticisi", example = "Ayşe Yılmaz")
         String ownerFullName,
 
         @Schema(description = "Projenin genel durumu", example = "DEVAM_EDIYOR")

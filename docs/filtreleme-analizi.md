@@ -66,7 +66,7 @@ Filtreleme bu soruların her birine tek bir istekle cevap verebilmeyi hedefliyor
 | KF-06 | Dashboard sayaçları (toplam proje, yüksek riskli, raporsuz, canlı task) filtrelenmiş kümeye göre hesaplanır. | Ekrandaki liste ile sayaçlar her zaman tutarlı kalır. |
 | KF-07 | Filtre sonucu boşsa yanıt `200` ve boş liste olur, `404` dönmez. Var olmayan bir proje id'siyle filtrelemek de boş liste döndürür. | Filtre bir kayıt arama işlemi değildir; "sonuç yok" bir hata değildir. |
 | KF-08 | Sayfalama rapor ve iş kalemi listelerinde olur, dashboard'da olmaz. | Rapor ve iş kalemi sayısı zamanla büyür. Proje sayısı küçük kalır ve sayaçlar tüm küme üzerinden hesaplanmalıdır. |
-| KF-09 | İş kalemi sorumlusu araması büyük/küçük harfe duyarsız ve "içerir" mantığıyla yapılır (`assignee=ayse` → "Ayse Yilmaz"). | `assignee` serbest metin; tam eşleşme kullanışsız olur. |
+| KF-09 | İş kalemi sorumlusu araması büyük/küçük harfe duyarsız ve "içerir" mantığıyla yapılır (`assignee=ayse` → "Ayşe Yılmaz"). | `assignee` serbest metin; tam eşleşme kullanışsız olur. |
 
 ## 6. Kullanıcı hikâyeleri
 

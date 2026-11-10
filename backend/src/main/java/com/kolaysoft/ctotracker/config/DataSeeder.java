@@ -91,37 +91,37 @@ public class DataSeeder implements CommandLineRunner {
             return;
         }
 
-        User ayse = saveUser("ayse@example.com", "Ayse Yilmaz", Role.PROJECT_MANAGER);
+        User ayse = saveUser("ayse@example.com", "Ayşe Yılmaz", Role.PROJECT_MANAGER);
         User mehmet = saveUser("mehmet@example.com", "Mehmet Kaya", Role.PROJECT_MANAGER);
         saveUser("cto@example.com", "Zeynep Demir", Role.CTO);
         saveUser("admin@example.com", "Sistem Admin", Role.ADMIN);
 
-        Project atlas = saveProject("Atlas IK", "Demo Musteri A.S.", "Insan kaynaklari surecleri urunu",
+        Project atlas = saveProject("Atlas IK", "Demo Müşteri A.Ş.", "İnsan kaynakları süreçleri ürünü",
                 ProjectStatus.DEVAM_EDIYOR, ayse);
-        Project ebelge = saveProject("e-Belge", "Demo Musteri A.S.", "e-Fatura / e-Arsiv cozumleri",
+        Project ebelge = saveProject("e-Belge", "Demo Müşteri A.Ş.", "e-Fatura / e-Arşiv çözümleri",
                 ProjectStatus.DEVAM_EDIYOR, mehmet);
         // Nova POS'a takip kaydi eklenmez: raporsuz ve kayitsiz proje silinebilir kalir (yetki testi onu siler).
-        saveProject("Nova POS", "Demo Musteri A.S.", "Perakende magazalar icin POS ve yazilim cozumu",
+        saveProject("Nova POS", "Demo Müşteri A.Ş.", "Perakende mağazalar için POS ve yazılım çözümü",
                 ProjectStatus.PLANLANDI, ayse);
 
         WeeklyReport atlasW29 = saveReport(atlas, 29, LocalDate.of(2026, 7, 20), ProgressStage.GELISTIRME,
                 OverallStatus.YOLUNDA, RiskLevel.ORTA,
-                "Rapor formu API'si gelistirildi.", "Dashboard ozet endpoint'i.",
-                "Zaman kisiti.", "Genel gidisat iyi.");
+                "Rapor formu API'si geliştirildi.", "Dashboard özet endpoint'i.",
+                "Zaman kısıtı.", "Genel gidişat iyi.");
         saveReport(atlas, 30, LocalDate.of(2026, 7, 27), ProgressStage.TEST,
                 OverallStatus.YOLUNDA, RiskLevel.DUSUK,
-                "Testler yazildi.", "Hata duzeltme.", "-", "Test asamasinda.");
+                "Testler yazıldı.", "Hata düzeltme.", "-", "Test aşamasında.");
         WeeklyReport ebelgeW30 = saveReport(ebelge, 30, LocalDate.of(2026, 7, 27), ProgressStage.ANALIZ,
                 OverallStatus.RISKLI, RiskLevel.YUKSEK,
-                "Mevzuat analizi.", "Veri modeli.", "Mevzuat belirsizligi.", "Analiz suruyor.");
+                "Mevzuat analizi.", "Veri modeli.", "Mevzuat belirsizliği.", "Analiz sürüyor.");
 
         saveWorkItem(atlasW29, "Rapor CRUD API'si", "Project/WeeklyReport endpoint'leri",
-                "Ayse Yilmaz", WorkItemStatus.TAMAMLANDI);
-        saveWorkItem(atlasW29, "Is kalemi modeli", "WorkItem entity ve CRUD",
-                "Ayse Yilmaz", WorkItemStatus.DEVAM_EDIYOR);
-        saveWorkItem(atlasW29, "Dashboard ozeti", "CTO ozet endpoint'i",
+                "Ayşe Yılmaz", WorkItemStatus.TAMAMLANDI);
+        saveWorkItem(atlasW29, "İş kalemi modeli", "WorkItem entity ve CRUD",
+                "Ayşe Yılmaz", WorkItemStatus.DEVAM_EDIYOR);
+        saveWorkItem(atlasW29, "Dashboard özeti", "CTO özet endpoint'i",
                 "Mehmet Kaya", WorkItemStatus.PLANLANDI);
-        saveWorkItem(ebelgeW30, "Mevzuat analizi", "e-Fatura kurallari",
+        saveWorkItem(ebelgeW30, "Mevzuat analizi", "e-Fatura kuralları",
                 "Mehmet Kaya", WorkItemStatus.DEVAM_EDIYOR);
 
         // Filtre demo verisi: Atlas IK icin 3. hafta (hafta filtresi ve sayfalama gorunsun) ve gecikme ornekleri.
@@ -129,11 +129,11 @@ public class DataSeeder implements CommandLineRunner {
         // gecikmeye dusurur; tarihi gecmis ama tamamlanmis is kalemi gecikme sayilmaz (filtreleme analizi KF-01).
         WeeklyReport atlasW31 = saveReport(atlas, 31, LocalDate.of(2026, 8, 3), ProgressStage.TEST,
                 OverallStatus.YOLUNDA, RiskLevel.ORTA,
-                "Regresyon testleri tamamlandi.", "Rapor ekrani entegrasyonu.",
-                "Entegrasyon gecikmesi.", "Testler bitti, entegrasyon suruyor.");
-        saveWorkItem(atlasW31, "Rapor ekrani entegrasyonu", "Rapor formunun API'ye baglanmasi",
-                "Ayse Yilmaz", WorkItemStatus.DEVAM_EDIYOR, LocalDate.of(2026, 7, 31), null);
-        saveWorkItem(atlasW31, "Test senaryolari", "Regresyon senaryolarinin yazilmasi",
+                "Regresyon testleri tamamlandı.", "Rapor ekranı entegrasyonu.",
+                "Entegrasyon gecikmesi.", "Testler bitti, entegrasyon sürüyor.");
+        saveWorkItem(atlasW31, "Rapor ekranı entegrasyonu", "Rapor formunun API'ye bağlanması",
+                "Ayşe Yılmaz", WorkItemStatus.DEVAM_EDIYOR, LocalDate.of(2026, 7, 31), null);
+        saveWorkItem(atlasW31, "Test senaryoları", "Regresyon senaryolarının yazılması",
                 "Mehmet Kaya", WorkItemStatus.TAMAMLANDI, LocalDate.of(2026, 7, 30), LocalDate.of(2026, 7, 31));
 
         seedTrackingItems(atlas, ebelge);
@@ -194,20 +194,20 @@ public class DataSeeder implements CommandLineRunner {
      */
     private void seedTrackingItems(Project atlas, Project ebelge) {
         LocalDate today = LocalDate.now(clock);
-        saveTrackingItem(atlas, TrackingItemType.RISK, "Entegrasyon API'si gec teslim edilebilir", RiskLevel.YUKSEK,
-                "Rapor ekrani entegrasyonu gecikir", "Musteriyle haftalik teslim takvimi yapilacak",
-                "Ayse Yilmaz", today.plusDays(7), TrackingItemStatus.ACIK, 12);
-        saveTrackingItem(atlas, TrackingItemType.AKSIYON, "Musteriyle kapsam toplantisi", null,
-                null, "Rapor ekranlarinin kapsami netlestirilecek",
-                "Ayse Yilmaz", today.minusDays(2), TrackingItemStatus.ACIK, 9);
-        saveTrackingItem(atlas, TrackingItemType.KARAR, "Raporlama kutuphanesi secimi", null,
-                "Disa aktarma ozelligini belirler", "Iki kutuphane karsilastirildi, hafif olan secildi",
+        saveTrackingItem(atlas, TrackingItemType.RISK, "Entegrasyon API'si geç teslim edilebilir", RiskLevel.YUKSEK,
+                "Rapor ekranı entegrasyonu gecikir", "Müşteriyle haftalık teslim takvimi yapılacak",
+                "Ayşe Yılmaz", today.plusDays(7), TrackingItemStatus.ACIK, 12);
+        saveTrackingItem(atlas, TrackingItemType.AKSIYON, "Müşteriyle kapsam toplantısı", null,
+                null, "Rapor ekranlarının kapsamı netleştirilecek",
+                "Ayşe Yılmaz", today.minusDays(2), TrackingItemStatus.ACIK, 9);
+        saveTrackingItem(atlas, TrackingItemType.KARAR, "Raporlama kütüphanesi seçimi", null,
+                "Dışa aktarma özelliğini belirler", "İki kütüphane karşılaştırıldı, hafif olan seçildi",
                 "Zeynep Demir", null, TrackingItemStatus.KAPANDI, 20);
-        saveTrackingItem(ebelge, TrackingItemType.ENGEL, "Test ortamina erisim yok", RiskLevel.ORTA,
-                "Entegrasyon testleri baslayamiyor", "Musteri BT ekibinden VPN erisimi istendi",
+        saveTrackingItem(ebelge, TrackingItemType.ENGEL, "Test ortamına erişim yok", RiskLevel.ORTA,
+                "Entegrasyon testleri başlayamıyor", "Müşteri BT ekibinden VPN erişimi istendi",
                 "Mehmet Kaya", today.plusDays(3), TrackingItemStatus.DEVAM_EDIYOR, 5);
-        saveTrackingItem(ebelge, TrackingItemType.KARAR, "e-Arsiv saglayicisi secimi", null,
-                "Maliyet ve teslim tarihini etkiler", "Iki teklif CTO'ya sunulacak",
+        saveTrackingItem(ebelge, TrackingItemType.KARAR, "e-Arşiv sağlayıcısı seçimi", null,
+                "Maliyet ve teslim tarihini etkiler", "İki teklif CTO'ya sunulacak",
                 "Zeynep Demir", today.plusDays(10), TrackingItemStatus.ACIK, 3);
     }
 
@@ -233,34 +233,34 @@ public class DataSeeder implements CommandLineRunner {
      * boylece dashboard sayaclari (geciken, yuksek risk) bu projeden etkilenmez. Takip kaydi da eklenmez.
      */
     private void seedTrendProject(User owner) {
-        Project orion = saveProject(TREND_PROJECT, "Demo Musteri A.S.", "Saha ekipleri icin mobil uygulama",
+        Project orion = saveProject(TREND_PROJECT, "Demo Müşteri A.Ş.", "Saha ekipleri için mobil uygulama",
                 ProjectStatus.DEVAM_EDIYOR, owner);
         LocalDate today = LocalDate.now(clock);
         saveReportWeeksAgo(orion, today, 10, ProgressStage.ANALIZ, OverallStatus.YOLUNDA, RiskLevel.DUSUK,
-                "Saha ekipleriyle ihtiyac gorusmeleri.", "Ekran akislari.", "-", "Proje basladi.");
+                "Saha ekipleriyle ihtiyaç görüşmeleri.", "Ekran akışları.", "-", "Proje başladı.");
         saveReportWeeksAgo(orion, today, 9, ProgressStage.ANALIZ, OverallStatus.YOLUNDA, RiskLevel.DUSUK,
-                "Ekran akislari cikarildi.", "Teknik altyapi secimi.", "-", "Analiz plana uygun.");
+                "Ekran akışları çıkarıldı.", "Teknik altyapı seçimi.", "-", "Analiz plana uygun.");
         saveReportWeeksAgo(orion, today, 8, ProgressStage.GELISTIRME, OverallStatus.RISKLI, RiskLevel.ORTA,
-                "Mobil uygulama iskeleti kuruldu.", "Cevrimdisi senkronizasyon.",
-                "Cevrimdisi calisma tasarimi belirsiz.", "Senkronizasyon tasarimi riskli.");
+                "Mobil uygulama iskeleti kuruldu.", "Çevrimdışı senkronizasyon.",
+                "Çevrimdışı çalışma tasarımı belirsiz.", "Senkronizasyon tasarımı riskli.");
         saveReportWeeksAgo(orion, today, 7, ProgressStage.GELISTIRME, OverallStatus.RISKLI, RiskLevel.ORTA,
-                "Senkronizasyon prototipi.", "Harita entegrasyonu.", "Harita lisansi bekleniyor.",
+                "Senkronizasyon prototipi.", "Harita entegrasyonu.", "Harita lisansı bekleniyor.",
                 "Lisans gelmezse gecikme olur.");
         saveReportWeeksAgo(orion, today, 6, ProgressStage.GELISTIRME, OverallStatus.GECIKMELI, RiskLevel.YUKSEK,
-                "Gorev listesi ekrani.", "Harita entegrasyonu.", "Harita lisansi gelmedi.",
-                "Harita isi bir hafta kaydi.");
+                "Görev listesi ekranı.", "Harita entegrasyonu.", "Harita lisansı gelmedi.",
+                "Harita işi bir hafta kaydı.");
         saveReportWeeksAgo(orion, today, 5, ProgressStage.GELISTIRME, OverallStatus.BLOKE, RiskLevel.YUKSEK,
-                "Test verisi hazirlandi.", "Harita entegrasyonu.", "Musteri lisans onayini vermedi.",
-                "Lisans onayi olmadan ilerlenemiyor.");
+                "Test verisi hazırlandı.", "Harita entegrasyonu.", "Müşteri lisans onayını vermedi.",
+                "Lisans onayı olmadan ilerlenemiyor.");
         saveReportWeeksAgo(orion, today, 4, ProgressStage.GELISTIRME, OverallStatus.GECIKMELI, RiskLevel.YUKSEK,
-                "Lisans alindi, harita entegrasyonu basladi.", "Harita entegrasyonu.", "Kaybedilen iki hafta.",
-                "Plan iki hafta kaydirildi.");
+                "Lisans alındı, harita entegrasyonu başladı.", "Harita entegrasyonu.", "Kaybedilen iki hafta.",
+                "Plan iki hafta kaydırıldı.");
         saveReportWeeksAgo(orion, today, 3, ProgressStage.GELISTIRME, OverallStatus.RISKLI, RiskLevel.ORTA,
-                "Harita entegrasyonu tamamlandi.", "Bildirimler.", "Yeni plan siki.", "Gecikme kapaniyor.");
+                "Harita entegrasyonu tamamlandı.", "Bildirimler.", "Yeni plan sıkı.", "Gecikme kapanıyor.");
         saveReportWeeksAgo(orion, today, 2, ProgressStage.TEST, OverallStatus.YOLUNDA, RiskLevel.DUSUK,
-                "Bildirimler tamamlandi.", "Saha testi.", "-", "Yeni plana uygun.");
+                "Bildirimler tamamlandı.", "Saha testi.", "-", "Yeni plana uygun.");
         saveReportWeeksAgo(orion, today, 1, ProgressStage.TEST, OverallStatus.YOLUNDA, RiskLevel.DUSUK,
-                "Saha testinin ilk turu.", "Hata duzeltme.", "-", "Pilot hazirligi suruyor.");
+                "Saha testinin ilk turu.", "Hata düzeltme.", "-", "Pilot hazırlığı sürüyor.");
     }
 
     /**

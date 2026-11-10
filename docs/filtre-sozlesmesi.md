@@ -291,10 +291,10 @@ Bölüm 3'teki sayfa yapısı kullanılır, `content` elemanları `WorkItemRespo
 |---|---|
 | `GET /api/work-items` | 3 iş kalemi: Atlas IK hafta 31'in 2 kalemi, sonra planlanan tarihi olmayan e-Belge "Mevzuat analizi". Atlas IK'nın eski haftaları listelenmez (S-05), Nova POS'un raporu, Orion Mobil'in iş kalemi yok. |
 | `?year=2026&weekNumber=29` | Atlas IK hafta 29'un 3 iş kalemi |
-| `?year=2026&weekNumber=29&assignee=mehmet` | "Dashboard ozeti" |
+| `?year=2026&weekNumber=29&assignee=mehmet` | "Dashboard özeti" |
 | `?year=2026` | `GET /api/work-items` ile aynı 3 iş kalemi (2026 sonuna kadarki en son raporlar) |
-| `?status=DEVAM_EDIYOR` | "Rapor ekrani entegrasyonu" ve "Mevzuat analizi" |
-| `?delayed=true` | "Rapor ekrani entegrasyonu" (`delayed: true`) |
+| `?status=DEVAM_EDIYOR` | "Rapor ekranı entegrasyonu" ve "Mevzuat analizi" |
+| `?delayed=true` | "Rapor ekranı entegrasyonu" (`delayed: true`) |
 
 ## 4a. `GET /api/tracking-items` (V5)
 
@@ -331,9 +331,9 @@ Seed kayıtlarının tarihleri yüklendiği güne göredir; aşağıdaki sonuçl
 
 | İstek | Sonuç |
 |---|---|
-| `GET /api/tracking-items` | 5 kayıt. İlk sırada takip tarihi geçmiş "Musteriyle kapsam toplantisi" (`overdue: true`), en sonda takip tarihi olmayan kapalı karar "Raporlama kutuphanesi secimi" |
-| `?overdue=true` | Yalnızca "Musteriyle kapsam toplantisi" (Atlas IK, aksiyon) |
-| `?type=KARAR&status=ACIK,DEVAM_EDIYOR` | Bekleyen karar "e-Arsiv saglayicisi secimi" |
+| `GET /api/tracking-items` | 5 kayıt. İlk sırada takip tarihi geçmiş "Müşteriyle kapsam toplantısı" (`overdue: true`), en sonda takip tarihi olmayan kapalı karar "Raporlama kütüphanesi seçimi" |
+| `?overdue=true` | Yalnızca "Müşteriyle kapsam toplantısı" (Atlas IK, aksiyon) |
+| `?type=KARAR&status=ACIK,DEVAM_EDIYOR` | Bekleyen karar "e-Arşiv sağlayıcısı seçimi" |
 | `?riskLevel=ORTA,YUKSEK` | Atlas IK'nın yüksek riski ve e-Belge'nin orta seviyeli engeli |
 | `?assignee=zeynep&projectId=1` | Atlas IK'nın verilmiş kararı |
 

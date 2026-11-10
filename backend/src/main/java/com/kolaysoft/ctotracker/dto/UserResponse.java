@@ -14,7 +14,7 @@ public record UserResponse(
         @Schema(description = "Kullanici id'si", example = "1")
         Long id,
 
-        @Schema(description = "Ad soyad", example = "Ayse Yilmaz")
+        @Schema(description = "Ad soyad", example = "Ayşe Yılmaz")
         String fullName,
 
         @Schema(description = "Rol", example = "PROJECT_MANAGER")

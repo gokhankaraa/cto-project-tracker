@@ -186,23 +186,23 @@ class TrackingItemIntegrationTest {
         mockMvc.perform(get("/api/tracking-items"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(5))
-                .andExpect(jsonPath("$.content[0].title").value("Musteriyle kapsam toplantisi"))
+                .andExpect(jsonPath("$.content[0].title").value("Müşteriyle kapsam toplantısı"))
                 .andExpect(jsonPath("$.content[0].overdue").value(true))
-                .andExpect(jsonPath("$.content[4].title").value("Raporlama kutuphanesi secimi"));
+                .andExpect(jsonPath("$.content[4].title").value("Raporlama kütüphanesi seçimi"));
 
         mockMvc.perform(get("/api/tracking-items?overdue=true"))
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].type").value("AKSIYON"));
         mockMvc.perform(get("/api/tracking-items?type=KARAR&status=ACIK,DEVAM_EDIYOR"))
                 .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.content[0].title").value("e-Arsiv saglayicisi secimi"));
+                .andExpect(jsonPath("$.content[0].title").value("e-Arşiv sağlayıcısı seçimi"));
         mockMvc.perform(get("/api/tracking-items?riskLevel=ORTA,YUKSEK"))
                 .andExpect(jsonPath("$.totalElements").value(2));
         mockMvc.perform(get("/api/tracking-items?assignee=zeynep&projectId=1"))
                 .andExpect(jsonPath("$.totalElements").value(1));
         mockMvc.perform(get("/api/tracking-items?size=2&page=1&sort=title,asc"))
                 .andExpect(jsonPath("$.totalPages").value(3))
-                .andExpect(jsonPath("$.content[0].title").value("Musteriyle kapsam toplantisi"));
+                .andExpect(jsonPath("$.content[0].title").value("Müşteriyle kapsam toplantısı"));
     }
 
     @Test
