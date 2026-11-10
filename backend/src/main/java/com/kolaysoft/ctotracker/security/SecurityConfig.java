@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+
+import com.kolaysoft.ctotracker.common.exception.StartupConfigurationException;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -96,12 +98,13 @@ public class SecurityConfig {
      */
     static String checkedSecret(String secret, boolean demoProfile) {
         if (secret == null || secret.isBlank()) {
-            throw new IllegalStateException("JWT_SECRET tanımlı değil. En az 32 baytlık rastgele bir değer verin "
-                    + "(örn. openssl rand -base64 48); yerel geliştirmede demo profilini seçin.");
+            throw new StartupConfigurationException("JWT_SECRET tanımlı değil.",
+                    "En az 32 baytlık rastgele bir değer verin (örn. openssl rand -base64 48); yerel geliştirmede demo "
+                            + "profilini seçin (SPRING_PROFILES_ACTIVE=demo).");
         }
         if (!demoProfile && secret.startsWith(DEV_SECRET_PREFIX)) {
-            throw new IllegalStateException("JWT_SECRET repository'deki geliştirme değeri; bu değer yalnızca demo "
-                    + "profilinde kullanılabilir. Kendi rastgele değerinizi verin.");
+            throw new StartupConfigurationException("JWT_SECRET repository'deki geliştirme değeri; bu değer yalnızca "
+                    + "demo profilinde kullanılabilir.", "Kendi rastgele değerinizi verin (örn. openssl rand -base64 48).");
         }
         return secret;
     }
@@ -113,8 +116,9 @@ public class SecurityConfig {
     static SecretKey hmacKey(String secret) {
         byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) {
-            throw new IllegalStateException(
-                    "app.auth.jwt-secret (JWT_SECRET) en az 32 bayt olmali; verilen: " + bytes.length + " bayt.");
+            throw new StartupConfigurationException(
+                    "app.auth.jwt-secret (JWT_SECRET) en az 32 bayt olmali; verilen: " + bytes.length + " bayt.",
+                    "Daha uzun rastgele bir deger verin (or. openssl rand -base64 48).");
         }
         return new SecretKeySpec(bytes, "HmacSHA256");
     }

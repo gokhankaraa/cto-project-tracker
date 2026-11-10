@@ -103,8 +103,12 @@ Alternatively, build and run a jar (from `backend/`):
 
 ```bash
 ./mvnw clean package
-java -jar target/cto-project-tracker-backend-0.0.1-SNAPSHOT.jar
+java -jar target/cto-project-tracker-backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=demo
 ```
+
+Without a profile the jar starts with the production settings (see [Profiles](#configuration)) and
+stops at once if `JWT_SECRET` or, on an empty database, the first admin is missing. It says what is
+missing and what to do in a short "APPLICATION FAILED TO START" block instead of a stack trace.
 
 ### Run everything with Docker
 
@@ -155,7 +159,7 @@ curl http://localhost:8080/api/health
   "application": "cto-project-tracker-backend",
   "databaseStatus": "UP",
   "database": "PostgreSQL 17.11",
-  "timestamp": "2026-07-22T15:49:49.528096+03:00"
+  "timestamp": "2026-11-10T20:15:11.264992638Z"
 }
 ```
 
@@ -827,11 +831,14 @@ Change history over the API:
 
 ```
 com.kolaysoft.ctotracker
-├── config/           Application configuration (OpenAPI/Swagger, CORS, demo data seeder)
+├── config/           Application configuration (OpenAPI/Swagger, CORS, clock), the demo data seeder,
+│                     the first admin (AdminBootstrap) and the startup failure summary
 ├── security/         Spring Security setup, token issuing, 401/403 responses, permission rules
 │                     (Permissions) and the logged-in user's visibility (CurrentUser, Viewer)
 ├── controller/       HTTP layer: request handling, DTO exchange
-├── service/          Business rules (stage transitions, uniqueness, delay rule)
+├── service/          Business rules (stage transitions, uniqueness, delay rule), dashboard and trend,
+│                     change history (AuditService writes it, HistoryService reads it)
+├── export/           The CTO summary as an Excel file (Apache POI)
 ├── repository/       Database access via Spring Data JPA
 │   └── spec/         Filter conditions as JPA Specifications
 ├── entity/           JPA data model and enums
@@ -840,7 +847,8 @@ com.kolaysoft.ctotracker
 └── common/
     ├── error/        ApiError, ErrorCode, GlobalExceptionHandler
     ├── exception/    ResourceNotFoundException, DuplicateResourceException, BusinessRuleException,
-    │                 InvalidCredentialsException
+    │                 InvalidCredentialsException, InvalidParameterException, ResourceInUseException,
+    │                 StartupConfigurationException
     └── web/          SortParameter (sort allow-list and validation)
 ```
 
@@ -853,7 +861,7 @@ Whatever the error, the API returns a single body shape (see pre-analysis, secti
 
 ```json
 {
-  "timestamp": "2026-07-22T15:49:49.598473+03:00",
+  "timestamp": "2026-11-10T20:15:11.506974138Z",
   "status": 404,
   "code": "RESOURCE_NOT_FOUND",
   "message": "Proje bulunamadı: 42",
@@ -861,11 +869,14 @@ Whatever the error, the API returns a single body shape (see pre-analysis, secti
 }
 ```
 
+`timestamp` is the moment of the error in UTC (ISO 8601, ending in `Z`), like every instant the API
+returns; the frontend shows it in Turkey's time zone.
+
 Validation errors additionally include a `fieldErrors` array:
 
 ```json
 {
-  "timestamp": "2026-07-22T15:49:49.598473+03:00",
+  "timestamp": "2026-11-10T20:15:11.506974138Z",
   "status": 400,
   "code": "VALIDATION_ERROR",
   "message": "Gönderilen alanlar doğrulama kurallarına uymuyor.",
@@ -943,7 +954,7 @@ from local scripts (see [Latest test run](#latest-test-run)); `e2e/` keeps their
 | Area | Backend (unit / integration) | Frontend (component) | Browser end to end | Gap, closed in |
 |---|---|---|---|---|
 | Login, token, roles | `AuthControllerTest`, `AuthorizationIntegrationTest`, `CorsConfigTest`, `UserControllerTest`, `JwtSecretTest` | `LoginPage`, `session`, `RequireAuth`, `RequirePermission`, `AppLayout`, `client` | `01-access`; every flow logs in as the role that does the work | — |
-| Production settings, first admin | `ProductionSetupIntegrationTest`, `AdminBootstrapTest`, `JwtSecretTest` | — | smoke test on the production setup | — |
+| Production settings, first admin | `ProductionSetupIntegrationTest`, `AdminBootstrapTest`, `JwtSecretTest`, `StartupConfigurationFailureAnalyzerTest` | — | smoke test on the production setup | — |
 | Projects | `ProjectServiceTest`, `MvpIntegrationTest` | `ProjectListPage`, `ProjectDetailPage`, `ProjectFormPage` | `06-admin-projects` | — |
 | Weekly reports and work items | `WeeklyReportServiceTest`, `WorkItemServiceTest`, `WeeklyReportYearTest`, `WeeklyReportQueryTest`, `WorkItemQueryTest`, `FilterIntegrationTest` | `ReportFormPage`, `ReportDetailPage`, `ReportListPage`, `WorkItemsSection`, `WorkItemListPage`, `isoWeek`, `listFilters` | `03-report-flow`; `02-dashboard` delay filter | — |
 | Risks, blockers, decisions, actions | `TrackingItemServiceTest`, `TrackingItemQueryTest`, `TrackingItemIntegrationTest` | `TrackingItemsSection`, `TrackingItemListPage`, `filters` | `04-tracking-and-history` | — |
@@ -978,7 +989,7 @@ empty database. Tests that rely on the demo data ask for the `demo` profile on p
 creates its own data. Service tests use Mockito and need no database; they run as an Admin
 (a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
-Backend tests (254 in total). The HTTP tests of business rules run as an Admin
+Backend tests (257 in total). The HTTP tests of business rules run as an Admin
 (`@WithMockUser`); login, tokens and permissions are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
@@ -990,6 +1001,9 @@ Backend tests (254 in total). The HTTP tests of business rules run as an Admin
 - `AdminBootstrapTest` — first admin: created only when there are no users (e-mail trimmed and in
   lower case, password hashed, default name); nothing read or changed when users exist; startup
   refused without the values, with an invalid e-mail or a password shorter than 12 characters
+- `StartupConfigurationFailureAnalyzerTest` — a configuration error found deep inside a failed bean
+  creation becomes a short "APPLICATION FAILED TO START" summary with the problem and the fix; other
+  errors are left to Spring Boot; the analyzer is registered in `spring.factories`
 - `JwtSecretTest` — a missing secret stops startup with a clear message; the development secret only
   in the `demo` profile; an own secret anywhere
 - `FilterIntegrationTest` — filter endpoints over HTTP (MockMvc): dashboard filters and counters, year and
@@ -1223,7 +1237,7 @@ Run on 2026-11-10 against the current `main`:
 
 | Check | Command | Result |
 |---|---|---|
-| Backend tests | `cd backend && ./mvnw test` | 254 passed, 0 failed, 0 skipped |
+| Backend tests | `cd backend && ./mvnw test` | 257 passed, 0 failed, 0 skipped |
 | Frontend tests | `cd frontend && npm test` | 215 passed in 29 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |

@@ -1,0 +1,3 @@
+# Yapilandirma hatasiyla baslayamayan uygulamada yigin izi yerine kisa ozet (ne eksik, ne yapilmali).
+org.springframework.boot.diagnostics.FailureAnalyzer=\
+com.kolaysoft.ctotracker.config.StartupConfigurationFailureAnalyzer

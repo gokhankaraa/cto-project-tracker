@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import com.kolaysoft.ctotracker.common.exception.StartupConfigurationException;
 import com.kolaysoft.ctotracker.entity.Role;
 import com.kolaysoft.ctotracker.entity.User;
 import com.kolaysoft.ctotracker.repository.UserRepository;
@@ -61,15 +62,19 @@ public class AdminBootstrap implements CommandLineRunner {
             return;
         }
         if (email == null || email.isBlank() || password == null || password.isBlank()) {
-            throw new IllegalStateException("Veritabanında kullanıcı yok. İlk admin için ADMIN_EMAIL ve ADMIN_PASSWORD "
-                    + "verin (yerel geliştirmede demo profilini seçin).");
+            throw new StartupConfigurationException(
+                    "Veritabanında kullanıcı yok; ilk admin için ADMIN_EMAIL ve ADMIN_PASSWORD gerekli.",
+                    "İkisini ortam değişkeni olarak verin (parola en az " + MIN_PASSWORD_LENGTH + " karakter); yerel "
+                            + "geliştirmede demo profilini seçin (SPRING_PROFILES_ACTIVE=demo).");
         }
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
         if (!EMAIL.matcher(normalizedEmail).matches()) {
-            throw new IllegalStateException("ADMIN_EMAIL geçerli bir e-posta adresi değil.");
+            throw new StartupConfigurationException("ADMIN_EMAIL geçerli bir e-posta adresi değil.",
+                    "ADMIN_EMAIL'i ad@alan.uzanti biçiminde verin.");
         }
         if (password.length() < MIN_PASSWORD_LENGTH) {
-            throw new IllegalStateException("ADMIN_PASSWORD en az " + MIN_PASSWORD_LENGTH + " karakter olmalı.");
+            throw new StartupConfigurationException("ADMIN_PASSWORD en az " + MIN_PASSWORD_LENGTH + " karakter olmalı.",
+                    "Daha uzun bir parola verin.");
         }
 
         User admin = new User();
