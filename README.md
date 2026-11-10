@@ -71,6 +71,100 @@ Frontend:
 | Routing | React Router 8 | Page routes, loaded lazily per page; filters kept in the address |
 | Tests / lint | Vitest, Testing Library, oxlint | Unit and component tests on jsdom against a mocked API; fast linting |
 
+## Architecture and decisions
+
+An overview of how the parts fit together and why they are built this way. The details are in the
+sections linked from each row.
+
+### The system
+
+```mermaid
+flowchart LR
+    browser["Browser<br/>React app (Mantine, TanStack Query)"]
+    subgraph docker["Docker Compose"]
+        web["web: nginx<br/>built frontend files<br/>/api/** forwarded to app<br/>security headers"]
+        app["app: Spring Boot<br/>REST API, JWT login,<br/>rules, change history,<br/>Excel export"]
+        db[("db: PostgreSQL 17<br/>schema by Flyway V1–V7")]
+    end
+    browser -- "pages and /api on one address" --> web
+    web -- "/api/**" --> app
+    app -- "JPA / SQL" --> db
+```
+
+The browser talks to one address. nginx serves the built React app and forwards `/api/**` to the
+backend, so there is no CORS setup and the frontend image contains no backend address. The backend
+is stateless: every request carries its login token, and the database is the only state. The
+development setup (`docker-compose.yml`, demo profile) and the
+[production setup](#production-setup) (`docker-compose.prod.yml`) run the same images with different
+settings.
+
+### One request, end to end
+
+A project manager raises a blocker's risk level in the dialog on the project page:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor PM as Project manager
+    participant UI as React (dialog, TanStack Query)
+    participant SEC as Spring Security
+    participant CTL as Controller
+    participant SVC as TrackingItemService
+    participant AUD as AuditService
+    participant DB as PostgreSQL
+    PM->>UI: Risk seviyesi: Orta to Yüksek, Kaydet
+    UI->>UI: form rules (type, dates) before sending
+    UI->>SEC: PUT /api/tracking-items/4 with Bearer token
+    SEC->>SEC: verify the token's signature and expiry, role from the token
+    SEC->>SEC: write rule: project managers may write tracking items
+    SEC->>CTL: authenticated request
+    CTL->>CTL: validate the body (400 with fieldErrors otherwise)
+    CTL->>SVC: update(id, request)
+    SVC->>DB: load the item, 404 if it is another manager's project
+    SVC->>SVC: business rules (risk level by type, follow-up date)
+    SVC->>DB: UPDATE tracking_items
+    SVC->>AUD: changed fields (old and new values)
+    AUD->>DB: INSERT the history event, same transaction
+    DB-->>SVC: COMMIT (or roll back both)
+    SVC-->>CTL: the updated item
+    CTL-->>UI: 200 with the item
+    UI->>UI: refresh the project's items, the history and the dashboard
+```
+
+### The parts
+
+| Part | Responsibility |
+|---|---|
+| `backend/…/controller` | HTTP only: paths, parameter and body validation, status codes |
+| `backend/…/security` | Login tokens, the write rules (`Permissions`), who may see what (`CurrentUser`, `Viewer`) |
+| `backend/…/service` | Business rules, visibility (404 for someone else's record), dashboard and trend, change history |
+| `backend/…/repository` | Queries (Spring Data JPA, `Specification` filters, two native PostgreSQL queries) |
+| `backend/…/export` | The CTO summary as an Excel file |
+| `frontend/src/api` | One HTTP client, TypeScript types of the API, one TanStack Query hook per call |
+| `frontend/src/pages` | Screens; filters and paging live in the address, so a view can be shared and reloaded |
+| `frontend/src/auth`, `layout`, `components`, `lib` | Session and permissions in the UI, the app frame, shared components, formatting and Turkish labels |
+| `e2e/`, `scripts/` | Browser tests against the Docker setup; release smoke test and demo reset |
+
+### Decisions
+
+| Decision | Why | Cost |
+|---|---|---|
+| One repository for backend and frontend, one Compose file per setup | A change to the API and its screen lands in one commit; one command starts everything | Two toolchains in one repository |
+| PostgreSQL everywhere, schema only through Flyway, Hibernate only validates ([migrations](#database-migrations)) | The same engine in development, tests and production; every schema change is a reviewed script | No quick schema changes by editing entities |
+| Tests against a real PostgreSQL in Testcontainers, not an in-memory database ([tests](#tests)) | Native queries, triggers, constraints and year-boundary SQL behave as in production | Docker is needed to run the backend tests |
+| Stateless JWT in the `Authorization` header ([authentication](#authentication)) | No server sessions, no CSRF handling | No server-side logout; the token sits in `localStorage` (see [Risks](#risks)) |
+| Write rules in one place, everything else denied by default ([permissions](#permissions)) | A new endpoint is closed until a rule opens it | Each new write path needs a rule and a test |
+| Visibility as a filter in every query; someone else's record is a 404, not a 403 | Records of other projects cannot even be shown to exist | Every new read must apply the filter (`AuthorizationIntegrationTest` covers each one) |
+| A report belongs to the ISO week it describes; "latest report up to a week" is the reading model ([filtering](#filtering-paging-and-sorting)) | Dashboard, trend, lists and Excel answer "how did things look at week N" the same way | The week rule exists in Java and TypeScript, tested against the same dates |
+| Risks, blockers, decisions and actions in one table, tied to the project, not a week | A risk lives until it is closed; one list, one form | Type-specific rules (risk level only for risks and blockers) live in the service |
+| Lists and the dashboard load in a fixed number of queries ([performance](#performance)) | Response time does not grow with the number of rows or projects | Two PostgreSQL-specific queries |
+| Change history written by the services in the same transaction, append-only in the database ([change history](#change-history)) | No change without its trace; one readable table of field changes | Each write path must call it (a test checks all 12) |
+| The API sends raw values (enum names, ISO dates, UTC instants); the frontend shows Turkish labels | One meaning per value; a renamed label also changes old history entries | Types and labels exist twice; contract tests keep both sides equal |
+| Server state in TanStack Query, filters in the address | Loading and error states, caching and refreshing after a change are handled once | Each change must refresh the right queries |
+| Production settings are the default ([production setup](#production-setup)) | Forgetting a setting stops the app instead of running it with known passwords | Local development has to choose the `demo` profile |
+| The first admin from the environment, only on an empty database | No sign-up page or open endpoint to take over a fresh installation | More users can only be added in the database for now |
+| Same Docker images, nginx in front of the backend | No CORS, no backend address baked into the frontend, one public port | The frontend and the API must be served from the same address |
+
 ## Requirements
 
 - JDK 21 or newer (`java -version`)
