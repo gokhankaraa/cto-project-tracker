@@ -948,6 +948,7 @@ from local scripts (see [Latest test run](#latest-test-run)); `e2e/` keeps their
 | Risks, blockers, decisions, actions | `TrackingItemServiceTest`, `TrackingItemQueryTest`, `TrackingItemIntegrationTest` | `TrackingItemsSection`, `TrackingItemListPage`, `filters` | `04-tracking-and-history` | — |
 | Dashboard, trend, Excel | `DashboardServiceTest`, `TrendIntegrationTest`, `ExportIntegrationTest`, `DataSeederIntegrationTest` | `DashboardPage`, `TrendSection`, `filters` | `02-dashboard` | — |
 | Change history | `AuditServiceTest`, `AuditIntegrationTest`, `AuditHistoryProtectionTest` | `ProjectHistorySection`, `historyFormat` | `04-tracking-and-history`; locally also token identity, refused writes, XSS, paging | — |
+| Backend–frontend contract | `ApiContractTest`, `ExportLabelsContractTest` | — | every browser test goes through the real API | — |
 | Errors, paging, formats | `GlobalExceptionHandlerTest`, `SortParameterTest` | `QueryState`, `client`, `searchParams`, `format` | an unexpected console error fails every browser test | — |
 | Build, health, setup | `HealthControllerTest`; images built in CI | production build in CI | CI starts the Docker setup for every run and checks the production compose file; `05-mobile`; `scripts/smoke-test.sh` on the production setup | — |
 
@@ -976,7 +977,7 @@ empty database. Tests that rely on the demo data ask for the `demo` profile on p
 creates its own data. Service tests use Mockito and need no database; they run as an Admin
 (a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
-Backend tests (249 in total). The HTTP tests of business rules run as an Admin
+Backend tests (254 in total). The HTTP tests of business rules run as an Admin
 (`@WithMockUser`); login, tokens and permissions are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
@@ -1036,6 +1037,11 @@ Backend tests (249 in total). The HTTP tests of business rules run as an Admin
 - `TrackingItemQueryTest` — tracking item filter queries against the database (@DataJpaTest): the
   overdue condition (today's follow-up is not overdue, a closed record without a date stays in the
   `overdue=false` list), multi-value type / status / risk filters, assignee search, project owner
+- `ApiContractTest` — the backend–frontend contract: every DTO's fields (read by reflection) equal
+  the frontend's TypeScript type, every enum's values are the same and in the same order, and a new
+  DTO cannot be added without being covered here
+- `ExportLabelsContractTest` — the Excel export's Turkish labels equal the screen's, value by value,
+  including the decision-specific statuses
 - `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
 - `HealthControllerTest` — health endpoint and DB connection (reports PostgreSQL)
 - `AuthorizationIntegrationTest` — the permission matrix end to end with the demo users logging in:
@@ -1216,7 +1222,7 @@ Run on 2026-11-10 against the current `main`:
 
 | Check | Command | Result |
 |---|---|---|
-| Backend tests | `cd backend && ./mvnw test` | 249 passed, 0 failed, 0 skipped |
+| Backend tests | `cd backend && ./mvnw test` | 254 passed, 0 failed, 0 skipped |
 | Frontend tests | `cd frontend && npm test` | 215 passed in 29 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
@@ -1295,9 +1301,11 @@ the SQL count is the statements PostgreSQL logged for one call.
 - **Ownership is a filter in each query.** A new read endpoint that forgets it would show a project
   manager other people's data. `AuthorizationIntegrationTest` covers every current endpoint;
   each new one needs a test there too.
-- **Turkish labels exist twice:** the screens use `frontend/src/lib/labels.ts`, the Excel export
-  `backend/.../export/ExportLabels.java`. A new enum value fails to compile on both sides until it
-  gets a label, but a renamed label has to be changed in both places.
+- **Types and labels are written twice,** in Java and in TypeScript: the frontend's API types
+  (`frontend/src/api`) mirror the backend DTOs and enums, and the Excel export's Turkish labels
+  (`ExportLabels.java`) mirror the screen's (`frontend/src/lib/labels.ts`). The compilers cannot
+  see across, so `ApiContractTest` and `ExportLabelsContractTest` compare the two sides in every
+  backend test run; a change on one side still has to be made on the other.
 - **The ISO week rule exists twice,** in the backend and in `frontend/src/lib/isoWeek.ts`. Both are
   tested against the same table of dates, but a change on one side must be repeated on the other.
 - **Local production setup only:** the [production setup](#production-setup) is verified on a
