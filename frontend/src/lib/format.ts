@@ -27,6 +27,25 @@ export function formatDate(isoDate: string | null | undefined): string {
   return `${day}.${month}.${year}`
 }
 
+const DATE_TIME = new Intl.DateTimeFormat('tr-TR', {
+  timeZone: 'Europe/Istanbul',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
+/**
+ * Backend'in UTC anini ("2026-11-10T11:32:05Z") Turkiye saatiyle "10.11.2026 14:32" olarak gosterir. Tarayicinin
+ * saat dilimi ne olursa olsun ayni: backend'in "bugun"u da Turkiye saatidir.
+ */
+export function formatDateTime(instant: string | null | undefined): string {
+  if (!instant) return '–'
+  const date = new Date(instant)
+  return Number.isNaN(date.getTime()) ? '–' : DATE_TIME.format(date).replace(',', '')
+}
+
 /** "2026 / 31. hafta" */
 export function formatWeek(year: number | null, weekNumber: number | null): string {
   return year === null || weekNumber === null ? '–' : `${year} / ${weekNumber}. hafta`

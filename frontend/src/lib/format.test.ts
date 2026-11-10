@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import { foldText, formatDate, formatWeek, matchesSearch, parseId } from './format'
+import { foldText, formatDate, formatDateTime, formatWeek, matchesSearch, parseId } from './format'
 
 describe('foldText / matchesSearch', () => {
   it('Turkce harfleri ve buyuk/kucuk harfi esitler', () => {
@@ -33,6 +33,19 @@ describe('formatDate / formatWeek', () => {
   it('yil ve hafta', () => {
     expect(formatWeek(2026, 31)).toBe('2026 / 31. hafta')
     expect(formatWeek(null, null)).toBe('–')
+  })
+})
+
+describe('formatDateTime', () => {
+  it('UTC ani Turkiye saatiyle gosterir (UTC+3), gun donumunde de', () => {
+    expect(formatDateTime('2026-11-10T11:32:05Z')).toBe('10.11.2026 14:32')
+    expect(formatDateTime('2026-12-31T22:15:00Z')).toBe('01.01.2027 01:15')
+    expect(formatDateTime('2026-11-10T11:32:05.123456Z')).toBe('10.11.2026 14:32')
+  })
+
+  it('bos ya da gecersiz deger tire olur', () => {
+    expect(formatDateTime(null)).toBe('–')
+    expect(formatDateTime('dun')).toBe('–')
   })
 })
 

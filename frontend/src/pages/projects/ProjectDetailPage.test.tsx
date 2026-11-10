@@ -29,6 +29,7 @@ describe('ProjectDetailPage', () => {
       '/api/projects/1/tracking-items': [],
       // Backend sira garanti etmez.
       '/api/projects/1/reports': [report(1, 29), report(4, 31, { progressStage: 'TEST' }), report(2, 30)],
+      '/api/projects/1/history': { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 },
     })
     renderDetail()
 
@@ -45,6 +46,9 @@ describe('ProjectDetailPage', () => {
     ])
     // Raporu olan proje silinemez.
     expect(screen.getByRole('button', { name: 'Sil' })).toBeDisabled()
+    // Sayfanin sonunda degisiklik gecmisi.
+    expect(screen.getByRole('heading', { name: 'Değişiklik geçmişi' })).toBeInTheDocument()
+    expect(await screen.findByText(/henüz değişiklik kaydı yok/)).toBeInTheDocument()
   })
 
   it('risk / aksiyon kaydi olan proje silinemez', async () => {

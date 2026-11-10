@@ -40,6 +40,13 @@ export type TrackingItemStatus = (typeof TRACKING_ITEM_STATUSES)[number]
 export const ROLES = ['PROJECT_MANAGER', 'CTO', 'ADMIN'] as const
 export type Role = (typeof ROLES)[number]
 
+/** Degisiklik gecmisi (V6): islem ve kayit turu. */
+export const AUDIT_ACTIONS = ['OLUSTURULDU', 'GUNCELLENDI', 'SILINDI'] as const
+export type AuditAction = (typeof AUDIT_ACTIONS)[number]
+
+export const AUDIT_ENTITY_TYPES = ['PROJE', 'RAPOR', 'IS_KALEMI', 'TAKIP_KAYDI'] as const
+export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number]
+
 // --- Hata ve ortak yapilar ---
 
 /** Dogrulama hatasindaki tek bir alan (ApiError.fieldErrors). */
@@ -228,4 +235,24 @@ export interface DashboardSummary {
   pendingDecisions: number
   overdueTrackingItems: number
   projects: DashboardProjectSummary[]
+}
+
+/** Degisiklik gecmisinde tek alan. Degerler ham metindir (enum adi, ISO tarih, sayi); eklemede oldValue null. */
+export interface AuditChange {
+  field: string
+  oldValue: string | null
+  newValue: string | null
+}
+
+/** GET /api/projects/{id}/history elemani (dto/AuditEventResponse.java). occurredAt UTC ISO-8601. */
+export interface AuditEvent {
+  id: number
+  occurredAt: string
+  actorId: number | null
+  actorName: string
+  action: AuditAction
+  entityType: AuditEntityType
+  entityId: number
+  summary: string
+  changes: AuditChange[]
 }

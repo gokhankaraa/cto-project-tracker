@@ -1,6 +1,8 @@
 import type { MantineColor } from '@mantine/core'
 
 import type {
+  AuditAction,
+  AuditEntityType,
   OverallStatus,
   ProgressStage,
   ProjectStatus,
@@ -92,6 +94,20 @@ export const ROLE_LABELS: EnumLabels<Role> = {
 }
 
 /** Select / MultiSelect icin { value, label } secenekleri; sira enum dizisindeki siradir. */
+/** Degisiklik gecmisindeki islem: renk rozetin metniyle birlikte gorunur, tek basina anlam tasimaz. */
+export const AUDIT_ACTION_LABELS: EnumLabels<AuditAction> = {
+  OLUSTURULDU: { label: 'Eklendi', color: 'teal' },
+  GUNCELLENDI: { label: 'Güncellendi', color: 'blue' },
+  SILINDI: { label: 'Silindi', color: 'red' },
+}
+
+export const AUDIT_ENTITY_TYPE_LABELS: EnumLabels<AuditEntityType> = {
+  PROJE: { label: 'Proje', color: 'gray' },
+  RAPOR: { label: 'Haftalık rapor', color: 'gray' },
+  IS_KALEMI: { label: 'İş kalemi', color: 'gray' },
+  TAKIP_KAYDI: { label: 'Risk / aksiyon', color: 'gray' },
+}
+
 export function enumOptions<E extends string>(values: readonly E[], labels: EnumLabels<E>) {
   return values.map((value) => ({ value, label: labels[value].label }))
 }

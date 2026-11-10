@@ -21,6 +21,7 @@ import {
   RISK_LEVEL_LABELS,
 } from '../../lib/labels'
 import { NotFoundPage } from '../NotFoundPage'
+import { ProjectHistorySection } from './history/ProjectHistorySection'
 import { TrackingItemsSection } from '../tracking/TrackingItemsSection'
 
 /** /projects/:id. Gecersiz id (/projects/abc) istek atilmadan "sayfa bulunamadi" gosterir. */
@@ -74,6 +75,8 @@ function ProjectDetail({ id }: { id: number }) {
           <QueryState query={reports} isEmpty={(list) => list.length === 0} empty="Bu proje için henüz rapor yok.">
             {(list) => <ReportHistoryTable reports={list} />}
           </QueryState>
+
+          <ProjectHistorySection projectId={id} />
         </Stack>
       )}
     </QueryState>

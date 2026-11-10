@@ -218,7 +218,7 @@ Screens:
 |---|---|
 | `/` | CTO dashboard: counters, project table and filters (year / week, owner, project status, overall status, risk, delay). **Excel'e aktar** downloads the same view as an `.xlsx` file, with the filters chosen. A second row of counters covers risks, blockers, decisions and actions (open risks, open blockers, pending decisions, overdue follow-ups); each card opens the matching list, and a note says these show today's state whatever year / week is chosen. Each project row shows its open records, the highest open risk level and how many are overdue, linking to that project's records. The table fits a 1280 px screen without scrolling sideways. Below it, "Son 12 hafta" charts the projects by status and the open risks, blockers, decisions and actions week by week (stacked bars, a tooltip per week, and the same numbers as a table on demand), using the dashboard's owner, project status and year / week filters |
 | `/projects` | Project list with search by project, customer or owner (Turkish letters and case ignored) |
-| `/projects/:id` | Project details, its risks, blockers, decisions and actions (add / edit in a dialog, delete with confirmation), and its weekly reports, newest week first; delete with confirmation (blocked while the project has reports or such records) |
+| `/projects/:id` | Project details, its risks, blockers, decisions and actions (add / edit in a dialog, delete with confirmation), and its weekly reports, newest week first; delete with confirmation (blocked while the project has reports or such records). At the bottom, "Değişiklik geçmişi": who changed what and when in the project, its reports, work items and records, newest first, as a timeline ("Risk seviyesi: ~~Orta~~ → Yüksek"), with a record type filter and "Daha fazla göster"; a change made in a dialog on the page shows up without reloading |
 | `/projects/new`, `/projects/:id/edit` | Project form; checks the backend's rules before sending and shows the backend's `fieldErrors` under the matching input |
 | `/reports/:id` | Weekly report: stage, progress, status, risk, live tasks and the four text fields; delete with confirmation (its work items are deleted too). Below it, the report's work items with add / edit in a dialog and delete with confirmation |
 | `/projects/:id/reports/new`, `/reports/:id/edit` | Weekly report form (see below) |
@@ -761,7 +761,7 @@ empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; ev
 creates its own data. Service tests use Mockito and need no database; they run as an Admin
 (a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
-Backend tests (212 in total). The HTTP tests of business rules run as an Admin
+Backend tests (227 in total). The HTTP tests of business rules run as an Admin
 (`@WithMockUser`); login, tokens and permissions are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
@@ -846,7 +846,7 @@ Backend tests (212 in total). The HTTP tests of business rules run as an Admin
   only from the listed projects
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (203, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (215, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
 
 - `client.test.ts` — file download: the file and its suggested name (UTF-8 name first, a fallback
@@ -885,9 +885,17 @@ Frontend tests (203, Vitest + Testing Library on jsdom; component tests never re
   the address filters and saves the file, a failed download shows a notification
 - `TrendSection.test.tsx` — only the project filters and the year / week reach the trend request
   (report filters do not), the reference text, the table view with each week's numbers
-- `format.test.ts` — Turkish-insensitive search, date and week formatting, id parsing from the address
+- `format.test.ts` — Turkish-insensitive search, date and week formatting, date and time in Turkey's
+  time zone (also across midnight UTC), id parsing from the address
+- `ProjectHistorySection.test.tsx` — the change history: action badge, record, person and time in
+  Turkey; changed fields with their form labels and Turkish values (old value struck through, "yeni
+  değer" for screen readers), a create with new values only, a delete with no fields, a cleared field
+  as "boş", the empty state, the record type filter sent to the API, "Daha fazla göster" appending
+  the next page
+- `historyFormat.test.ts` — field names to form labels (type-specific first, unknown names kept),
+  values to labels by record type (status) and field, ISO dates to `dd.mm.yyyy`
 - `ProjectListPage.test.tsx` — list with detail links, search typed or taken from the address
-- `ProjectDetailPage.test.tsx` — details and reports newest first, delete disabled when there are
+- `ProjectDetailPage.test.tsx` — details and reports newest first, the change history at the end, delete disabled when there are
   reports or risk / action records, delete and return to the list (no request for the deleted project), 409 shown in the
   dialog, unknown and invalid ids
 - `ProjectFormPage.test.tsx` — required fields checked before sending, create (empty optional
@@ -938,8 +946,8 @@ Run on 2026-11-10 against the current `main`:
 
 | Check | Command | Result |
 |---|---|---|
-| Backend tests | `cd backend && ./mvnw test` | 212 passed, 0 failed, 0 skipped |
-| Frontend tests | `cd frontend && npm test` | 203 passed in 27 files |
+| Backend tests | `cd backend && ./mvnw test` | 227 passed, 0 failed, 0 skipped |
+| Frontend tests | `cd frontend && npm test` | 215 passed in 29 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
 | CI | GitHub Actions on push to `main` | backend, frontend and Docker image jobs passed |

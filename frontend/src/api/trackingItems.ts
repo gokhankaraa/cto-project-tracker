@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from './client'
+import { historyKeys } from './history'
 import { projectKeys } from './projects'
 import type {
   PageResponse,
@@ -81,12 +82,16 @@ export function useProjectTrackingItems(projectId: number) {
   })
 }
 
-/** Kayit degisince eskiyenler: projenin listesi, projeler arasi liste ve dashboard (takip sayaclari). */
+/**
+ * Kayit degisince eskiyenler: projenin listesi, projeler arasi liste, dashboard (takip sayaclari) ve ayni
+ * sayfadaki degisiklik gecmisi.
+ */
 function useInvalidateTrackingItems(projectId: number) {
   const queryClient = useQueryClient()
   return () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: trackingItemKeys.ofProject(projectId) }),
+      queryClient.invalidateQueries({ queryKey: historyKeys.ofProject(projectId) }),
       queryClient.invalidateQueries({ queryKey: trackingItemKeys.all }),
       queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
     ])
