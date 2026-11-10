@@ -1185,7 +1185,7 @@ generated for the run.
 |---|---|
 | Backend tests (`./mvnw test`) | 249 passed |
 | Frontend tests, lint, production build | 215 passed in 29 files; no lint findings; builds |
-| Browser tests (`e2e/`, demo setup) | 13 passed |
+| Browser tests (`e2e/`, demo setup) | 13 passed, locally and in CI |
 | Production setup refuses to start | without `DB_PASSWORD` / `JWT_SECRET` (Compose stops); without the first admin on an empty database; with the development `JWT_SECRET` |
 | Start | database, backend and web all `healthy`; only the web port is published |
 | `scripts/smoke-test.sh` | 11 checks passed: health, security headers, API docs off, demo login refused, admin login, other origins refused, project → report → work item → risk, dashboard, Excel export, change history, cleanup |
@@ -1220,7 +1220,7 @@ Run on 2026-11-10 against the current `main`:
 | Frontend tests | `cd frontend && npm test` | 215 passed in 29 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
-| CI | GitHub Actions on push to `main` | backend, frontend and Docker image jobs passed |
+| CI | GitHub Actions on push to `main` (run 42873440304, commit `dc78b94`) | backend (1.5 min), frontend (0.5 min), and Docker images with browser tests (2.5 min; 13 passed in 22 s) passed |
 | Browser tests | `cd e2e && npm test` on a clean demo setup (also a CI job) | 13 passed in 10 s, no unexpected console errors |
 | End-to-end, by feature | The demo scenarios in a browser on a clean Docker setup (local Playwright scripts, run once per feature) | report flow (14 checks), risks and actions flow (12 checks), the API scenario (14 checks) the trend and Excel flow (6 checks: tooltip, week-31 numbers, one owner's projects changing week by week, filtered download and its content, a project manager's own data, no sideways scroll on a phone) and the change history flow (9 checks: a change in a dialog shown without reloading, the person taken from the token whatever the body says, refused changes leaving no trace, history writes refused even for the Admin, another project's history 404 like a missing one, HTML in a title shown as text, paging, a deleted record's trace and the type filter, no sideways scroll on a phone) passed, no console errors |
 
