@@ -40,11 +40,12 @@ services:
       DB_NAME: ${DB_NAME:-ctotracker}
       DB_USER: ${DB_USER:-ctotracker}
       DB_PASSWORD: ${DB_PASSWORD:-ctotracker_dev}
-      # Bos birakilirsa varsayilan profil (demo) calisir; ornek veri istenmiyorsa: prod
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+      # Yerel gelistirme kurulumu: demo profili (ornek veri, bilinen parolalar). Uretim icin docker-compose.prod.yml.
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-demo}
       # API'ye tarayicidan erisebilecek frontend adresleri (virgulle ayrilmis)
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
-      # Giris token'larini imzalayan sir (en az 32 bayt). Bos birakilirsa uygulamanin gelistirme varsayilani kullanilir.
+      # Giris token'larini imzalayan sir (en az 32 bayt). Varsayilan yalnizca yerel gelistirme icindir; uygulama bu
+      # degeri demo disindaki bir profilde reddeder.
       JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-do-not-use-in-production-0123456789}
     ports:
       - "${APP_PORT:-8080}:8080"

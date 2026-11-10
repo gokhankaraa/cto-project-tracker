@@ -1,0 +1,19 @@
+# Yerel gelistirme ve demo: SPRING_PROFILES_ACTIVE=demo (docker-compose.yml bunu secer).
+# Bos veritabanina ornek veri yuklenir (DataSeeder); kullanicilarin parolasi README'de yazilidir.
+# Bu profil herkese acik bir ortamda CALISTIRILMAZ.
+
+app:
+  auth:
+    # Yalnizca yerel gelistirme sirri: repository'de yazili oldugu icin bilen herkes gecerli token imzalayabilir.
+    # Demo disindaki bir profilde kullanilirsa uygulama baslamaz (SecurityConfig).
+    jwt-secret: ${JWT_SECRET:dev-only-jwt-secret-do-not-use-in-production-0123456789}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+logging:
+  level:
+    com.kolaysoft.ctotracker: DEBUG

@@ -8,6 +8,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -81,9 +82,28 @@ public class SecurityConfig {
         return converter;
     }
 
+    /** Repository'deki gelistirme sirlarinin ortak oneki (application-demo.yml, docker-compose.yml). */
+    static final String DEV_SECRET_PREFIX = "dev-only-";
+
     @Bean
-    public SecretKey jwtSigningKey(@Value("${app.auth.jwt-secret}") String secret) {
-        return hmacKey(secret);
+    public SecretKey jwtSigningKey(@Value("${app.auth.jwt-secret}") String secret, Environment environment) {
+        return hmacKey(checkedSecret(secret, environment.matchesProfiles("demo")));
+    }
+
+    /**
+     * Uretimi bilinen ya da bos bir sirla calistirmaz: sir verilmemisse ya da repository'deki gelistirme sirri demo
+     * disinda kullaniliyorsa uygulama baslamaz (bilinen sirla herkes gecerli token imzalayabilir).
+     */
+    static String checkedSecret(String secret, boolean demoProfile) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET tanımlı değil. En az 32 baytlık rastgele bir değer verin "
+                    + "(örn. openssl rand -base64 48); yerel geliştirmede demo profilini seçin.");
+        }
+        if (!demoProfile && secret.startsWith(DEV_SECRET_PREFIX)) {
+            throw new IllegalStateException("JWT_SECRET repository'deki geliştirme değeri; bu değer yalnızca demo "
+                    + "profilinde kullanılabilir. Kendi rastgele değerinizi verin.");
+        }
+        return secret;
     }
 
     /**

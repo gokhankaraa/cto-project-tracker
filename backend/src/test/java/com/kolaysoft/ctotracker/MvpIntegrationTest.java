@@ -18,6 +18,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -91,6 +92,14 @@ class MvpIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.projects[?(@.projectId==3)].hasReport").value(org.hamcrest.Matchers.hasItem(true)))
                 .andExpect(jsonPath("$.projects[?(@.projectId==3)].progressPercentage").value(org.hamcrest.Matchers.hasItem(25)));
+    }
+
+    @Test
+    @WithAnonymousUser
+    @DisplayName("Demo profilinde API dokumantasyonu acik ve token istemez (uretimde kapali: ProductionSetupIntegrationTest)")
+    void apiDocsInDemoProfile() throws Exception {
+        mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"));
     }
 
     @Test

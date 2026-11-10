@@ -38,10 +38,9 @@ import com.kolaysoft.ctotracker.repository.WorkItemRepository;
  * Idempotent: veritabaninda kullanici varsa hicbir sey eklemez (veritabani kalici oldugu icin
  * yalnizca ilk acilista, bos veritabaninda calisir).
  *
- * <p>Yalnizca {@code demo} profilinde calisir. Hicbir profil secilmezse {@code demo} varsayilandir
- * (application.yml, {@code spring.profiles.default}); baska bir profille calistirilan ortamda
- * (or. {@code SPRING_PROFILES_ACTIVE=prod}) ornek veri yuklenmez. Testler varsayilan olarak
- * bos veritabaniyla baslar; ornek veriye dayanan test {@code @ActiveProfiles("demo")} ile ister.
+ * <p>Yalnizca {@code demo} profilinde calisir ({@code SPRING_PROFILES_ACTIVE=demo}; yerel docker-compose.yml bunu
+ * secer). Profil secilmezse uretim ayarlari gecerlidir: ornek veri yuklenmez, ilk admin {@code AdminBootstrap} ile
+ * olusturulur. Testler bos veritabaniyla baslar; ornek veriye dayanan test {@code @ActiveProfiles("demo")} ile ister.
  *
  * <p>Veriler kurgusaldir (proje, musteri ve kisi adlari uydurma, e-postalar {@code example.com}); repository
  * herkese acik oldugu icin gercek sirket/musteri verisi kullanilmaz.

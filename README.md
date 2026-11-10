@@ -83,7 +83,7 @@ cd cto-project-tracker
 
 docker compose up -d db         # starts PostgreSQL (host port 5433)
 cd backend
-./mvnw spring-boot:run          # starts the application (http://localhost:8080)
+./mvnw spring-boot:run -Dspring-boot.run.profiles=demo   # http://localhost:8080, with demo data
 ```
 
 On first start Flyway creates the schema and the demo data is loaded (see [Demo data](#demo-data)).
@@ -119,7 +119,7 @@ docker compose down                     # stop (add -v to also delete the data)
 | Service | Image | Address |
 |---|---|---|
 | `db` | `postgres:17-alpine` | `localhost:5433` (`DB_PORT`) |
-| `app` | [`backend/Dockerfile`](backend/Dockerfile): builds the jar, runs it on a JRE | http://localhost:8080 (`APP_PORT`), Swagger at `/swagger-ui.html` |
+| `app` | [`backend/Dockerfile`](backend/Dockerfile): builds the jar, runs it on a JRE | http://localhost:8080 (`APP_PORT`), Swagger at `/swagger-ui.html` (demo profile only) |
 | `web` | [`frontend/Dockerfile`](frontend/Dockerfile): builds the app with Node, serves it with nginx | http://localhost:3000 (`WEB_PORT`) |
 
 The `web` container's nginx ([`frontend/nginx.conf`](frontend/nginx.conf)) serves the built files and
@@ -281,14 +281,27 @@ git) to change them.
 | `DB_NAME` | `ctotracker` | Database name |
 | `DB_USER` | `ctotracker` | Database user |
 | `DB_PASSWORD` | `ctotracker_dev` | Database password (development only) |
-| `SPRING_PROFILES_ACTIVE` | *(none → `demo`)* | Active Spring profile, see below |
+| `SPRING_PROFILES_ACTIVE` | *(none: production settings)*; `demo` in `docker-compose.yml` | Active Spring profile, see below |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated origins allowed to call `/api/**` from a browser (a frontend on another address, e.g. `npm run dev`); other origins get **403**. Not needed for the `web` container, which reaches the API through its own address |
-| `JWT_SECRET` | *(development-only value)* | Secret that signs login tokens (HS256), **at least 32 bytes** or the app does not start. Any real environment must set its own random value (e.g. `openssl rand -base64 48`); changing it invalidates all issued tokens |
+| `JWT_SECRET` | *(none; a development value in the `demo` profile)* | Secret that signs login tokens (HS256), **at least 32 bytes**. Without it the app does not start, and the development value in this repository is refused outside the `demo` profile. Set your own random value (e.g. `openssl rand -base64 48`); changing it invalidates all issued tokens |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | *(none)* | The first admin, created once when the database has no users (not in the `demo` profile). The password needs at least 12 characters. Without them an empty database refuses to start; once a user exists they are ignored and can be removed |
+| `ADMIN_NAME` | `Sistem Yöneticisi` | The first admin's display name |
 | `JWT_TOKEN_TTL` | `8h` | How long a login token is valid; there is no refresh, the user logs in again |
 
-**Profiles:** when no profile is chosen, the `demo` profile is used and `DataSeeder` loads the demo
-data into an empty database. Choosing any other profile (e.g. `SPRING_PROFILES_ACTIVE=prod`) starts
-without demo data.
+**Profiles:** the application's own settings (`application.yml`) are the production settings and
+apply when no profile is chosen:
+
+- no demo data;
+- `JWT_SECRET` is required;
+- the first admin comes from `ADMIN_EMAIL` / `ADMIN_PASSWORD`;
+- logs are at `INFO`;
+- Swagger and `/v3/api-docs` are off. Set `SPRINGDOC_API_DOCS_ENABLED=true` and
+  `SPRINGDOC_SWAGGER_UI_ENABLED=true` to turn them on.
+
+The `demo` profile (`application-demo.yml`) is for a developer machine: `DataSeeder` loads the demo
+data into an empty database, a development `JWT_SECRET` applies, logs are at `DEBUG` and Swagger is
+on. `docker-compose.yml` and the run command above choose it. Never run it where others can reach
+it: its users' password is in this README.
 
 Other notable settings:
 
@@ -854,7 +867,8 @@ against a clean Docker setup (see [Latest test run](#latest-test-run)).
 
 | Area | Backend (unit / integration) | Frontend (component) | Browser end to end | Gap, closed in |
 |---|---|---|---|---|
-| Login, token, roles | `AuthControllerTest`, `AuthorizationIntegrationTest`, `CorsConfigTest`, `UserControllerTest` | `LoginPage`, `session`, `RequireAuth`, `RequirePermission`, `AppLayout`, `client` | every flow logs in as the role that does the work | a setup without demo users and the first admin (prod profile) |
+| Login, token, roles | `AuthControllerTest`, `AuthorizationIntegrationTest`, `CorsConfigTest`, `UserControllerTest`, `JwtSecretTest` | `LoginPage`, `session`, `RequireAuth`, `RequirePermission`, `AppLayout`, `client` | every flow logs in as the role that does the work | — |
+| Production settings, first admin | `ProductionSetupIntegrationTest`, `AdminBootstrapTest`, `JwtSecretTest` | — | smoke test on the production setup | — |
 | Projects | `ProjectServiceTest`, `MvpIntegrationTest` | `ProjectListPage`, `ProjectDetailPage`, `ProjectFormPage` | Admin: create, edit, delete blocked | — |
 | Weekly reports and work items | `WeeklyReportServiceTest`, `WorkItemServiceTest`, `WeeklyReportYearTest`, `WeeklyReportQueryTest`, `WorkItemQueryTest`, `FilterIntegrationTest` | `ReportFormPage`, `ReportDetailPage`, `ReportListPage`, `WorkItemsSection`, `WorkItemListPage`, `isoWeek`, `listFilters` | report flow: new report, work item, same week 409, delay filter | per-row queries in the paged lists |
 | Risks, blockers, decisions, actions | `TrackingItemServiceTest`, `TrackingItemQueryTest`, `TrackingItemIntegrationTest` | `TrackingItemsSection`, `TrackingItemListPage`, `filters` | risks and actions flow | — |
@@ -887,12 +901,20 @@ empty database. Tests that rely on the demo data ask for the `demo` profile on p
 creates its own data. Service tests use Mockito and need no database; they run as an Admin
 (a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
-Backend tests (227 in total). The HTTP tests of business rules run as an Admin
+Backend tests (240 in total). The HTTP tests of business rules run as an Admin
 (`@WithMockUser`); login, tokens and permissions are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
   (project → report → work item → dashboard), 404 / 400 / 409, stage skip, a report date outside
-  its week (400 on `reportDate`), dashboard filter
+  its week (400 on `reportDate`), dashboard filter; API docs open without a token in the demo profile
+- `ProductionSetupIntegrationTest` — the app without the demo profile: the first admin created from
+  the settings logs in, there are no demo users or projects, a restart does not recreate the admin or
+  change their password, API docs are off (404), application logs are at `INFO`
+- `AdminBootstrapTest` — first admin: created only when there are no users (e-mail trimmed and in
+  lower case, password hashed, default name); nothing read or changed when users exist; startup
+  refused without the values, with an invalid e-mail or a password shorter than 12 characters
+- `JwtSecretTest` — a missing secret stops startup with a clear message; the development secret only
+  in the `demo` profile; an own secret anywhere
 - `FilterIntegrationTest` — filter endpoints over HTTP (MockMvc): dashboard filters and counters, year and
   week reference (including across years), report paging and sorting, work item filters, null-last default sort, and the error
   cases of the filter contract (such as a week parameter without `year`)
@@ -947,7 +969,7 @@ Backend tests (227 in total). The HTTP tests of business rules run as an Admin
 - `AuthControllerTest` — login returns a token that works on protected endpoints and `/me`; wrong
   password, unknown e-mail and a user without a password get the same 401; empty fields (400); no
   token, a tampered token and an expired token (401, `ApiError` + `WWW-Authenticate`); a deleted
-  user's token; public health and API docs; BCrypt storage; a JWT secret shorter than 32 bytes
+  user's token; public health check; BCrypt storage; a JWT secret shorter than 32 bytes
 - `UserControllerTest` — user list sorted by name, role filter, e-mail not exposed, unknown role (400)
 - `CorsConfigTest` — CORS: the frontend origin passes preflight and gets the allow header, other
   origins get 403
@@ -1073,7 +1095,7 @@ Run on 2026-11-10 against the current `main`:
 
 | Check | Command | Result |
 |---|---|---|
-| Backend tests | `cd backend && ./mvnw test` | 227 passed, 0 failed, 0 skipped |
+| Backend tests | `cd backend && ./mvnw test` | 240 passed, 0 failed, 0 skipped |
 | Frontend tests | `cd frontend && npm test` | 215 passed in 29 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
@@ -1134,10 +1156,10 @@ the SQL count is the statements PostgreSQL logged for one call.
 
 ### Risks
 
-- **Demo defaults in a real deployment.** The `demo` profile is the default and seeds users with a
-  publicly known password, and `JWT_SECRET` falls back to a development value that is in this
-  repository (anyone who knows it can sign a valid token). Both must be changed before the app
-  runs anywhere other than a developer machine; today nothing stops it from starting with them.
+- **The `demo` profile in a reachable place.** Production settings are now the default: without a
+  profile there is no demo data, and the app refuses to start without `JWT_SECRET` or with the
+  development secret from this repository. Choosing `demo` on a server would still bring back users
+  with a publicly known password; it is meant only for a developer machine.
 - **The token is kept in `localStorage`,** so any script running on the page can read it. There are
   no third-party scripts and React escapes the content it renders, but an XSS bug would expose the
   token. An `httpOnly` cookie would avoid that, at the cost of adding CSRF protection.
