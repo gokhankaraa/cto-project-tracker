@@ -1,10 +1,14 @@
-import { Box, Center, Loader, Stack } from '@mantine/core'
+import { Box, Button, Center, Loader, Stack } from '@mantine/core'
+import { notifications } from '@mantine/notifications'
+import { useMutation } from '@tanstack/react-query'
 import { lazy, Suspense, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 
-import { useDashboardSummary, type DashboardFilters } from '../../api/dashboard'
+import { errorMessage } from '../../api/client'
+import { downloadDashboardExport, useDashboardSummary, type DashboardFilters } from '../../api/dashboard'
 import { PageHeader } from '../../components/PageHeader'
 import { QueryState } from '../../components/QueryState'
+import { saveFile } from '../../lib/download'
 import { DashboardFilterBar } from './DashboardFilterBar'
 import { dashboardSearch, parseDashboardFilters } from './filters'
 import { ProjectSummaryTable } from './ProjectSummaryTable'
@@ -32,13 +36,28 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const filters = useMemo(() => parseDashboardFilters(searchParams), [searchParams])
   const summary = useDashboardSummary(filters)
+  // Ekrandakinin dosya hali: ayni filtrelerle. Indirme bitince dosya tarayiciya kaydedilir.
+  const exportFile = useMutation({
+    mutationFn: () => downloadDashboardExport(filters),
+    onSuccess: ({ blob, fileName }) => saveFile(blob, fileName),
+    onError: (error) =>
+      notifications.show({ color: 'red', title: 'Excel dosyası indirilemedi', message: errorMessage(error) }),
+  })
 
   // replace: her filtre secimi tarayici gecmisine ayri bir adim olarak eklenmez.
   const setFilters = (next: DashboardFilters) => navigate({ search: dashboardSearch(next) }, { replace: true })
 
   return (
     <Stack gap="md">
-      <PageHeader title="Portföy özeti" description={referenceText(filters)} />
+      <PageHeader
+        title="Portföy özeti"
+        description={referenceText(filters)}
+        actions={
+          <Button variant="default" onClick={() => exportFile.mutate()} loading={exportFile.isPending}>
+            Excel'e aktar
+          </Button>
+        }
+      />
 
       <DashboardFilterBar filters={filters} onChange={setFilters} />
 

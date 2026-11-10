@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { getSession, sessionEndReason } from '../auth/session'
 import { signIn } from '../test/session'
-import { ApiRequestError, NETWORK_ERROR, api, buildUrl } from './client'
+import { ApiRequestError, NETWORK_ERROR, api, apiDownload, buildUrl, fileNameFrom } from './client'
 
 function mockFetch(response: Response | Error) {
   const fn = response instanceof Error ? vi.fn().mockRejectedValue(response) : vi.fn().mockResolvedValue(response)
@@ -149,5 +149,59 @@ describe('oturum', () => {
 
     await expect(api.delete('/api/projects/1')).rejects.toMatchObject({ status: 403 })
     expect(getSession()).not.toBeNull()
+  })
+})
+
+describe('apiDownload', () => {
+  it("dosyayi ve backend'in onerdigi adi doner; her turu kabul eder, token'i gonderir", async () => {
+    signIn()
+    const fetchMock = mockFetch(
+      new Response(new Uint8Array([80, 75, 3, 4]), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="cto-ozeti.xlsx"; filename*=UTF-8''cto-%C3%B6zeti-2026-11-10.xlsx`,
+        },
+      }),
+    )
+
+    const file = await apiDownload('/api/dashboard/export', { riskLevel: ['YUKSEK'], year: null }, 'yedek.xlsx')
+
+    expect(file.fileName).toBe('cto-özeti-2026-11-10.xlsx')
+    expect(file.blob.size).toBe(4)
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toBe('http://localhost:8080/api/dashboard/export?riskLevel=YUKSEK')
+    expect(init.headers).toMatchObject({ Accept: '*/*', Authorization: 'Bearer token-4' })
+  })
+
+  it('hata JSON istekleriyle ayni: ApiError govdesi ApiRequestError olur, 401 oturumu kapatir', async () => {
+    mockFetch(json(400, { status: 400, code: 'VALIDATION_ERROR', message: 'Hatali.', fieldErrors: [{ field: 'weekNumber', message: 'Yil gerekli.' }] }))
+    await expect(apiDownload('/api/dashboard/export', {}, 'x.xlsx')).rejects.toMatchObject({
+      status: 400,
+      code: 'VALIDATION_ERROR',
+    })
+
+    signIn()
+    mockFetch(json(401, { status: 401, code: 'UNAUTHORIZED', message: 'Gecersiz token.' }))
+    await expect(apiDownload('/api/dashboard/export', {}, 'x.xlsx')).rejects.toBeInstanceOf(ApiRequestError)
+    expect(sessionEndReason()).toBe('expired')
+  })
+
+  it('baslikta ad yoksa yedek ad kullanilir', async () => {
+    mockFetch(new Response('veri', { status: 200 }))
+    expect((await apiDownload('/api/dashboard/export', {}, 'cto-ozeti.xlsx')).fileName).toBe('cto-ozeti.xlsx')
+  })
+})
+
+describe('fileNameFrom', () => {
+  it.each([
+    [`attachment; filename="a.xlsx"; filename*=UTF-8''%C3%B6zet.xlsx`, 'özet.xlsx'],
+    ['attachment; filename="a b.xlsx"', 'a b.xlsx'],
+    ['attachment; filename=plain.xlsx', 'plain.xlsx'],
+    [`attachment; filename="yedek.xlsx"; filename*=UTF-8''%E0%A4%A`, 'yedek.xlsx'],
+    ['inline', null],
+    [null, null],
+  ])('%s -> %s', (header, expected) => {
+    expect(fileNameFrom(header)).toBe(expected)
   })
 })

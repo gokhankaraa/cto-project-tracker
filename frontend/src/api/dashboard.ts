@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
-import { api } from './client'
+import { api, apiDownload } from './client'
 import type { DashboardSummary, DashboardTrend, OverallStatus, ProjectStatus, RiskLevel } from './types'
 
 /**
@@ -51,4 +51,9 @@ export function useDashboardTrend({ projectStatus, ownerId, year, weekNumber }: 
     queryFn: ({ signal }) => api.get<DashboardTrend>('/api/dashboard/trend', params, signal),
     placeholderData: keepPreviousData,
   })
+}
+
+/** CTO ozetinin Excel ciktisi, dashboard'un tum filtreleriyle (docs/filtre-sozlesmesi.md, bolum 2a sonu). */
+export function downloadDashboardExport(filters: DashboardFilters) {
+  return apiDownload('/api/dashboard/export', filters, 'cto-ozeti.xlsx')
 }

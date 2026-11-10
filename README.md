@@ -184,7 +184,10 @@ change it, copy `frontend/.env.example` to `frontend/.env.local`. If the fronten
 All API calls go through one client (`frontend/src/api/client.ts`). It turns the backend's
 `ApiError` body into a typed `ApiRequestError` (`status`, `code`, `fieldErrors`), so screens can
 tell error types apart and forms can show `fieldErrors` next to the right input. Network failures
-get the code `NETWORK_ERROR`.
+get the code `NETWORK_ERROR`. File downloads (the Excel export) go through the same path with
+`apiDownload`: a plain link cannot carry the login token, so the file is fetched with it, saved
+under the name the backend suggests (`Content-Disposition`, UTF-8 form first), and errors and an
+expired session behave like any other request.
 
 Login (`src/auth/`, `src/pages/LoginPage.tsx`):
 
@@ -211,7 +214,7 @@ Screens:
 
 | Address | Screen |
 |---|---|
-| `/` | CTO dashboard: counters, project table and filters (year / week, owner, project status, overall status, risk, delay). A second row of counters covers risks, blockers, decisions and actions (open risks, open blockers, pending decisions, overdue follow-ups); each card opens the matching list, and a note says these show today's state whatever year / week is chosen. Each project row shows its open records, the highest open risk level and how many are overdue, linking to that project's records. The table fits a 1280 px screen without scrolling sideways. Below it, "Son 12 hafta" charts the projects by status and the open risks, blockers, decisions and actions week by week (stacked bars, a tooltip per week, and the same numbers as a table on demand), using the dashboard's owner, project status and year / week filters |
+| `/` | CTO dashboard: counters, project table and filters (year / week, owner, project status, overall status, risk, delay). **Excel'e aktar** downloads the same view as an `.xlsx` file, with the filters chosen. A second row of counters covers risks, blockers, decisions and actions (open risks, open blockers, pending decisions, overdue follow-ups); each card opens the matching list, and a note says these show today's state whatever year / week is chosen. Each project row shows its open records, the highest open risk level and how many are overdue, linking to that project's records. The table fits a 1280 px screen without scrolling sideways. Below it, "Son 12 hafta" charts the projects by status and the open risks, blockers, decisions and actions week by week (stacked bars, a tooltip per week, and the same numbers as a table on demand), using the dashboard's owner, project status and year / week filters |
 | `/projects` | Project list with search by project, customer or owner (Turkish letters and case ignored) |
 | `/projects/:id` | Project details, its risks, blockers, decisions and actions (add / edit in a dialog, delete with confirmation), and its weekly reports, newest week first; delete with confirmation (blocked while the project has reports or such records) |
 | `/projects/new`, `/projects/:id/edit` | Project form; checks the backend's rules before sending and shows the backend's `fieldErrors` under the matching input |
@@ -767,10 +770,12 @@ Backend tests (212 in total). The HTTP tests of business rules run as an Admin
   only from the listed projects
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
-Frontend tests (192, Vitest + Testing Library on jsdom; component tests never reach the real backend,
+Frontend tests (203, Vitest + Testing Library on jsdom; component tests never reach the real backend,
 `src/test/mockApi.ts` stands in for it and `src/test/fixtures.ts` holds the shared test data):
 
-- `client.test.ts` — query string building (empty values skipped, multi-value parameters joined
+- `client.test.ts` — file download: the file and its suggested name (UTF-8 name first, a fallback
+  when there is none), the token sent and any type accepted, errors and 401 handled like JSON
+  requests; query string building (empty values skipped, multi-value parameters joined
   with commas; an empty `VITE_API_BASE_URL` targets the page's origin), error handling (`ApiError` body, non-JSON error, network failure), the token sent
   in the `Authorization` header, a 401 ending the session (403 does not)
 - `session.test.ts` — the session store: saved to `localStorage`, an expired token is no session,
@@ -800,7 +805,8 @@ Frontend tests (192, Vitest + Testing Library on jsdom; component tests never re
 - `DashboardPage.test.tsx` — counters and rows (including a project without a report), address
   filters sent to the API, reference text for year / week, clearing filters, empty result; the
   risk and action cards link to the filtered list, a row's open records link to the project's
-  records, and the note that a year / week does not change these counters
+  records, and the note that a year / week does not change these counters; **Excel'e aktar** sends
+  the address filters and saves the file, a failed download shows a notification
 - `TrendSection.test.tsx` — only the project filters and the year / week reach the trend request
   (report filters do not), the reference text, the table view with each week's numbers
 - `format.test.ts` — Turkish-insensitive search, date and week formatting, id parsing from the address
@@ -856,7 +862,7 @@ Run on 2026-11-10 against the current `main`:
 | Check | Command | Result |
 |---|---|---|
 | Backend tests | `cd backend && ./mvnw test` | 212 passed, 0 failed, 0 skipped |
-| Frontend tests | `cd frontend && npm test` | 192 passed in 27 files |
+| Frontend tests | `cd frontend && npm test` | 203 passed in 27 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
 | CI | GitHub Actions on push to `main` | backend, frontend and Docker image jobs passed |

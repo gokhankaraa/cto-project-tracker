@@ -71,12 +71,17 @@ interface RequestOptions {
   params?: QueryParams
   body?: unknown
   signal?: AbortSignal
+  /** Beklenen yanit turu; varsayilan JSON. Dosya indirmede her tur kabul edilir. */
+  accept?: string
 }
 
-/** Tum backend istekleri buradan gecer: hata govdesi tek yerde {@link ApiRequestError}'a cevrilir. */
-export async function apiRequest<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
-  const { params, body, signal } = options
-  const headers: Record<string, string> = { Accept: 'application/json' }
+/**
+ * Tum backend istekleri buradan gecer: token eklenir, hata govdesi tek yerde {@link ApiRequestError}'a cevrilir,
+ * token'la gidip 401 donen istek oturumu kapatir. Basarili yanit (2xx) oldugu gibi doner.
+ */
+async function send(method: string, path: string, options: RequestOptions = {}): Promise<Response> {
+  const { params, body, signal, accept = 'application/json' } = options
+  const headers: Record<string, string> = { Accept: accept }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   const token = getSession()?.token
   if (token) headers.Authorization = `Bearer ${token}`
@@ -102,8 +107,52 @@ export async function apiRequest<T>(method: string, path: string, options: Reque
     if (response.status === 401 && token) endSession('expired')
     throw await toApiRequestError(response)
   }
+  return response
+}
+
+/** JSON istekleri. */
+export async function apiRequest<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
+  const response = await send(method, path, options)
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
+}
+
+/** Indirilen dosya ve backend'in onerdigi adi. */
+export interface DownloadedFile {
+  blob: Blob
+  fileName: string
+}
+
+/**
+ * Dosya indirir (or. Excel ciktisi). Duz bir baglanti token tasiyamadigi icin istek buradan, token'la yapilir.
+ * Hata JSON istekleriyle ayni yoldan {@link ApiRequestError} olur.
+ *
+ * @param fallbackName backend dosya adi vermezse kullanilir
+ */
+export async function apiDownload(path: string, params: QueryParams, fallbackName: string): Promise<DownloadedFile> {
+  const response = await send('GET', path, { params, accept: '*/*' })
+  return {
+    blob: await response.blob(),
+    fileName: fileNameFrom(response.headers.get('Content-Disposition')) ?? fallbackName,
+  }
+}
+
+/**
+ * Content-Disposition basligindaki dosya adi. UTF-8 bicimi (filename*=UTF-8''...) Turkce harfleri tasidigi icin
+ * once o okunur, yoksa duz filename.
+ */
+export function fileNameFrom(header: string | null): string | null {
+  if (!header) return null
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header)
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1].trim())
+    } catch {
+      // Bozuk kodlama: duz ada dusulur.
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(header)
+  return plain ? plain[1].trim() : null
 }
 
 async function toApiRequestError(response: Response): Promise<ApiRequestError> {

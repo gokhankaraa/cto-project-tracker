@@ -1,11 +1,15 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { DashboardSummary, User } from '../../api/types'
 import { mockApi, requestedUrls } from '../../test/mockApi'
 import { renderWithProviders } from '../../test/render'
+import { saveFile } from '../../lib/download'
 import { DashboardPage } from './DashboardPage'
+
+// Tarayici indirmesi jsdom'da yok; kaydetme cagrisi ve verilen ad kontrol edilir.
+vi.mock('../../lib/download', () => ({ saveFile: vi.fn() }))
 
 const USERS: User[] = [{ id: 1, fullName: 'Ayse Yilmaz', role: 'PROJECT_MANAGER' }]
 
@@ -148,5 +152,37 @@ describe('DashboardPage', () => {
     setup('/', { ...SUMMARY, totalProjects: 0, projectsWithoutReport: 0, totalLiveTasks: 0, delayedProjects: 0, projects: [] })
 
     expect(await screen.findByText('Filtreye uyan proje yok.')).toBeInTheDocument()
+  })
+
+  it("Excel'e aktar: adresteki filtrelerle indirir ve dosyayi kaydeder", async () => {
+    const fetchMock = mockApi({
+      [SUMMARY_PATH]: SUMMARY,
+      '/api/users': USERS,
+      '/api/dashboard/trend': { weeks: [] },
+      '/api/dashboard/export': () => ({ body: { dosya: true } }),
+    })
+    renderWithProviders(<DashboardPage />, { route: '/?riskLevel=YUKSEK&ownerId=1&year=2026' })
+
+    await userEvent.click(await screen.findByRole('button', { name: "Excel'e aktar" }))
+
+    await waitFor(() => expect(saveFile).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(saveFile).mock.calls[0][1]).toBe('cto-ozeti.xlsx')
+    const url = requestedUrls(fetchMock, '/api/dashboard/export')[0]
+    expect(Object.fromEntries(url.searchParams)).toEqual({ riskLevel: 'YUKSEK', ownerId: '1', year: '2026' })
+  })
+
+  it('indirme hatasini bildirimle gosterir', async () => {
+    mockApi({
+      [SUMMARY_PATH]: SUMMARY,
+      '/api/users': USERS,
+      '/api/dashboard/trend': { weeks: [] },
+      '/api/dashboard/export': () => ({ status: 500, body: { status: 500, code: 'INTERNAL_ERROR', message: 'Beklenmeyen bir hata oluştu.' } }),
+    })
+    renderWithProviders(<DashboardPage />)
+
+    await userEvent.click(await screen.findByRole('button', { name: "Excel'e aktar" }))
+
+    expect(await screen.findByText('Excel dosyası indirilemedi')).toBeInTheDocument()
+    expect(screen.getByText('Beklenmeyen bir hata oluştu.')).toBeInTheDocument()
   })
 })
