@@ -18,11 +18,16 @@ import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessResourceFailureException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -44,9 +49,10 @@ import com.kolaysoft.ctotracker.repository.AuditEventRepository;
 
 /**
  * Degisiklik gecmisi uctan uca: demo kullanicilari gercek token'la yazar, gecmis veritabanindan okunur.
- * Seed verisi gecmise yazilmaz (servislerden gecmez), bu yuzden her test bos gecmisle baslar.
+ * Seed verisi gecmise yazilmaz (servislerden gecmez), bu yuzden her test bos gecmisle baslar. Okuma tarafinin sorgu
+ * sayisi Hibernate istatistikleriyle olculur.
  */
-@SpringBootTest
+@SpringBootTest(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
 @ActiveProfiles("demo")
 @Import(TestcontainersConfiguration.class)
 @AutoConfigureMockMvc
@@ -68,6 +74,12 @@ class AuditIntegrationTest {
     /** Gecmis yazilamadiginda degisikligin geri alindigini gostermek icin save hata firlatabilir. */
     @MockitoSpyBean
     private AuditEventRepository auditEventRepository;
+
+    @Autowired
+    private EntityManagerFactory entityManagerFactory;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final Map<String, String> tokens = new HashMap<>();
 
@@ -202,6 +214,96 @@ class AuditIntegrationTest {
         as("admin", delete("/api/projects/1")).andExpect(status().isConflict());
 
         assertThat(events()).isEmpty();
+    }
+
+    // --- Okuma: GET /api/projects/{id}/history ---
+
+    @Test
+    @DisplayName("Gecmis: en yeni ustte, tur ve kayit filtresi, sayfalama; degerler ham")
+    void historyNewestFirstWithFilters() throws Exception {
+        int blocker = blockerId();
+        as("mehmet", put("/api/tracking-items/" + blocker), BLOCKER_HIGH).andExpect(status().isOk());
+        as("mehmet", post("/api/reports/3/work-items"), """
+                { "title": "VPN testi", "status": "PLANLANDI", "plannedDate": "2026-08-07" }
+                """).andExpect(status().isCreated());
+        as("mehmet", put("/api/tracking-items/" + blocker), BLOCKER_HIGH.replace("YUKSEK", "ORTA"))
+                .andExpect(status().isOk());
+
+        as("mehmet", get("/api/projects/2/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.content[0].entityType").value("TAKIP_KAYDI"))
+                .andExpect(jsonPath("$.content[0].action").value("GUNCELLENDI"))
+                .andExpect(jsonPath("$.content[0].entityId").value(blocker))
+                .andExpect(jsonPath("$.content[0].summary").value("Test ortamina erisim yok"))
+                .andExpect(jsonPath("$.content[0].actorId").value(2))
+                .andExpect(jsonPath("$.content[0].actorName").value("Mehmet Kaya"))
+                .andExpect(jsonPath("$.content[0].occurredAt").isNotEmpty())
+                .andExpect(jsonPath("$.content[0].changes[0].field").value("riskLevel"))
+                .andExpect(jsonPath("$.content[0].changes[0].oldValue").value("YUKSEK"))
+                .andExpect(jsonPath("$.content[0].changes[0].newValue").value("ORTA"))
+                .andExpect(jsonPath("$.content[1].entityType").value("IS_KALEMI"))
+                .andExpect(jsonPath("$.content[1].action").value("OLUSTURULDU"))
+                .andExpect(jsonPath("$.content[1].changes[?(@.field == 'plannedDate')].newValue").value("2026-08-07"))
+                .andExpect(jsonPath("$.content[1].changes[0].oldValue").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.content[2].changes[0].newValue").value("YUKSEK"));
+
+        as("mehmet", get("/api/projects/2/history").param("entityType", "TAKIP_KAYDI"))
+                .andExpect(jsonPath("$.totalElements").value(2));
+        as("mehmet", get("/api/projects/2/history").param("entityType", "TAKIP_KAYDI")
+                        .param("entityId", String.valueOf(blocker)))
+                .andExpect(jsonPath("$.totalElements").value(2));
+        as("mehmet", get("/api/projects/2/history").param("entityType", "IS_KALEMI"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].summary").value("VPN testi"));
+        as("mehmet", get("/api/projects/2/history").param("size", "1").param("page", "2"))
+                .andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.content[0].changes[0].newValue").value("YUKSEK"));
+    }
+
+    @Test
+    @DisplayName("Gecmisi projeyi goren okur: PM baskasinin projesinde 404, CTO her projede; hatali parametre 400")
+    void historyVisibilityAndValidation() throws Exception {
+        as("mehmet", put("/api/tracking-items/" + blockerId()), BLOCKER_HIGH).andExpect(status().isOk());
+
+        as("cto", get("/api/projects/2/history")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+        as("ayse", get("/api/projects/2/history")).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Proje")));
+        as("ayse", get("/api/projects/1/history")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+        as("admin", get("/api/projects/999/history")).andExpect(status().isNotFound());
+
+        as("admin", get("/api/projects/2/history").param("entityId", "4"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("entityId"));
+        as("admin", get("/api/projects/2/history").param("entityType", "KULLANICI"))
+                .andExpect(status().isBadRequest());
+        as("admin", get("/api/projects/2/history").param("size", "101"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Sorgu sayisi olay sayisiyla buyumez: degisen alanlar tek sorguda yuklenir")
+    void historyQueryCountIsConstant() throws Exception {
+        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        as("admin", get("/api/projects/3")).andExpect(status().isOk()); // token alinir
+
+        for (int i = 0; i < 30; i++) {
+            as("admin", put("/api/projects/3"), """
+                    { "name": "Nova POS %d", "status": "PLANLANDI", "ownerId": 1 }
+                    """.formatted(i)).andExpect(status().isOk());
+        }
+        // Test transaction'inda yazilan olaylar bellekte kalir; gercek istek gibi veritabanindan okunsunlar.
+        entityManager.flush();
+        entityManager.clear();
+        statistics.clear();
+        as("admin", get("/api/projects/3/history")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(20))
+                .andExpect(jsonPath("$.content[0].changes[0].newValue").value("Nova POS 29"));
+
+        // Proje gorunurlugu, sayfa, toplam sayisi ve sayfanin degisen alanlari: 20 olay icin 20 sorgu degil.
+        assertThat(statistics.getPrepareStatementCount()).isLessThanOrEqualTo(4);
     }
 
     @Test

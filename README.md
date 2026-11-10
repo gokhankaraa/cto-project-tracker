@@ -328,6 +328,7 @@ Every endpoint except health, login and the API docs requires a login token in t
 | GET / POST | `/api/projects/{projectId}/tracking-items` | List / create a project's risks, blockers, decisions and actions |
 | GET / PUT / DELETE | `/api/tracking-items/{id}` | Risk, blocker, decision or action detail / update / delete |
 | GET | `/api/tracking-items` | Cross-project risk / blocker / decision / action list: filtered, paged, sorted |
+| GET | `/api/projects/{projectId}/history` | A project's change history (project, reports, work items, tracking items): newest first, paged |
 | GET | `/api/dashboard/summary` | CTO portfolio summary, with optional filters |
 | GET | `/api/dashboard/trend` | The portfolio week by week (default: the last 12 weeks), with the dashboard's project filters |
 | GET | `/api/dashboard/export` | The CTO summary as an Excel file (`.xlsx`), with the dashboard's filters |
@@ -411,6 +412,11 @@ project.
   are not foreign keys, so the history of a deleted record stays. Deleting a report also deletes its
   work items; only the report's deletion is recorded. The demo data is not in the history (it does
   not go through the API).
+- **Reading it:** `GET /api/projects/{projectId}/history`, newest first, with `entityType` and
+  `entityId` filters and paging ([filter contract](docs/filtre-sozlesmesi.md), section 4b). Whoever
+  can see the project can read its history: a project manager their own projects, the CTO and the
+  Admin every project; anyone else gets **404** as for a missing project. A page loads in at most 4
+  queries whatever its size: the changed fields of all its events come in one query.
 
 > **Scope note (from the pre-analysis):** progress uses a single staged model, so there is no
 > separate "target %"; the schedule (`scheduleStatus`) field is out of MVP scope. Both are
@@ -479,6 +485,7 @@ Swagger UI with an example value.
 | `GET /api/work-items` | `projectId`, `year`, `weekNumber`, `assignee`, `status`, `delayed` | Default `plannedDate,asc` (items without a date last); sortable by `plannedDate`, `title`, `projectName` |
 | `GET /api/dashboard/trend` | `projectId`, `projectStatus`, `ownerId`, `year`, `weekNumber`, `weeks` (1–52, default 12) | None; weeks oldest first |
 | `GET /api/tracking-items` | `projectId`, `type`, `status`, `riskLevel`, `overdue`, `assignee` | Default `followUpDate,asc` (records without a date last); sortable by `followUpDate`, `createdAt`, `title`, `projectName` |
+| `GET /api/projects/{projectId}/history` | `entityType`, `entityId` (only with `entityType`) | Fixed: newest first |
 
 - Different parameters combine with **AND**. Status, risk and stage parameters accept several
   comma-separated values, which combine with **OR** (`riskLevel=ORTA,YUKSEK`).
@@ -788,7 +795,9 @@ Backend tests (212 in total). The HTTP tests of business rules run as an Admin
   with the right person and project, a report update keeps only its two changed fields, a project
   manager's risk level change is recorded once (the same request again writes nothing), refused
   changes (400, 403, 404, 409) leave no event, and a failure to write the event rolls the change
-  back
+  back. Reading: newest first with raw values, type and record filters, paging, someone else's
+  project 404 and the CTO's access, invalid parameters 400, and a 20-event page in at most 4 queries
+  (23 without batch loading)
 - `DataSeederIntegrationTest` — the demo data's trend project: the default 12-week trend moves week
   by week (no report, then on track, at risk, delayed, blocked, back on track), its latest report
   leaves the dashboard counters unchanged, and a demo database without it gets it once on the next start

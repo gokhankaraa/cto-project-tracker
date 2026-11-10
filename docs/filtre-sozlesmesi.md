@@ -36,6 +36,9 @@ kaydı yoktur. Örneklerdeki sayılar buna göre güncellendi. Tarihi sabit örn
 Mobil raporsuz görünür. Yıl filtresi kullanan sayılar 2026 içinde geçerlidir; yıl dönümünden sonra Orion'un
 raporlarının bir kısmı 2027'ye düşer.
 
+**Güncelleme (10 Kasım 2026, değişiklik geçmişi):** `GET /api/projects/{projectId}/history` eklendi
+(bölüm 4b): projenin değişiklik geçmişi (Flyway V6), tür ve kayıt filtresi, sabit sıralama.
+
 Bu doküman dört liste endpoint'inin filtre parametrelerini, doğrulama kurallarını, yanıt yapısını ve hata
 davranışını tanımlar. Geliştirme ve testler bu sözleşmeye göre yapıldı.
 
@@ -336,6 +339,61 @@ Seed kayıtlarının tarihleri yüklendiği güne göredir; aşağıdaki sonuçl
 
 ---
 
+## 4b. `GET /api/projects/{projectId}/history` (V6)
+
+Projenin değişiklik geçmişi. Projeye, raporlarına, iş kalemlerine ve risk/aksiyon kayıtlarına API
+üzerinden yapılan her ekleme, güncelleme ve silme bir olaydır. Geçmiş yalnızca okunur; değiştiren ya da
+silen endpoint yoktur. Seed verisi geçmişe yazılmaz: demo veritabanında geçmiş boş başlar.
+
+### Parametreler
+
+| Parametre | Tip | Çoklu | Doğrulama |
+|---|---|---|---|
+| `entityType` | `AuditEntityType` (`PROJE`, `RAPOR`, `IS_KALEMI`, `TAKIP_KAYDI`) | — | Tanımlı enum |
+| `entityId` | Long | — | Yalnızca `entityType` ile birlikte; yoksa `400`, `fieldErrors[0].field: entityId` (id'ler türler arasında çakışabilir) |
+| `page` | Integer | — | ≥ 0, varsayılan `0` |
+| `size` | Integer | — | 1–100, varsayılan `20` |
+
+- Sıralama sabittir, `sort` parametresi yoktur: en yeni olay üstte (`occurredAt` azalan, sonra `id`
+  azalan).
+- Projeyi göremeyen kullanıcı ya da olmayan proje için `404` (proje bulunamadı); silinmiş projenin
+  geçmişi API'den okunmaz.
+
+### Yanıt
+
+Bölüm 3'teki sayfa yapısı kullanılır; `content` elemanları `AuditEventResponse` olur:
+
+| Alan | Açıklama |
+|---|---|
+| `id`, `occurredAt` | Olay ve zamanı (UTC, ISO-8601) |
+| `actorId`, `actorName` | Değişikliği yapan; ad, değişiklik anındaki addır. Kullanıcı silinmişse `actorId: null` |
+| `action` | `OLUSTURULDU`, `GUNCELLENDI`, `SILINDI` |
+| `entityType`, `entityId` | Değişen kayıt |
+| `summary` | Kaydın o anki adı: proje adı, `"2026 / 45. hafta"` ya da başlık (kayıt silinse de anlaşılır) |
+| `changes` | `[{ field, oldValue, newValue }]`. Güncellemede yalnızca değişen alanlar, eklemede dolu alanlar (`oldValue: null`), silmede boş liste |
+
+- Alan adları API'deki adlardır (`riskLevel`, `followUpDate`…); projenin sorumlusu `owner` alanında adıyla
+  yer alır.
+- Değerler ham metindir: enum adı (`YUKSEK`), ISO tarih (`2026-11-13`), sayı (`45`). Türkçe etiketleri
+  arayüz basar. Uzun metinler 500 karakterde kesilir (sonu `…`).
+- Hiçbir alanı değiştirmeyen güncelleme olay üretmez. Reddedilen değişiklik (`400`, `403`, `404`, `409`)
+  iz bırakmaz.
+- Rapor silinince iş kalemleri de silinir; geçmişe yalnızca raporun silinmesi yazılır.
+
+### Örnekler (seed verisi üzerinde)
+
+| İstek | Sonuç |
+|---|---|
+| `GET /api/projects/2/history` (yeni kurulum) | `content: []`, `totalElements: 0` |
+| Mehmet e-Belge engelinin risk seviyesini `ORTA` → `YUKSEK` yapar, sonra `GET /api/projects/2/history` | 1 olay: `TAKIP_KAYDI`, `GUNCELLENDI`, `actorName: "Mehmet Kaya"`, `changes: [{ field: "riskLevel", oldValue: "ORTA", newValue: "YUKSEK" }]` |
+| Aynı istek tekrar | Yeni olay yok (değer değişmedi) |
+| `?entityType=TAKIP_KAYDI&entityId={engel id}` | Yalnızca o engelin olayları |
+| `?entityId=4` | `400 VALIDATION_ERROR`, `fieldErrors[0].field: entityId` |
+| `?entityType=KULLANICI` | `400` (tanımsız tür) |
+| Ayşe, `GET /api/projects/2/history` | `404` (e-Belge Mehmet'in) |
+
+---
+
 ## 5. Hata davranışı
 
 Tüm hatalar mevcut `ApiError` gövdesiyle döner, yeni hata kodu eklenmez.
@@ -410,7 +468,8 @@ Sayaçlar ve sayfa toplamları da bu kümeden hesaplanır. Bir proje yöneticisi
 | `GET /api/tracking-items`, Mehmet | Yalnızca e-Belge'nin 2 kaydı (Orion Mobil'in kaydı yok); `?projectId=1` boş sonuç, `200` |
 | `GET /api/dashboard/summary`, Mehmet | Takip sayaçları yalnızca e-Belge'den: `openBlockers: 1`, `pendingDecisions: 1` |
 | `GET /api/dashboard/trend?year=2026&weekNumber=31&weeks=1`, Ayşe | `totalProjects: 2` (Atlas IK ve Nova POS) |
-| Herhangi biri, CTO veya Admin | Bölüm 2–4'teki örneklerle aynı (tüm projeler) |
+| `GET /api/projects/2/history`, Ayşe | `404`: başkasının projesinin geçmişi, olmayan proje gibi |
+| Herhangi biri, CTO veya Admin | Bölüm 2–4b'deki örneklerle aynı (tüm projeler) |
 
 ## 9. Test eşlemesi
 
@@ -422,5 +481,6 @@ Sayaçlar ve sayfa toplamları da bu kümeden hesaplanır. Bir proje yöneticisi
 | `FilterIntegrationTest` (yeni, MockMvc) | Bölüm 2–4'teki örnekler ve bölüm 5'teki her hata satırı |
 | `TrackingItemQueryTest` (`@DataJpaTest`) | Bölüm 4a koşulları: gecikme (takip tarihi olmayan kapalı kayıt `false` sorgusunda kalır), çok değerli filtreler, `assignee` araması, proje sahibi |
 | `ExportIntegrationTest` (MockMvc) | Excel çıktısı: sayfalar, filtrelerin uygulanması, hücre türleri, hata durumunda JSON 400 |
+| `AuditIntegrationTest` (MockMvc) | Bölüm 4b: 12 yazma yolunun her birinin tek olayı, yalnızca değişen alanlar, reddedilen değişikliğin iz bırakmaması, geri alma, sıralama ve filtreler, görünürlük, hatalı parametreler, sabit sorgu sayısı |
 | `TrendIntegrationTest` (MockMvc) | Bölüm 2a: haftalık seriler, açılan / kapanan kayıtlar, Türkiye saatiyle hafta başlangıcı, yıl sınırı, son haftanın dashboard'la aynı olması, hata durumları |
 | `TrackingItemIntegrationTest` (MockMvc) | Bölüm 4a örnekleri, sayfa ve sıralama; bölüm 2'deki takip sayaçları ve hafta referansının onları değiştirmemesi |

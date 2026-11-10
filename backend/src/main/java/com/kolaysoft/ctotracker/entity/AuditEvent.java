@@ -17,6 +17,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 
+import org.hibernate.annotations.BatchSize;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -65,7 +67,9 @@ public class AuditEvent {
     @Column(nullable = false)
     private String summary;
 
+    /** Bir sayfadaki olaylarin alanlari tek sorguda yuklenir (sayfa boyutu en fazla 100). */
     @ElementCollection
+    @BatchSize(size = 100)
     @CollectionTable(name = "audit_event_changes", joinColumns = @JoinColumn(name = "audit_event_id"))
     @OrderColumn(name = "sort_order")
     private List<AuditChange> changes = new ArrayList<>();
