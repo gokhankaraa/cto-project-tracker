@@ -506,9 +506,15 @@ before passwords existed gets the same password for users that have none):
 | 3 | `cto@example.com` | Zeynep Demir | CTO |
 | 4 | `admin@example.com` | Sistem Admin | ADMIN |
 
-- **Projects:** Atlas IK (owner: Ayşe), e-Belge (owner: Mehmet), Nova POS (owner: Ayşe, no report yet)
+- **Projects:** Atlas IK (owner: Ayşe), e-Belge (owner: Mehmet), Nova POS (owner: Ayşe, no report yet),
+  Orion Mobil (owner: Mehmet)
 - **Weekly reports:** Atlas IK weeks 29–31, e-Belge week 30, with a few work items. Atlas IK week 31 has
   an overdue work item, so the project shows `delayed: true` even though its status is `YOLUNDA`.
+  Orion Mobil has a report for each of the last 10 weeks, dated relative to the day the data is
+  loaded, so the dashboard's 12-week trend always moves. The project starts on track, turns at risk,
+  is delayed and blocked for a week, and gets back on track. Its latest report is `YOLUNDA` with low
+  risk and no work items, so it does not change the dashboard counters. A demo database seeded before
+  this project existed gets it on the next start (it comes back if deleted, in the demo profile only).
 - **Risks, blockers, decisions and actions:** Atlas IK has an open high risk, an action whose
   follow-up date has passed (overdue) and a decision already taken; e-Belge has a blocker in
   progress and a pending decision. Their dates are relative to the day the data is loaded, so the
@@ -532,7 +538,7 @@ and open http://localhost:5173, see [Frontend](#frontend)). Log out from the use
 right between roles.
 
 1. **CTO — portfolio at a glance** (`cto@example.com`)
-   - The dashboard lists all three projects with their latest status; Nova POS has no report yet.
+   - The dashboard lists all four projects with their latest status; Nova POS has no report yet.
    - Filter **Risk → Yüksek**: only e-Belge. Clear it and filter **Gecikme → Yalnızca gecikenler**:
      only Atlas IK. Its status is "Yolunda", but a work item in week 31 is past its planned date.
    - **İş kalemleri** with the same delay filter shows that item, "Rapor ekrani entegrasyonu".
@@ -547,7 +553,8 @@ right between roles.
      message "Bu proje için … haftasına ait rapor zaten mevcut." appears under the week.
    - Back on the dashboard, Nova POS now shows the new report.
 3. **Another project manager** (`mehmet@example.com`)
-   - Everything is limited to e-Belge: dashboard, projects, reports and work items.
+   - Everything is limited to his projects, e-Belge and Orion Mobil: dashboard, projects, reports and
+     work items.
    - Opening Ayşe's Atlas IK report by address, http://localhost:3000/reports/4, shows "Kayıt
      bulunamadı", exactly as for a record that does not exist (**404**).
 4. **Admin** (`admin@example.com`)
@@ -577,6 +584,21 @@ On a freshly seeded database (dates in the demo data are relative to the day it 
 4. **Admin** (`admin@example.com`): **Sil** is now disabled on Nova POS as well, since it has
    records.
 
+### Weekly trend and Excel export
+
+1. **CTO** (`cto@example.com`), at the bottom of the dashboard: "Son 12 hafta" charts the projects by
+   status and the open records, week by week. Hover a bar for that week's numbers, or press
+   **Tablo olarak göster** to read them as a table.
+   - Filter **Sorumlu → Mehmet Kaya**: e-Belge is at risk in every week, while Orion Mobil goes from
+     "Yolunda" to "Riskli", "Gecikmeli", one week "Bloke", and back to "Yolunda". Eleven weeks ago
+     Orion Mobil has no report yet ("Rapor yok").
+   - Choose **Yıl 2026, Hafta 31**: both charts end at week 31, and every project is judged by its
+     latest report up to each week.
+   - **Excel'e aktar** downloads `cto-ozeti-<today>.xlsx` with the filters chosen: *Özet* (counters
+     and the filters in words), *Projeler*, *Riskler ve aksiyonlar* (open records, overdue first)
+     and *Trend* (the same 12 weeks).
+2. **Ayşe** (`ayse@example.com`): the trend and the Excel file cover only Atlas IK and Nova POS.
+
 ### Over the API
 
 The same flow with `curl` or Swagger UI (**Authorize** with the token). Log in with
@@ -594,7 +616,7 @@ The same flow with `curl` or Swagger UI (**Authorize** with the token). Log in w
    `{ "title": "Kickoff", "status": "DEVAM_EDIYOR", "assignee": "Ayşe" }` → 201, and
    `GET /api/reports/{reportId}` → `liveTaskCount: 1` (`{reportId}` comes from step 3).
 5. **As Mehmet:** `GET /api/reports/4` (Ayşe's Atlas IK report) → **404**, and
-   `GET /api/dashboard/summary` has only the e-Belge row.
+   `GET /api/dashboard/summary` has only the e-Belge and Orion Mobil rows.
 6. **As the CTO again:** the dashboard shows Nova POS with `hasReport: true` and the fresh status.
 
 Other negative checks: skipping a progress stage on update → **400**; deleting a project that still
@@ -611,6 +633,16 @@ Risks, blockers, decisions and actions over the API:
   `overdueTrackingItems`. `POST /api/projects/1/tracking-items` → **403**.
 - **As Mehmet:** `GET /api/tracking-items/{id}` of an Atlas IK record → **404**.
 - **As the Admin:** `DELETE /api/projects/3` once Nova POS has a record → **409**.
+
+Weekly trend and Excel over the API:
+
+- **As the CTO:** `GET /api/dashboard/trend?ownerId=2` → 12 weeks, oldest first. Orion Mobil's
+  status moves week by week in `projectsByStatus`. `?year=2026&weekNumber=31&weeks=4` → weeks
+  28–31 of the fixed demo reports.
+- **As the CTO:** `GET /api/dashboard/export?riskLevel=YUKSEK` → an `.xlsx` file
+  (`Content-Disposition: attachment; filename="cto-ozeti-<today>.xlsx"`) with only e-Belge;
+  `?weekNumber=31` without a year → **400** in JSON.
+- **As Ayşe:** the same two requests cover only her projects.
 
 ## Package and layer structure
 
@@ -730,6 +762,9 @@ Backend tests (212 in total). The HTTP tests of business rules run as an Admin
   average progress), records open at the end of each week from creation and closing dates, a week
   starting at midnight in Turkey rather than UTC, a window across the year boundary, the last week
   equal to the dashboard, an empty portfolio, invalid parameters
+- `DataSeederIntegrationTest` — the demo data's trend project: the default 12-week trend moves week
+  by week (no report, then on track, at risk, delayed, blocked, back on track), its latest report
+  leaves the dashboard counters unchanged, and a demo database without it gets it once on the next start
 - `TrackingItemIntegrationTest` — risks, blockers, decisions and actions over HTTP: create, read,
   close (closing date set), reopen (cleared) and delete; the project list order and the overdue
   flag on the seed data; field errors (`riskLevel` by type, a past follow-up date, a missing
@@ -868,7 +903,7 @@ Run on 2026-11-10 against the current `main`:
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
 | CI | GitHub Actions on push to `main` | backend, frontend and Docker image jobs passed |
-| End-to-end | The demo scenarios in a browser on a clean Docker setup (local Playwright script) | report flow (14 checks), risks and actions flow (12 checks), the API scenario (14 checks) and the trend and Excel flow (5 checks: tooltip, week-31 numbers, filtered download and its content, a project manager's own data, no sideways scroll on a phone) passed, no console errors |
+| End-to-end | The demo scenarios in a browser on a clean Docker setup (local Playwright script) | report flow (14 checks), risks and actions flow (12 checks), the API scenario (14 checks) and the trend and Excel flow (6 checks: tooltip, week-31 numbers, one owner's projects changing week by week, filtered download and its content, a project manager's own data, no sideways scroll on a phone) passed, no console errors |
 
 The [Tests](#tests) section lists what each test class covers.
 

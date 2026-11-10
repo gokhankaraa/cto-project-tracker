@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.IsoFields;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -58,6 +59,9 @@ public class DataSeeder implements CommandLineRunner {
      */
     public static final String DEMO_PASSWORD = "Demo1234!";
 
+    /** Haftalik trendi hareketli gosteren demo projesi; raporlari bugune gore uretilir. */
+    static final String TREND_PROJECT = "Orion Mobil";
+
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
     private final WeeklyReportRepository weeklyReportRepository;
@@ -84,6 +88,7 @@ public class DataSeeder implements CommandLineRunner {
         if (userRepository.count() > 0) {
             assignMissingDemoPasswords();
             seedMissingTrackingItems();
+            seedMissingTrendProject();
             return;
         }
 
@@ -133,6 +138,7 @@ public class DataSeeder implements CommandLineRunner {
                 "Mehmet Kaya", WorkItemStatus.TAMAMLANDI, LocalDate.of(2026, 7, 30), LocalDate.of(2026, 7, 31));
 
         seedTrackingItems(atlas, ebelge);
+        seedTrendProject(mehmet);
 
         log.info("Ornek veri yuklendi: {} kullanici, {} proje, {} rapor, {} is kalemi, {} takip kaydi",
                 userRepository.count(), projectRepository.count(),
@@ -204,6 +210,72 @@ public class DataSeeder implements CommandLineRunner {
         saveTrackingItem(ebelge, TrackingItemType.KARAR, "e-Arsiv saglayicisi secimi", null,
                 "Maliyet ve teslim tarihini etkiler", "Iki teklif CTO'ya sunulacak",
                 "Zeynep Demir", today.plusDays(10), TrackingItemStatus.ACIK, 3);
+    }
+
+    /**
+     * Trend demo verisi (V5'ten sonra eklendi) olmayan demo veritabanina "Orion Mobil" projesini ekler: proje yoksa
+     * ve demo kullanicisi Mehmet yerindeyse. Proje silinirse sonraki acilista geri gelir; bu yalnizca demo
+     * profilinde olur.
+     */
+    private void seedMissingTrendProject() {
+        boolean exists = projectRepository.findAll().stream().anyMatch(p -> p.getName().equals(TREND_PROJECT));
+        if (exists) {
+            return;
+        }
+        userRepository.findByEmail("mehmet@example.com").ifPresent(mehmet -> {
+            seedTrendProject(mehmet);
+            log.info("Trend demo projesi eklendi: {}", TREND_PROJECT);
+        });
+    }
+
+    /**
+     * Haftalik trend grafigi duz gorunmesin diye son 10 haftanin raporlari bugune gore uretilir: durum
+     * yolunda -> riskli -> gecikmeli -> bloke -> yolunda doner. En son rapor yolunda, dusuk riskli ve is kalemsiz;
+     * boylece dashboard sayaclari (geciken, yuksek risk) bu projeden etkilenmez. Takip kaydi da eklenmez.
+     */
+    private void seedTrendProject(User owner) {
+        Project orion = saveProject(TREND_PROJECT, "Demo Musteri A.S.", "Saha ekipleri icin mobil uygulama",
+                ProjectStatus.DEVAM_EDIYOR, owner);
+        LocalDate today = LocalDate.now(clock);
+        saveReportWeeksAgo(orion, today, 10, ProgressStage.ANALIZ, OverallStatus.YOLUNDA, RiskLevel.DUSUK,
+                "Saha ekipleriyle ihtiyac gorusmeleri.", "Ekran akislari.", "-", "Proje basladi.");
+        saveReportWeeksAgo(orion, today, 9, ProgressStage.ANALIZ, OverallStatus.YOLUNDA, RiskLevel.DUSUK,
+                "Ekran akislari cikarildi.", "Teknik altyapi secimi.", "-", "Analiz plana uygun.");
+        saveReportWeeksAgo(orion, today, 8, ProgressStage.GELISTIRME, OverallStatus.RISKLI, RiskLevel.ORTA,
+                "Mobil uygulama iskeleti kuruldu.", "Cevrimdisi senkronizasyon.",
+                "Cevrimdisi calisma tasarimi belirsiz.", "Senkronizasyon tasarimi riskli.");
+        saveReportWeeksAgo(orion, today, 7, ProgressStage.GELISTIRME, OverallStatus.RISKLI, RiskLevel.ORTA,
+                "Senkronizasyon prototipi.", "Harita entegrasyonu.", "Harita lisansi bekleniyor.",
+                "Lisans gelmezse gecikme olur.");
+        saveReportWeeksAgo(orion, today, 6, ProgressStage.GELISTIRME, OverallStatus.GECIKMELI, RiskLevel.YUKSEK,
+                "Gorev listesi ekrani.", "Harita entegrasyonu.", "Harita lisansi gelmedi.",
+                "Harita isi bir hafta kaydi.");
+        saveReportWeeksAgo(orion, today, 5, ProgressStage.GELISTIRME, OverallStatus.BLOKE, RiskLevel.YUKSEK,
+                "Test verisi hazirlandi.", "Harita entegrasyonu.", "Musteri lisans onayini vermedi.",
+                "Lisans onayi olmadan ilerlenemiyor.");
+        saveReportWeeksAgo(orion, today, 4, ProgressStage.GELISTIRME, OverallStatus.GECIKMELI, RiskLevel.YUKSEK,
+                "Lisans alindi, harita entegrasyonu basladi.", "Harita entegrasyonu.", "Kaybedilen iki hafta.",
+                "Plan iki hafta kaydirildi.");
+        saveReportWeeksAgo(orion, today, 3, ProgressStage.GELISTIRME, OverallStatus.RISKLI, RiskLevel.ORTA,
+                "Harita entegrasyonu tamamlandi.", "Bildirimler.", "Yeni plan siki.", "Gecikme kapaniyor.");
+        saveReportWeeksAgo(orion, today, 2, ProgressStage.TEST, OverallStatus.YOLUNDA, RiskLevel.DUSUK,
+                "Bildirimler tamamlandi.", "Saha testi.", "-", "Yeni plana uygun.");
+        saveReportWeeksAgo(orion, today, 1, ProgressStage.TEST, OverallStatus.YOLUNDA, RiskLevel.DUSUK,
+                "Saha testinin ilk turu.", "Hata duzeltme.", "-", "Pilot hazirligi suruyor.");
+    }
+
+    /**
+     * Bugunden {@code weeksAgo} hafta onceki ISO haftanin raporu, o haftanin ertesi pazartesisi tarihli (en yenisi
+     * bu haftanin pazartesisi, yani hicbir rapor gelecekte degil). Hafta ve yil tarihten hesaplanir; yil donumunde
+     * de dogrudur (2027'nin 1. haftasinin raporu 2026 aralikta da olabilir).
+     */
+    private void saveReportWeeksAgo(Project project, LocalDate today, int weeksAgo, ProgressStage stage,
+                                    OverallStatus overallStatus, RiskLevel riskLevel,
+                                    String done, String planned, String risks, String note) {
+        LocalDate day = today.minusWeeks(weeksAgo);
+        int week = day.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+        LocalDate reportDate = WeeklyReport.mondayOf(day.get(IsoFields.WEEK_BASED_YEAR), week).plusWeeks(1);
+        saveReport(project, week, reportDate, stage, overallStatus, riskLevel, done, planned, risks, note);
     }
 
     private void saveTrackingItem(Project project, TrackingItemType type, String title, RiskLevel riskLevel,

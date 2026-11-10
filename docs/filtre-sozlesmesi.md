@@ -28,6 +28,14 @@ uygulanmaz; gecikme bugünün tarihine göredir.
 proje filtrelerini ve hafta referansı kuralını her haftaya ayrı ayrı uygular. Dashboard'un Excel çıktısı
 `GET /api/dashboard/export` da bölüm 2'nin parametrelerini kullanır (bölüm 2a'nın sonu).
 
+**Güncelleme (10 Kasım 2026, demo verisi):** Seed verisine 4. proje eklendi: **Orion Mobil** (id 4,
+sorumlusu Mehmet). Projenin son 10 haftası raporludur ve raporlar yüklendiği güne göre üretilir; bu sayede
+varsayılan trend her gün hareketli görünür. Durum haftadan haftaya yolunda → riskli → gecikmeli → bloke →
+gecikmeli → riskli → yolunda ilerler. En son rapor yolunda ve düşük risklidir; projenin iş kalemi ve takip
+kaydı yoktur. Örneklerdeki sayılar buna göre güncellendi. Tarihi sabit örneklerde (2026 hafta 29–31) Orion
+Mobil raporsuz görünür. Yıl filtresi kullanan sayılar 2026 içinde geçerlidir; yıl dönümünden sonra Orion'un
+raporlarının bir kısmı 2027'ye düşer.
+
 Bu doküman dört liste endpoint'inin filtre parametrelerini, doğrulama kurallarını, yanıt yapısını ve hata
 davranışını tanımlar. Geliştirme ve testler bu sözleşmeye göre yapıldı.
 
@@ -107,17 +115,17 @@ bağlı olmadığından her zaman bugünkü durum gösterilir.
 
 | İstek | Sonuç |
 |---|---|
-| `GET /api/dashboard/summary` | 3 proje, `totalLiveTasks: 2`, `delayedProjects: 1` (KK-01) |
+| `GET /api/dashboard/summary` | 4 proje, `totalLiveTasks: 2`, `delayedProjects: 1` (KK-01) |
 | `?riskLevel=YUKSEK` | Yalnızca e-Belge (mevcut davranış) |
 | `?riskLevel=ORTA,YUKSEK` | Atlas IK (son raporu hafta 31, `ORTA`) ve e-Belge (KK-02) |
-| `?year=2026&weekNumber=29` | Atlas IK hafta 29 değerleriyle (`ORTA`, `GELISTIRME`); e-Belge ve Nova POS `hasReport=false` (KK-03) |
-| `?year=2025` | 3 proje de `hasReport=false`, `projectsWithoutReport: 3` (2025'te rapor yok) |
-| `?year=2027&weekNumber=1` | En son rapor davranışıyla aynı: Atlas IK hafta 31, e-Belge hafta 30 (önceki yıl dahil) |
+| `?year=2026&weekNumber=29` | Atlas IK hafta 29 değerleriyle (`ORTA`, `GELISTIRME`); e-Belge, Nova POS ve Orion Mobil `hasReport=false` (KK-03) |
+| `?year=2025` | 4 proje de `hasReport=false`, `projectsWithoutReport: 4` (2025'te rapor yok) |
+| `?year=2027&weekNumber=1` | En son rapor davranışıyla aynı: Atlas IK hafta 31, e-Belge hafta 30, Orion Mobil geçen hafta (önceki yıl dahil) |
 | `?weekNumber=29` | `400 VALIDATION_ERROR`, `fieldErrors[0].field: weekNumber` (yıl yok) |
 | `?ownerId=1` | Atlas IK ve Nova POS, `totalProjects: 2` (KK-04) |
 | `?ownerId=1&riskLevel=YUKSEK` | Boş liste, tüm sayaçlar 0, `200` (KK-05) |
 | `?delayed=true` | Yalnızca Atlas IK: hafta 31'de planlanan tarihi geçmiş, bitmemiş bir iş kalemi var |
-| `GET /api/dashboard/summary` (takip alanları) | `openRisks: 1`, `openBlockers: 1`, `pendingDecisions: 1`, `overdueTrackingItems: 1`. Atlas IK 2 açık kayıt (1 gecikmiş, en yüksek `YUKSEK`), e-Belge 2 açık kayıt (`ORTA`), Nova POS 0 (`null`) |
+| `GET /api/dashboard/summary` (takip alanları) | `openRisks: 1`, `openBlockers: 1`, `pendingDecisions: 1`, `overdueTrackingItems: 1`. Atlas IK 2 açık kayıt (1 gecikmiş, en yüksek `YUKSEK`), e-Belge 2 açık kayıt (`ORTA`), Nova POS ve Orion Mobil 0 (`null`) |
 | `?projectId=2` | Takip sayaçları yalnızca e-Belge'den: `openBlockers: 1`, `openRisks: 0` |
 
 ---
@@ -167,6 +175,7 @@ değerlendirilir. Bu yüzden son hafta, aynı `year` / `weekNumber` ile açılan
 | İstek | Sonuç |
 |---|---|
 | `?year=2026&weekNumber=31&weeks=4` | Hafta 28: raporlu proje yok. Hafta 29: Atlas IK (`ORTA`, %50). Hafta 30: Atlas IK `DUSUK` %75, e-Belge `RISKLI` `YUKSEK` %25 (ortalama %50). Hafta 31: Atlas IK gecikmede (`delayedProjects: 1`) |
+| `?ownerId=2` (varsayılan: bu haftaya kadarki 12 hafta) | 11 hafta önce: yalnızca e-Belge raporlu (`RISKLI`). Sonra Orion Mobil haftadan haftaya `YOLUNDA` ×2, `RISKLI` ×2, `GECIKMELI`, `BLOKE`, `GECIKMELI`, `RISKLI`, `YOLUNDA` ×2; bu hafta geçen haftanın raporuyla `YOLUNDA` |
 | `?weekNumber=31` | `400 VALIDATION_ERROR`, `fieldErrors[0].field: weekNumber` |
 | `?weeks=53` | `400 VALIDATION_ERROR`, `fieldErrors[0].field: weeks` |
 
@@ -216,7 +225,7 @@ Tüm projelerin haftalık raporlarını filtreli ve sayfalı listeler. Projeye b
   "content": [ { "...": "WeeklyReportResponse" } ],
   "page": 0,
   "size": 20,
-  "totalElements": 4,
+  "totalElements": 14,
   "totalPages": 1
 }
 ```
@@ -229,13 +238,13 @@ eklenir. Ek alanlar diğer rapor endpoint'lerinin yanıtında da yer alır.
 
 | İstek | Sonuç |
 |---|---|
-| `GET /api/reports` | 4 rapor, en yeni üstte: Atlas IK hafta 31, aynı tarihli hafta 30 raporları (id azalan: e-Belge, Atlas IK), sonra Atlas IK hafta 29 |
+| `GET /api/reports` | 14 rapor, en yeni üstte: önce Orion Mobil'in son 10 haftası, sonra Atlas IK hafta 31, aynı tarihli hafta 30 raporları (id azalan: e-Belge, Atlas IK), sonra Atlas IK hafta 29 |
 | `?projectId=1&year=2026&weekFrom=29&weekTo=29` | Atlas IK hafta 29 |
-| `?year=2026` | 4 rapor (seed verisinin hepsi 2026'da) |
+| `?year=2026` | 14 rapor (2026 içinde seed verisinin hepsi 2026'da) |
 | `?year=2027` | `content: []`, `totalElements: 0` (`200`) |
-| `?riskLevel=YUKSEK&ownerId=2` | e-Belge hafta 30 |
-| `?size=2` | 2 kayıt, `totalElements: 4`, `totalPages: 2` |
-| `?page=5` | `content: []`, `totalElements: 4` (`200`) |
+| `?riskLevel=YUKSEK&ownerId=2` | Orion Mobil'in 6, 5 ve 4 hafta önceki raporları ile e-Belge hafta 30 |
+| `?size=2` | 2 kayıt, `totalElements: 14`, `totalPages: 7` |
+| `?page=5` | `content: []`, `totalElements: 14` (`200`) |
 
 ---
 
@@ -277,7 +286,7 @@ Bölüm 3'teki sayfa yapısı kullanılır, `content` elemanları `WorkItemRespo
 
 | İstek | Sonuç |
 |---|---|
-| `GET /api/work-items` | 3 iş kalemi: Atlas IK hafta 31'in 2 kalemi, sonra planlanan tarihi olmayan e-Belge "Mevzuat analizi". Atlas IK'nın eski haftaları listelenmez (S-05), Nova POS'un raporu yok. |
+| `GET /api/work-items` | 3 iş kalemi: Atlas IK hafta 31'in 2 kalemi, sonra planlanan tarihi olmayan e-Belge "Mevzuat analizi". Atlas IK'nın eski haftaları listelenmez (S-05), Nova POS'un raporu, Orion Mobil'in iş kalemi yok. |
 | `?year=2026&weekNumber=29` | Atlas IK hafta 29'un 3 iş kalemi |
 | `?year=2026&weekNumber=29&assignee=mehmet` | "Dashboard ozeti" |
 | `?year=2026` | `GET /api/work-items` ile aynı 3 iş kalemi (2026 sonuna kadarki en son raporlar) |
@@ -396,9 +405,9 @@ Sayaçlar ve sayfa toplamları da bu kümeden hesaplanır. Bir proje yöneticisi
 |---|---|
 | `GET /api/dashboard/summary`, Ayşe (PM) | Atlas IK ve Nova POS, `totalProjects: 2` |
 | `GET /api/dashboard/summary?ownerId=2`, Ayşe | Boş liste, sayaçlar `0`, `200` |
-| `GET /api/reports`, Mehmet (PM) | Yalnızca e-Belge hafta 30, `totalElements: 1` |
+| `GET /api/reports`, Mehmet (PM) | Yalnızca e-Belge hafta 30 ve Orion Mobil'in 10 raporu, `totalElements: 11` |
 | `GET /api/work-items`, Mehmet | Yalnızca e-Belge iş kalemleri |
-| `GET /api/tracking-items`, Mehmet | Yalnızca e-Belge'nin 2 kaydı; `?projectId=1` boş sonuç, `200` |
+| `GET /api/tracking-items`, Mehmet | Yalnızca e-Belge'nin 2 kaydı (Orion Mobil'in kaydı yok); `?projectId=1` boş sonuç, `200` |
 | `GET /api/dashboard/summary`, Mehmet | Takip sayaçları yalnızca e-Belge'den: `openBlockers: 1`, `pendingDecisions: 1` |
 | `GET /api/dashboard/trend?year=2026&weekNumber=31&weeks=1`, Ayşe | `totalProjects: 2` (Atlas IK ve Nova POS) |
 | Herhangi biri, CTO veya Admin | Bölüm 2–4'teki örneklerle aynı (tüm projeler) |

@@ -3,6 +3,7 @@ package com.kolaysoft.ctotracker;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.oneOf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -38,13 +39,13 @@ import com.kolaysoft.ctotracker.config.DataSeeder;
  * Yetki matrisi uctan uca: demo verisindeki kullanicilar gercekten giris yapar, istekler gercek token'la gider.
  *
  * <pre>
- * ayse   (PM)  : Atlas IK (1), Nova POS (3)      mehmet (PM): e-Belge (2)
+ * ayse   (PM)  : Atlas IK (1), Nova POS (3)      mehmet (PM): e-Belge (2), Orion Mobil (4)
  * cto    (CTO) : her seyi okur, hicbir sey yazamaz
  * admin        : her sey
  * </pre>
  *
- * Seed raporlari: 1-2-4 Atlas IK (hafta 29-30-31), 3 e-Belge (hafta 30). Her test {@code @Transactional} ile
- * geri alinir.
+ * Seed raporlari: 1-2-4 Atlas IK (hafta 29-30-31), 3 e-Belge (hafta 30), 5-14 Orion Mobil (bugunden geriye son
+ * 10 hafta). Her test {@code @Transactional} ile geri alinir.
  */
 @SpringBootTest
 @ActiveProfiles("demo")
@@ -117,18 +118,18 @@ class AuthorizationIntegrationTest {
     @Test
     @DisplayName("Proje listesi: Admin ve CTO hepsini, proje yoneticisi yalnizca kendi projelerini gorur")
     void projectListIsScopedToOwner() throws Exception {
-        as("admin", get("/api/projects")).andExpect(jsonPath("$.length()").value(3));
-        as("cto", get("/api/projects")).andExpect(jsonPath("$.length()").value(3));
+        as("admin", get("/api/projects")).andExpect(jsonPath("$.length()").value(4));
+        as("cto", get("/api/projects")).andExpect(jsonPath("$.length()").value(4));
         as("ayse", get("/api/projects"))
                 .andExpect(jsonPath("$[*].name", containsInAnyOrder("Atlas IK", "Nova POS")));
         as("mehmet", get("/api/projects"))
-                .andExpect(jsonPath("$[*].name", containsInAnyOrder("e-Belge")));
+                .andExpect(jsonPath("$[*].name", containsInAnyOrder("e-Belge", "Orion Mobil")));
     }
 
     @Test
     @DisplayName("Dashboard: proje yoneticisi kendi projelerini gorur, sayaclar da onlardan hesaplanir")
     void dashboardIsScopedAndCountersFollow() throws Exception {
-        as("cto", get("/api/dashboard/summary")).andExpect(jsonPath("$.totalProjects").value(3));
+        as("cto", get("/api/dashboard/summary")).andExpect(jsonPath("$.totalProjects").value(4));
         as("ayse", get("/api/dashboard/summary"))
                 .andExpect(jsonPath("$.totalProjects").value(2))
                 .andExpect(jsonPath("$.highRiskProjects").value(0))
@@ -144,12 +145,13 @@ class AuthorizationIntegrationTest {
                 .andExpect(jsonPath("$.pendingDecisions").value(1));
         // Trend de ayni kumeden: her haftada yalnizca gorunen projeler sayilir.
         as("cto", get("/api/dashboard/trend?year=2026&weekNumber=31&weeks=1"))
-                .andExpect(jsonPath("$.weeks[0].totalProjects").value(3));
+                .andExpect(jsonPath("$.weeks[0].totalProjects").value(4));
         as("ayse", get("/api/dashboard/trend?year=2026&weekNumber=31&weeks=1"))
                 .andExpect(jsonPath("$.weeks[0].totalProjects").value(2))
                 .andExpect(jsonPath("$.weeks[0].projectsWithReport").value(1));
         as("mehmet", get("/api/dashboard/trend?year=2026&weekNumber=31&weeks=1"))
-                .andExpect(jsonPath("$.weeks[0].totalProjects").value(1));
+                .andExpect(jsonPath("$.weeks[0].totalProjects").value(2))
+                .andExpect(jsonPath("$.weeks[0].projectsWithReport").value(1));
         // Excel ciktisi da ayni kumeden: proje yoneticisi yalnizca kendi projelerini indirir.
         byte[] file = as("ayse", get("/api/dashboard/export")).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsByteArray();
@@ -165,10 +167,10 @@ class AuthorizationIntegrationTest {
     @Test
     @DisplayName("Projeler arasi rapor, is kalemi ve takip kaydi listeleri de sahiplige gore sinirlidir")
     void crossProjectListsAreScoped() throws Exception {
-        as("cto", get("/api/reports")).andExpect(jsonPath("$.totalElements").value(4));
+        as("cto", get("/api/reports")).andExpect(jsonPath("$.totalElements").value(14));
         as("mehmet", get("/api/reports"))
-                .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.content[0].projectName").value("e-Belge"));
+                .andExpect(jsonPath("$.totalElements").value(11))
+                .andExpect(jsonPath("$.content[*].projectName", everyItem(is(oneOf("e-Belge", "Orion Mobil")))));
         as("mehmet", get("/api/work-items"))
                 .andExpect(jsonPath("$.content[*].projectName", everyItem(is("e-Belge"))));
         as("ayse", get("/api/work-items"))

@@ -37,7 +37,7 @@ import com.kolaysoft.ctotracker.export.DashboardExportService;
 
 /**
  * CTO ozetinin Excel ciktisi HTTP uzerinden: uretilen dosya POI ile geri okunur ve icerigi seed verisine gore
- * dogrulanir (proje 1 Atlas IK, 2 e-Belge, 3 Nova POS; 5 takip kaydindan 1'i kapali).
+ * dogrulanir (proje 1 Atlas IK, 2 e-Belge, 3 Nova POS, 4 Orion Mobil; 5 takip kaydindan 1'i kapali).
  */
 @SpringBootTest
 @ActiveProfiles("demo")
@@ -96,7 +96,7 @@ class ExportIntegrationTest {
 
             Sheet summary = workbook.getSheet("Özet");
             assertThat(text(summary, 2, 1)).isEqualTo("Yok (tüm projeler, en son rapor)");
-            assertThat(counter(summary, "Toplam proje")).isEqualTo(3);
+            assertThat(counter(summary, "Toplam proje")).isEqualTo(4);
             assertThat(counter(summary, "Geciken")).isEqualTo(1);
             assertThat(counter(summary, "Açık engel")).isEqualTo(1);
             assertThat(counter(summary, "Gecikmiş takip")).isEqualTo(1);
@@ -110,7 +110,7 @@ class ExportIntegrationTest {
         try (Workbook workbook = download("")) {
             Sheet projects = workbook.getSheet("Projeler");
             assertThat(text(projects, 0, 0)).isEqualTo("Proje");
-            assertThat(column(projects, 0)).containsExactly("Atlas IK", "e-Belge", "Nova POS");
+            assertThat(column(projects, 0)).containsExactly("Atlas IK", "e-Belge", "Nova POS", "Orion Mobil");
 
             Row atlas = projects.getRow(1);
             assertThat(atlas.getCell(6).getStringCellValue()).isEqualTo("Test");
