@@ -1,0 +1,77 @@
+# Uretim kurulumu: demo verisi yok, gizli degerler zorunlu, disariya yalnizca web (nginx) acik.
+# Kullanim:
+#   cp .env.prod.example .env.prod      (degerleri doldurun; .env.prod git'e girmez)
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod ps     (uc servis "healthy" olmali)
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod down   (veri volume'da kalir)
+# Gelistirme kurulumundan (docker-compose.yml) ayri: proje adi, konteynerler ve veri volume'u farkli.
+name: cto-project-tracker-prod
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: ctotracker-prod-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ctotracker}
+      POSTGRES_USER: ${DB_USER:-ctotracker}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD gerekli (.env.prod)}
+    # Port disariya acilmaz: veritabanina yalnizca compose agindaki backend ulasir.
+    volumes:
+      - ctotracker-prod-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: ./backend
+    image: cto-tracker:latest
+    container_name: ctotracker-prod-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-ctotracker}
+      DB_USER: ${DB_USER:-ctotracker}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD gerekli (.env.prod)}
+      # Profil yok: uretim ayarlari (application.yml). Demo profili burada secilmez.
+      SPRING_PROFILES_ACTIVE: ""
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET gerekli (.env.prod, openssl rand -base64 48)}
+      JWT_TOKEN_TTL: ${JWT_TOKEN_TTL:-8h}
+      # Ilk admin: yalnizca veritabaninda hic kullanici yokken okunur; ilk acilistan sonra kaldirilabilir.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_NAME: ${ADMIN_NAME:-Sistem Yöneticisi}
+      # Tarayici API'ye web ile ayni adresten ulasir; baska bir adrese CORS izni verilmez.
+      CORS_ALLOWED_ORIGINS: ""
+    # Port disariya acilmaz: API'ye web (nginx) uzerinden ulasilir.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  web:
+    build: ./frontend
+    image: cto-tracker-web:latest
+    container_name: ctotracker-prod-web
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-80}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  ctotracker-prod-db-data:

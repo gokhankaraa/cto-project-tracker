@@ -33,8 +33,10 @@ Project documents (in [`docs/`](docs/), Turkish):
 ├── frontend/            React + TypeScript web app (Vite; Dockerfile + nginx.conf)
 ├── docs/                Analysis notes and the filter API contract
 ├── .github/workflows/   CI: backend tests, frontend checks, Docker image builds
-├── docker-compose.yml   PostgreSQL, backend and frontend containers
-└── .env.example         Values docker compose reads
+├── docker-compose.yml       Development setup: PostgreSQL, backend and frontend, demo profile
+├── docker-compose.prod.yml  Production setup: no demo data, required secrets, only the web port open
+├── .env.example             Values docker-compose.yml reads
+└── .env.prod.example        Template for the production values (.env.prod is never committed)
 ```
 
 ## Tech stack
@@ -157,6 +159,39 @@ curl http://localhost:8080/api/health
 
 The `databaseStatus` field is produced by actually issuing a query against the database; it confirms
 not just that the application is up, but that the DB connection works.
+
+### Production setup
+
+[`docker-compose.prod.yml`](docker-compose.prod.yml) runs the same images with production settings,
+next to the development setup: it uses its own project name, containers and data volume.
+
+```bash
+cp .env.prod.example .env.prod     # fill in the values; .env.prod is never committed
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps    # all three "healthy"
+```
+
+Open `http://<host>:<WEB_PORT>` (default port 80) and log in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+
+| What it enforces | How |
+|---|---|
+| No demo data, no known passwords | no Spring profile: the production settings in `application.yml` |
+| Secrets are given | `DB_PASSWORD` and `JWT_SECRET` are required (`${VAR:?}`): `docker compose` stops before starting anything if one is missing. The backend also refuses an empty secret or the development one |
+| A first admin exists | created once from `ADMIN_EMAIL` / `ADMIN_PASSWORD` on an empty database; without them the backend does not start. After the first start they are ignored and can be removed from `.env.prod` |
+| Only the web app is reachable | the database and the backend publish no port; the browser reaches the API through nginx (`/api`), so no other origin is allowed (CORS) |
+| Restarts on failure, starts in order | `restart: unless-stopped`; health checks on all three; web waits for a healthy backend, the backend for a healthy database |
+| Least privilege | the backend runs as an unprivileged `app` user, not root |
+| Browser protections | nginx sends `Content-Security-Policy` (scripts only from the app itself), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` and `Permissions-Policy`, and hides its version |
+| History cannot be rewritten | Flyway V7: the database rejects `UPDATE`, `DELETE` and `TRUNCATE` on the change history tables |
+
+Not covered by this setup, needed before it faces the internet:
+
+- **HTTPS:** put a TLS-terminating proxy (or a load balancer) in front of the web port. Then enable
+  the `Strict-Transport-Security` line in `frontend/security-headers.conf`.
+- **Backups:** the data lives in the `ctotracker-prod-db-data` volume; back it up with, for example,
+  `docker exec ctotracker-prod-db pg_dump -U ctotracker ctotracker > backup.sql`.
+- **Database role:** the backend connects as the owner of the tables. A separate role with only the
+  rights it needs would also stop someone from turning off the history triggers.
 
 ### Frontend
 
@@ -421,7 +456,10 @@ project.
   event needs no extra query.
 - The event is written in the **same transaction** as the change: a change that is refused (400,
   403, 404, 409) leaves no trace, and if the event cannot be written the change is rolled back too.
-- Events are only added; the API has no way to change or delete them. The record and project ids
+- Events are only added; the API has no way to change or delete them, and the database rejects
+  `UPDATE`, `DELETE` and `TRUNCATE` on the history tables (Flyway V7). The only update it allows is
+  the one the foreign key makes when a user is deleted: `actor_id` becomes empty, the name stays.
+  The record and project ids
   are not foreign keys, so the history of a deleted record stays. Deleting a report also deletes its
   work items; only the report's deletion is recorded. The demo data is not in the history (it does
   not go through the API).
@@ -536,9 +574,10 @@ history"); this section is the technical, security and validation note.
 
 **Limits and next steps**
 
-- History is tamper-proof only at the application level. A database user can still change or delete
-  rows. Next step: a database role that can only `INSERT` and `SELECT` on the history tables, or a
-  trigger that rejects `UPDATE` and `DELETE`.
+- History cannot be changed through the app or by a mistaken SQL statement: a trigger rejects it
+  (Flyway V7). The owner of the tables can still turn the trigger off. Next step: run the backend
+  with a database role that is not the owner and can only `INSERT` and `SELECT` on the history
+  tables.
 - No retention policy: events are kept forever.
 - The person's name comes from the token, so after a rename it can be up to 8 hours old (the app
   has no rename yet).
@@ -873,9 +912,9 @@ against a clean Docker setup (see [Latest test run](#latest-test-run)).
 | Weekly reports and work items | `WeeklyReportServiceTest`, `WorkItemServiceTest`, `WeeklyReportYearTest`, `WeeklyReportQueryTest`, `WorkItemQueryTest`, `FilterIntegrationTest` | `ReportFormPage`, `ReportDetailPage`, `ReportListPage`, `WorkItemsSection`, `WorkItemListPage`, `isoWeek`, `listFilters` | report flow: new report, work item, same week 409, delay filter | per-row queries in the paged lists |
 | Risks, blockers, decisions, actions | `TrackingItemServiceTest`, `TrackingItemQueryTest`, `TrackingItemIntegrationTest` | `TrackingItemsSection`, `TrackingItemListPage`, `filters` | risks and actions flow | — |
 | Dashboard, trend, Excel | `DashboardServiceTest`, `TrendIntegrationTest`, `ExportIntegrationTest`, `DataSeederIntegrationTest` | `DashboardPage`, `TrendSection`, `filters` | trend and Excel flow, file content | — |
-| Change history | `AuditServiceTest`, `AuditIntegrationTest` | `ProjectHistorySection`, `historyFormat` | change history flow (token identity, refused writes, XSS, paging) | history editable at the database level |
+| Change history | `AuditServiceTest`, `AuditIntegrationTest`, `AuditHistoryProtectionTest` | `ProjectHistorySection`, `historyFormat` | change history flow (token identity, refused writes, XSS, paging) | — |
 | Errors, paging, formats | `GlobalExceptionHandlerTest`, `SortParameterTest` | `QueryState`, `client`, `searchParams`, `format` | console errors checked in every flow | — |
-| Build, health, setup | `HealthControllerTest`; images built in CI | production build in CI | local Docker demo | a production setup that refuses missing secrets, security headers, smoke test |
+| Build, health, setup | `HealthControllerTest`; images built in CI | production build in CI | local Docker demo; production setup tried (secrets, headers, CSP in a browser) | the smoke test on the production setup |
 | All of the above | | | **not in the repository or CI** | browser checks moved into the repository and CI |
 
 **Before a release** (smoke checklist, run on the production setup with an empty database):
@@ -901,7 +940,7 @@ empty database. Tests that rely on the demo data ask for the `demo` profile on p
 creates its own data. Service tests use Mockito and need no database; they run as an Admin
 (a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
-Backend tests (240 in total). The HTTP tests of business rules run as an Admin
+Backend tests (247 in total). The HTTP tests of business rules run as an Admin
 (`@WithMockUser`); login, tokens and permissions are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
@@ -985,6 +1024,10 @@ Backend tests (240 in total). The HTTP tests of business rules run as an Admin
   and follow-up date required while open, no past follow-up date on create, an unchanged past date
   kept (and overdue) on update but a new past date rejected, the closing date following the status,
   the project list order, someone else's project (404), the dashboard summary per project
+- `AuditHistoryProtectionTest` — Flyway V7 against PostgreSQL (@DataJpaTest): direct SQL `UPDATE`,
+  `DELETE` and `TRUNCATE` on the history tables are rejected, also when `actor_id` is cleared
+  together with another column; deleting a user only clears `actor_id` and keeps the name and the
+  changed fields
 - `AuditServiceTest` — change history events: a create with its filled fields in order, an update
   with only the changed fields, no event for an update that changes nothing (a blank text counts as
   empty), a delete with the name only, the person and time from the session and the clock; record
@@ -1095,7 +1138,7 @@ Run on 2026-11-10 against the current `main`:
 
 | Check | Command | Result |
 |---|---|---|
-| Backend tests | `cd backend && ./mvnw test` | 240 passed, 0 failed, 0 skipped |
+| Backend tests | `cd backend && ./mvnw test` | 247 passed, 0 failed, 0 skipped |
 | Frontend tests | `cd frontend && npm test` | 215 passed in 29 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
@@ -1177,9 +1220,9 @@ the SQL count is the statements PostgreSQL logged for one call.
 
 1. **User management for the Admin:** creating users, assigning roles and owners, resetting
    passwords; a password change for every user. After that, the app no longer depends on demo data.
-2. **Production readiness:** a profile without demo data that refuses to start without a real
-   `JWT_SECRET`, HTTPS, a deployment target, and token refresh or revocation. A database role that
-   can only add to and read the change history, and a retention period for it.
+2. **Production readiness:** HTTPS in front of the [production setup](#production-setup), backups, a
+   public deployment target, token refresh or revocation, a database role that is not the table
+   owner (only adds to and reads the change history), and a retention period for the history.
 3. **Quality:** browser end-to-end tests of the demo scenarios in CI (today they run from a local
    Playwright script), the per-row queries of the paged lists (see [Performance](#performance)), Turkish letters in the demo
    data, and a longer timeout for the slow form tests.

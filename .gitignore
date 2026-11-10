@@ -38,5 +38,8 @@ build/
 # Microsoft Office lock files (a document is open in Word/Excel)
 ~$*
 
-# Local environment values (docker-compose); .env.example is the committed template
+# Local environment values (docker-compose); only the *.example templates are committed
 .env
+.env.*
+!.env.example
+!.env.prod.example
