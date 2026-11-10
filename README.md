@@ -1439,3 +1439,60 @@ the SQL count is the statements PostgreSQL logged for one call.
 2. **Production readiness:** HTTPS in front of the [production setup](#production-setup), backups, a
    public deployment target, token refresh or revocation, a database role that is not the table
    owner (only adds to and reads the change history), and a retention period for the history.
+
+## Retrospective
+
+The project went from an empty repository on 2026-07-20 to the current state on 2026-11-10 in 107
+commits: a Spring Boot API (about 6,600 lines of Java, 7 Flyway migrations), a React app (about
+5,800 lines of TypeScript), 257 backend, 215 frontend and 14 browser tests (about 8,700 lines), CI
+on every push, a production setup and a release smoke test.
+
+**What went well**
+
+- **Small steps, each with its tests and its own commit.** Every change was tested and committed
+  before the next one, and CI checked every push. When the machine crashed in the last phase,
+  nothing was lost.
+- **A real PostgreSQL in the tests.** Year-boundary weeks, triggers, `DISTINCT ON` and the anti-join
+  rewrite all behave in the tests as they do in production; an in-memory database would have hidden
+  several of these.
+- **Measuring before optimizing.** Counting SQL statements per request found the dashboard's 562
+  queries and the lists' per-row queries. Measuring the old and the new code one after the other
+  under the same load kept a noisy laptop from producing misleading numbers.
+- **Testing the tests.** Breaking the code on purpose showed which new tests really protected
+  something. Two did not at first: a query count measured inside the test transaction, where
+  Hibernate served the rows from memory, and a rollback check. Both were fixed before they were
+  trusted.
+
+**What was hard, and what went wrong**
+
+- **Documentation drifted from the code.** When production settings became the default, the README
+  still said the demo profile was the default and still showed a jar command that no longer
+  started. Nothing caught it until the README was run step by step from a fresh clone. Running the
+  documentation, not just reading it, is now part of a release.
+- **The SQL Hibernate sends is not the SQL one writes.** A rewrite that took 21 ms in `psql` took
+  113 ms in the app, because Hibernate joined the subquery again per row. Only PostgreSQL's
+  statement log showed why.
+- **Checks that stopped too early.** The web container's health check was broken (it called
+  `localhost`, which is IPv6 in the image), but an early trial looked at "starting" and moved on.
+  The smoke test, which waits for "healthy", found it.
+- **Shell portability.** macOS ships bash 3.2, which broke JSON bodies inside `$(…)`; `pipefail`
+  turned an early-exiting `grep -q` into a failure; zsh does not split words in `$VAR`; macOS has no
+  `timeout`. Scripts that others run need the same care as the app.
+- **The same facts in two languages.** API types, enum values, Turkish labels and the ISO week rule
+  exist in Java and in TypeScript. Contract tests now keep them equal, but they came late.
+
+**What I learned**
+
+- How a report's week and year should be modeled: the year of the week it describes, not of its
+  date. Also how one reading rule, "the latest report up to week N", keeps the dashboard, trend,
+  lists and export consistent.
+- Security as defaults rather than checks: deny writes unless a rule allows them, answer 404 for
+  other people's records, refuse to start with missing or known secrets, take the user's identity
+  only from the token.
+- That an audit log belongs in the same transaction as the change it records, and that "append
+  only" needs both an API without delete and a database that refuses it.
+- Operability details: health checks, security headers and how nginx inherits them, a
+  failure analyzer that turns a stack trace into one actionable line.
+
+**Next:** user management is the first step to real use, then HTTPS, backups and a public deployment
+(see [Next phase](#next-phase)).
