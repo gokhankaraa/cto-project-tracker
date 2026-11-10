@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -51,6 +52,10 @@ class DashboardServiceTest {
 
     @Mock
     private DelayPolicy delayPolicy;
+
+    /** Takip ozeti varsayilan olarak bos harita doner (Mockito); kaydi olmayan projeler gibi davranir. */
+    @Mock
+    private TrackingItemService trackingItemService;
 
     /** Bu testler is kurallarini sinar; oturumdaki kullanici her projeyi goren Admin'dir. */
 
@@ -272,5 +277,50 @@ class DashboardServiceTest {
         assertThat(onlyDelayed.delayedProjects()).isEqualTo(1);
         assertThat(notDelayed.projects()).extracting(s -> s.projectId()).containsExactly(2L);
         assertThat(notDelayed.delayedProjects()).isZero();
+    }
+
+    @Test
+    @DisplayName("Takip ozeti: satirda acik / gecikmis kayit ve en yuksek seviye; sayaclar yalnizca listelenen projelerden")
+    void trackingSummaryFollowsListedProjects() {
+        Project atlas = project(1L, "Atlas IK", null);
+        Project ebelge = project(2L, "e-Belge", null);
+        when(projectRepository.findAll(anySpec(), any(Sort.class))).thenReturn(List.of(atlas, ebelge));
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(1L))
+                .thenReturn(Optional.of(report(10L, 1L, 30, ProgressStage.TEST, RiskLevel.YUKSEK)));
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(2L))
+                .thenReturn(Optional.of(report(20L, 2L, 30, ProgressStage.ANALIZ, RiskLevel.DUSUK)));
+        when(trackingItemService.openSummaries(List.of(1L, 2L))).thenReturn(Map.of(
+                1L, new TrackingSummary(3, 1, 1, 0, 1, RiskLevel.YUKSEK),
+                2L, new TrackingSummary(1, 0, 0, 1, 0, RiskLevel.ORTA)));
+
+        DashboardSummaryResponse all = service.getSummary(DashboardFilter.none());
+
+        assertThat(all.openRisks()).isEqualTo(1);
+        assertThat(all.openBlockers()).isEqualTo(1);
+        assertThat(all.pendingDecisions()).isEqualTo(1);
+        assertThat(all.overdueTrackingItems()).isEqualTo(1);
+        assertThat(all.projects().getFirst().openTrackingItems()).isEqualTo(3);
+        assertThat(all.projects().getFirst().overdueTrackingItems()).isEqualTo(1);
+        assertThat(all.projects().getFirst().highestOpenRiskLevel()).isEqualTo(RiskLevel.YUKSEK);
+
+        // Rapor filtresi e-Belge'yi eler: onun engeli sayaclardan da duser.
+        DashboardSummaryResponse highRisk = service.getSummary(
+                new DashboardFilter(null, null, null, null, null, null, List.of(RiskLevel.YUKSEK), null));
+        assertThat(highRisk.projects()).extracting(s -> s.projectId()).containsExactly(1L);
+        assertThat(highRisk.openBlockers()).isZero();
+        assertThat(highRisk.openRisks()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Takip kaydi olmayan proje: sayilar 0, en yuksek seviye null")
+    void projectWithoutTrackingItems() {
+        when(projectRepository.findAll(anySpec(), any(Sort.class))).thenReturn(List.of(project(3L, "Nova POS", null)));
+        when(weeklyReportRepository.findTopByProjectIdOrderByYearDescWeekNumberDesc(3L)).thenReturn(Optional.empty());
+
+        DashboardSummaryResponse summary = service.getSummary(DashboardFilter.none());
+
+        assertThat(summary.projects().getFirst().openTrackingItems()).isZero();
+        assertThat(summary.projects().getFirst().highestOpenRiskLevel()).isNull();
+        assertThat(summary.overdueTrackingItems()).isZero();
     }
 }

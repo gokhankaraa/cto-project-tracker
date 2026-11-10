@@ -133,6 +133,15 @@ class AuthorizationIntegrationTest {
                 .andExpect(jsonPath("$.totalProjects").value(2))
                 .andExpect(jsonPath("$.highRiskProjects").value(0))
                 .andExpect(jsonPath("$.projects[*].name", containsInAnyOrder("Atlas IK", "Nova POS")));
+        // Takip sayaclari da yalnizca gorunen projelerden: e-Belge'nin engeli ve karari Mehmet'te.
+        as("ayse", get("/api/dashboard/summary"))
+                .andExpect(jsonPath("$.openBlockers").value(0))
+                .andExpect(jsonPath("$.pendingDecisions").value(0))
+                .andExpect(jsonPath("$.overdueTrackingItems").value(1));
+        as("mehmet", get("/api/dashboard/summary"))
+                .andExpect(jsonPath("$.openRisks").value(0))
+                .andExpect(jsonPath("$.openBlockers").value(1))
+                .andExpect(jsonPath("$.pendingDecisions").value(1));
         // Baskasinin sorumlu filtresi hata degil, bos sonuc (filtre sozlesmesi, bolum 8).
         as("ayse", get("/api/dashboard/summary").param("ownerId", "2"))
                 .andExpect(status().isOk())
@@ -140,7 +149,7 @@ class AuthorizationIntegrationTest {
     }
 
     @Test
-    @DisplayName("Projeler arasi rapor ve is kalemi listeleri de sahiplige gore sinirlidir")
+    @DisplayName("Projeler arasi rapor, is kalemi ve takip kaydi listeleri de sahiplige gore sinirlidir")
     void crossProjectListsAreScoped() throws Exception {
         as("cto", get("/api/reports")).andExpect(jsonPath("$.totalElements").value(4));
         as("mehmet", get("/api/reports"))
@@ -150,6 +159,14 @@ class AuthorizationIntegrationTest {
                 .andExpect(jsonPath("$.content[*].projectName", everyItem(is("e-Belge"))));
         as("ayse", get("/api/work-items"))
                 .andExpect(jsonPath("$.content[*].projectName", everyItem(is("Atlas IK"))));
+        as("cto", get("/api/tracking-items")).andExpect(jsonPath("$.totalElements").value(5));
+        as("mehmet", get("/api/tracking-items"))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content[*].projectName", everyItem(is("e-Belge"))));
+        // Baskasinin projesiyle filtrelemek hata degil, bos sonuc.
+        as("mehmet", get("/api/tracking-items").param("projectId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test

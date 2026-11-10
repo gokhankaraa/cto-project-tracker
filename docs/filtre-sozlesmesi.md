@@ -19,7 +19,12 @@ oluşturma/güncelleme `400 VALIDATION_ERROR` döner. Seed verisinde yıl deği�
 bu dokümandaki örnekler aynen geçerlidir. Değişen tek durum yıl sınırıdır: 53. haftanın 4 Ocak 2027'de
 yazılan raporu artık 2027 değil 2026 yılındadır.
 
-Bu doküman üç endpoint'in filtre parametrelerini, doğrulama kurallarını, yanıt yapısını ve hata
+**Güncelleme (10 Kasım 2026, risk / engel / karar / aksiyon):** Dördüncü liste endpoint'i eklendi:
+`GET /api/tracking-items` (bölüm 4a). Dashboard yanıtına takip kayıtlarının sayaçları ve proje satırı
+alanları eklendi (bölüm 2). Bu kayıtlar haftaya bağlı olmadığı için yıl / hafta referansı onlara
+uygulanmaz; gecikme bugünün tarihine göredir.
+
+Bu doküman dört liste endpoint'inin filtre parametrelerini, doğrulama kurallarını, yanıt yapısını ve hata
 davranışını tanımlar. Geliştirme ve testler bu sözleşmeye göre yapıldı.
 
 ---
@@ -79,9 +84,20 @@ Karşılaştırma yıl ve haftayı birlikte taşıyan tek bir anahtarla yapılı
 | `DashboardSummaryResponse` | `delayedProjects` | long | Filtrelenmiş kümedeki geciken proje sayısı |
 | `DashboardProjectSummary` | `delayed` | boolean | Değerlendirilen rapora göre proje gecikmede mi (raporu yoksa `false`) |
 | `DashboardProjectSummary` | `lastYear` | Integer | Değerlendirilen raporun yılı (V2; raporu yoksa `null`) |
+| `DashboardSummaryResponse` | `openRisks` | long | Listelenen projelerde kapanmamış risk sayısı (V5) |
+| `DashboardSummaryResponse` | `openBlockers` | long | Kapanmamış engel sayısı |
+| `DashboardSummaryResponse` | `pendingDecisions` | long | Verilmemiş (kapanmamış) karar sayısı |
+| `DashboardSummaryResponse` | `overdueTrackingItems` | long | Takip tarihi geçmiş, kapanmamış kayıt sayısı (dört tür) |
+| `DashboardProjectSummary` | `openTrackingItems` | long | Projenin kapanmamış kayıt sayısı |
+| `DashboardProjectSummary` | `overdueTrackingItems` | long | Projenin takip tarihi geçmiş kayıt sayısı |
+| `DashboardProjectSummary` | `highestOpenRiskLevel` | `RiskLevel` | Kapanmamış risk ve engellerin en yüksek seviyesi; yoksa `null` |
 
 Mevcut alanlarda değişiklik yok: `lastYear` / `lastWeekNumber`, `year` / `weekNumber` verildiğinde
 değerlendirilen raporun yılını ve haftasını gösterir. Sayaçlar filtrelenmiş kümeye göre hesaplanır (KF-06).
+
+Takip kaydı alanları (V5) yalnızca listelenen projelerin kayıtlarından hesaplanır: proje ve rapor
+filtreleri onları da daraltır. `year` / `weekNumber` ise bu alanları **değiştirmez**. Kayıtlar haftaya
+bağlı olmadığından her zaman bugünkü durum gösterilir.
 
 ### Örnekler (seed verisi)
 
@@ -97,6 +113,8 @@ değerlendirilen raporun yılını ve haftasını gösterir. Sayaçlar filtrelen
 | `?ownerId=1` | Atlas IK ve Nova POS, `totalProjects: 2` (KK-04) |
 | `?ownerId=1&riskLevel=YUKSEK` | Boş liste, tüm sayaçlar 0, `200` (KK-05) |
 | `?delayed=true` | Yalnızca Atlas IK: hafta 31'de planlanan tarihi geçmiş, bitmemiş bir iş kalemi var |
+| `GET /api/dashboard/summary` (takip alanları) | `openRisks: 1`, `openBlockers: 1`, `pendingDecisions: 1`, `overdueTrackingItems: 1`. Atlas IK 2 açık kayıt (1 gecikmiş, en yüksek `YUKSEK`), e-Belge 2 açık kayıt (`ORTA`), Nova POS 0 (`null`) |
+| `?projectId=2` | Takip sayaçları yalnızca e-Belge'den: `openBlockers: 1`, `openRisks: 0` |
 
 ---
 
@@ -204,6 +222,47 @@ Bölüm 3'teki sayfa yapısı kullanılır, `content` elemanları `WorkItemRespo
 | `?status=DEVAM_EDIYOR` | "Rapor ekrani entegrasyonu" ve "Mevzuat analizi" |
 | `?delayed=true` | "Rapor ekrani entegrasyonu" (`delayed: true`) |
 
+## 4a. `GET /api/tracking-items` (V5)
+
+Risk, engel, karar ve aksiyon kayıtlarını projeler arası filtreli ve sayfalı listeler. Projeye bağlı
+`GET /api/projects/{projectId}/tracking-items` listesi sayfasızdır; kapanmamış kayıtları takip tarihine
+göre üstte, kapalıları en altta verir.
+
+### Parametreler
+
+| Parametre | Tip | Çoklu | Doğrulama |
+|---|---|---|---|
+| `projectId` | Long | — | — |
+| `type` | `TrackingItemType` (`RISK`, `ENGEL`, `KARAR`, `AKSIYON`) | ✓ | Tanımlı enum |
+| `status` | `TrackingItemStatus` (`ACIK`, `DEVAM_EDIYOR`, `KAPANDI`) | ✓ | Tanımlı enum |
+| `riskLevel` | `RiskLevel` | ✓ | Tanımlı enum. Yalnızca risk ve engel kayıtlarında değer vardır |
+| `overdue` | Boolean | — | `true`: kapanmamış ve takip tarihi bugünden önce; `false`: geri kalanlar (takip tarihi olmayan kapalı kayıtlar dahil) |
+| `assignee` | String | — | En fazla 255 karakter. Büyük/küçük harfe duyarsız, "içerir" araması (KF-09) |
+| `page` | Integer | — | ≥ 0, varsayılan `0` |
+| `size` | Integer | — | 1–100, varsayılan `20` |
+| `sort` | String | — | Varsayılan `followUpDate,asc` (takip tarihi olmayanlar sonda) |
+
+- Sıralanabilir alanlar: `followUpDate`, `createdAt`, `title`, `projectName`. İkinci anahtar her zaman `id`.
+- Yıl ve hafta parametresi yoktur. "Bugün" Türkiye saatine göredir (`Europe/Istanbul`).
+
+### Yanıt
+
+Bölüm 3'teki sayfa yapısı kullanılır; `content` elemanları `TrackingItemResponse` olur: `projectId`,
+`projectName`, `type`, `title`, `description`, `riskLevel`, `impact`, `actionPlan`, `assignee`,
+`followUpDate`, `status`, `closedDate`, `createdAt`, `overdue`.
+
+### Örnekler (seed verisi)
+
+Seed kayıtlarının tarihleri yüklendiği güne göredir; aşağıdaki sonuçlar her gün aynıdır.
+
+| İstek | Sonuç |
+|---|---|
+| `GET /api/tracking-items` | 5 kayıt. İlk sırada takip tarihi geçmiş "Musteriyle kapsam toplantisi" (`overdue: true`), en sonda takip tarihi olmayan kapalı karar "Raporlama kutuphanesi secimi" |
+| `?overdue=true` | Yalnızca "Musteriyle kapsam toplantisi" (Atlas IK, aksiyon) |
+| `?type=KARAR&status=ACIK,DEVAM_EDIYOR` | Bekleyen karar "e-Arsiv saglayicisi secimi" |
+| `?riskLevel=ORTA,YUKSEK` | Atlas IK'nın yüksek riski ve e-Belge'nin orta seviyeli engeli |
+| `?assignee=zeynep&projectId=1` | Atlas IK'nın verilmiş kararı |
+
 ---
 
 ## 5. Hata davranışı
@@ -217,6 +276,7 @@ Tüm hatalar mevcut `ApiError` gövdesiyle döner, yeni hata kodu eklenmez.
 | Aralık dışı değer | `weekNumber=54`, `year=1999`, `size=0`, `size=500`, `page=-1` | 400 | `VALIDATION_ERROR` | ilgili parametre |
 | Yılsız hafta | `weekNumber=29`, `weekFrom=29`, `weekTo=30` (`year` olmadan) | 400 | `VALIDATION_ERROR` | ilgili hafta parametresi |
 | Ters aralık | `year=2026&weekFrom=30&weekTo=29`, `dateFrom` > `dateTo` | 400 | `VALIDATION_ERROR` | `weekTo` / `dateTo` |
+| Tanımsız takip kaydı türü / durumu | `type=SORUN`, `status=BITTI`, `overdue=evet` | 400 | `INVALID_REQUEST` | — |
 | Uzun metin | `assignee` > 255 karakter | 400 | `VALIDATION_ERROR` | `assignee` |
 | Geçersiz sıralama | `sort=password`, `sort=reportDate,yukari` | 400 | `VALIDATION_ERROR` | `sort` (mesajda izin verilen alanlar listelenir) |
 | Sonuç yok | — | 200 | — | — |
@@ -258,7 +318,7 @@ gereği yok sayılır ve filtresiz sonuç döner. Bu davranış README'de belirt
 
 ## 8. Yetkilendirme
 
-Üç endpoint de giriş ister (`Authorization: Bearer <token>`; token yoksa `401`). Rol kısıtı,
+Dört endpoint de giriş ister (`Authorization: Bearer <token>`; token yoksa `401`). Rol kısıtı,
 kullanıcının filtrelerinden **önce** gelen ve her zaman uygulanan bir koşuldur:
 
 | Rol | Görünürlük koşulu |
@@ -266,7 +326,7 @@ kullanıcının filtrelerinden **önce** gelen ve her zaman uygulanan bir koşul
 | CTO, Admin | Koşul yok (tüm projeler) |
 | Proje yöneticisi | `project.owner = oturumdaki kullanıcı` |
 
-Bu koşul üç endpoint'te de proje `Specification`'ına VE ile eklenir; filtre kodu değişmedi.
+Bu koşul dört endpoint'te de proje `Specification`'ına VE ile eklenir; filtre kodu değişmedi.
 Sayaçlar ve sayfa toplamları da bu kümeden hesaplanır. Bir proje yöneticisi `?ownerId=` ya da
 `?projectId=` ile başkasının projelerini istediğinde sonuç boş döner, hata dönmez (KF-07).
 
@@ -276,6 +336,8 @@ Sayaçlar ve sayfa toplamları da bu kümeden hesaplanır. Bir proje yöneticisi
 | `GET /api/dashboard/summary?ownerId=2`, Ayşe | Boş liste, sayaçlar `0`, `200` |
 | `GET /api/reports`, Mehmet (PM) | Yalnızca e-Belge hafta 30, `totalElements: 1` |
 | `GET /api/work-items`, Mehmet | Yalnızca e-Belge iş kalemleri |
+| `GET /api/tracking-items`, Mehmet | Yalnızca e-Belge'nin 2 kaydı; `?projectId=1` boş sonuç, `200` |
+| `GET /api/dashboard/summary`, Mehmet | Takip sayaçları yalnızca e-Belge'den: `openBlockers: 1`, `pendingDecisions: 1` |
 | Herhangi biri, CTO veya Admin | Bölüm 2–4'teki örneklerle aynı (tüm projeler) |
 
 ## 9. Test eşlemesi
@@ -286,3 +348,5 @@ Sayaçlar ve sayfa toplamları da bu kümeden hesaplanır. Bir proje yöneticisi
 | `WeeklyReportQueryTest` (yeni, `@DataJpaTest`) | Rapor `Specification`'ları, aralık uçları, sıralama ve ikinci anahtar |
 | `WorkItemQueryTest` (yeni, `@DataJpaTest`) | Değerlendirilen rapor alt sorgusu, `assignee` araması, gecikme koşulu |
 | `FilterIntegrationTest` (yeni, MockMvc) | Bölüm 2–4'teki örnekler ve bölüm 5'teki her hata satırı |
+| `TrackingItemQueryTest` (`@DataJpaTest`) | Bölüm 4a koşulları: gecikme (takip tarihi olmayan kapalı kayıt `false` sorgusunda kalır), çok değerli filtreler, `assignee` araması, proje sahibi |
+| `TrackingItemIntegrationTest` (MockMvc) | Bölüm 4a örnekleri, sayfa ve sıralama; bölüm 2'deki takip sayaçları ve hafta referansının onları değiştirmemesi |

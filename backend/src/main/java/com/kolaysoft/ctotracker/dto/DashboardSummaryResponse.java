@@ -27,6 +27,18 @@ public record DashboardSummaryResponse(
         @Schema(description = "Gecikmedeki proje sayisi", example = "0")
         long delayedProjects,
 
+        @Schema(description = "Kapanmamış risk sayısı (listelenen projelerde, bugünkü durum)", example = "1")
+        long openRisks,
+
+        @Schema(description = "Kapanmamış engel sayısı", example = "1")
+        long openBlockers,
+
+        @Schema(description = "Verilmemiş (kapanmamış) karar sayısı", example = "1")
+        long pendingDecisions,
+
+        @Schema(description = "Takip tarihi geçmiş kapanmamış risk, engel, karar ve aksiyon sayısı", example = "1")
+        long overdueTrackingItems,
+
         @Schema(description = "Proje ozet satirlari")
         List<DashboardProjectSummary> projects) {
 }

@@ -255,7 +255,12 @@ class FilterIntegrationTest {
             "/api/work-items?status=BITTI,                          INVALID_REQUEST,",
             "/api/work-items?weekNumber=54,                         VALIDATION_ERROR, weekNumber",
             "/api/work-items?weekNumber=29,                         VALIDATION_ERROR, weekNumber",
-            "/api/work-items?sort=assignee,                         VALIDATION_ERROR, sort"
+            "/api/work-items?sort=assignee,                         VALIDATION_ERROR, sort",
+            "/api/tracking-items?type=SORUN,                        INVALID_REQUEST,",
+            "/api/tracking-items?status=BITTI,                      INVALID_REQUEST,",
+            "/api/tracking-items?overdue=evet,                      INVALID_REQUEST,",
+            "/api/tracking-items?size=101,                          VALIDATION_ERROR, size",
+            "/api/tracking-items?sort=assignee,                     VALIDATION_ERROR, sort"
     })
     @DisplayName("Hatali istekler sozlesmedeki kodla 400 doner; hicbiri 500 degil")
     void invalidRequestsReturn400(String url, String code, String field) throws Exception {

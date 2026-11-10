@@ -237,4 +237,30 @@ class TrackingItemServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
         verify(trackingItemRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("Dashboard ozeti: proje basina acik kayitlar turlerine gore sayilir, gecikme ve en yuksek seviye")
+    void openSummariesPerProject() {
+        TrackingItem risk = openItem(TrackingItemType.RISK, RiskLevel.ORTA, TODAY.plusDays(1));
+        TrackingItem blocker = openItem(TrackingItemType.ENGEL, RiskLevel.YUKSEK, TODAY);
+        TrackingItem decision = openItem(TrackingItemType.KARAR, null, TODAY.minusDays(1));
+        TrackingItem action = openItem(TrackingItemType.AKSIYON, null, TODAY.minusDays(4));
+        when(trackingItemRepository.findByProjectIdInAndStatusNot(List.of(1L), TrackingItemStatus.KAPANDI))
+                .thenReturn(List.of(risk, blocker, decision, action));
+
+        TrackingSummary summary = service.openSummaries(List.of(1L)).get(1L);
+
+        assertThat(summary).isEqualTo(new TrackingSummary(4, 2, 1, 1, 1, RiskLevel.YUKSEK));
+        assertThat(service.openSummaries(List.of())).isEmpty();
+    }
+
+    private TrackingItem openItem(TrackingItemType type, RiskLevel level, LocalDate followUp) {
+        TrackingItem item = new TrackingItem();
+        item.setProject(project);
+        item.setType(type);
+        item.setRiskLevel(level);
+        item.setFollowUpDate(followUp);
+        item.setStatus(TrackingItemStatus.ACIK);
+        return item;
+    }
 }

@@ -59,5 +59,15 @@ public record DashboardProjectSummary(
 
         @Schema(description = "Proje gecikmede mi: rapor durumu GECIKMELI ya da raporda gecikmis is kalemi var "
                 + "(filtreleme analizi KF-01); rapor yoksa false", example = "false")
-        boolean delayed) {
+        boolean delayed,
+
+        @Schema(description = "Kapanmamış risk, engel, karar ve aksiyon kaydı sayısı. Hafta referansından "
+                + "bağımsızdır, bugünkü durumu gösterir", example = "2")
+        long openTrackingItems,
+
+        @Schema(description = "Takip tarihi geçmiş kapanmamış kayıt sayısı", example = "1")
+        long overdueTrackingItems,
+
+        @Schema(description = "Kapanmamış risk ve engellerin en yüksek seviyesi; yoksa null", example = "YUKSEK")
+        RiskLevel highestOpenRiskLevel) {
 }

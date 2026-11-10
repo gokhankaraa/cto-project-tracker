@@ -300,6 +300,7 @@ Every endpoint except health, login and the API docs requires a login token in t
 | GET | `/api/work-items` | Cross-project work item list: filtered, paged, sorted |
 | GET / POST | `/api/projects/{projectId}/tracking-items` | List / create a project's risks, blockers, decisions and actions |
 | GET / PUT / DELETE | `/api/tracking-items/{id}` | Risk, blocker, decision or action detail / update / delete |
+| GET | `/api/tracking-items` | Cross-project risk / blocker / decision / action list: filtered, paged, sorted |
 | GET | `/api/dashboard/summary` | CTO portfolio summary, with optional filters |
 
 The full, interactive contract is in Swagger UI (use **Authorize** with a token from
@@ -327,6 +328,10 @@ The full, interactive contract is in Swagger UI (use **Authorize** with a token 
 - The dashboard summary reports each project's **latest** report (latest year, then highest week). Projects with
   no report are still listed, with empty/default progress. Portfolio counters (total, high-risk,
   without-report, total live tasks) accompany the per-project rows.
+- The dashboard also summarizes risks, blockers, decisions and actions: open risks, open blockers,
+  pending decisions and overdue follow-ups across the listed projects, and on each row the
+  project's open and overdue records and the highest level among its open risks and blockers. These
+  always show today's state; a year / week reference does not change them.
 
 **Risks, blockers, decisions and actions** (tracking items) belong to a project, not to a week: a
 risk lives until it is closed. All four types share one table (`tracking_items`, Flyway V5) and
@@ -410,6 +415,7 @@ Swagger UI with an example value.
 | `GET /api/dashboard/summary` | `projectId`, `projectStatus`, `ownerId`, `year`, `weekNumber`, `overallStatus`, `riskLevel`, `delayed` | None; rows ordered by project id |
 | `GET /api/reports` | `projectId`, `ownerId`, `year`, `weekFrom`, `weekTo`, `dateFrom`, `dateTo`, `overallStatus`, `riskLevel`, `progressStage` | Default `reportDate,desc`; sortable by `reportDate`, `weekNumber`, `projectName` |
 | `GET /api/work-items` | `projectId`, `year`, `weekNumber`, `assignee`, `status`, `delayed` | Default `plannedDate,asc` (items without a date last); sortable by `plannedDate`, `title`, `projectName` |
+| `GET /api/tracking-items` | `projectId`, `type`, `status`, `riskLevel`, `overdue`, `assignee` | Default `followUpDate,asc` (records without a date last); sortable by `followUpDate`, `createdAt`, `title`, `projectName` |
 
 - Different parameters combine with **AND**. Status, risk and stage parameters accept several
   comma-separated values, which combine with **OR** (`riskLevel=ORTA,YUKSEK`).
@@ -421,6 +427,8 @@ Swagger UI with an example value.
   `delayed`) is also given.
   The work item list shows only the items of that evaluated report, so the same task is not
   repeated across weeks.
+- Risks, blockers, decisions and actions are not tied to a week, so `/api/tracking-items` has no
+  `year` or `weekNumber`; `overdue` is relative to today.
 - On the report list, `year` is a plain filter on the report's year, and `weekFrom`/`weekTo` apply
   within that year.
 - A week number means nothing without its year, so `weekNumber`, `weekFrom` and `weekTo` are only
@@ -616,7 +624,7 @@ empty database. Only `MvpIntegrationTest` uses the `demo` profile on purpose; ev
 creates its own data. Service tests use Mockito and need no database; they run as an Admin
 (a mocked `CurrentUser`), since ownership is covered by `AuthorizationIntegrationTest`.
 
-Backend tests (178 in total). The HTTP tests of business rules run as an Admin
+Backend tests (194 in total). The HTTP tests of business rules run as an Admin
 (`@WithMockUser`); login, tokens and permissions are tested with real tokens:
 
 - `MvpIntegrationTest` — end-to-end HTTP flows (@SpringBootTest + MockMvc): happy path
@@ -636,7 +644,12 @@ Backend tests (178 in total). The HTTP tests of business rules run as an Admin
 - `TrackingItemIntegrationTest` — risks, blockers, decisions and actions over HTTP: create, read,
   close (closing date set), reopen (cleared) and delete; the project list order and the overdue
   flag on the seed data; field errors (`riskLevel` by type, a past follow-up date, a missing
-  assignee); a decision closed without a follow-up date; a project with records cannot be deleted
+  assignee); a decision closed without a follow-up date; a project with records cannot be deleted;
+  the cross-project list (default order, filters, paging) and the dashboard's tracking counters and
+  row fields (not changed by a week reference, narrowed by a project filter)
+- `TrackingItemQueryTest` — tracking item filter queries against the database (@DataJpaTest): the
+  overdue condition (today's follow-up is not overdue, a closed record without a date stays in the
+  `overdue=false` list), multi-value type / status / risk filters, assignee search, project owner
 - `SortParameterTest` — sort parsing: default, direction, field mapping, rejected values
 - `HealthControllerTest` — health endpoint and DB connection (reports PostgreSQL)
 - `AuthorizationIntegrationTest` — the permission matrix end to end with the demo users logging in:
@@ -663,9 +676,10 @@ Backend tests (178 in total). The HTTP tests of business rules run as an Admin
 - `TrackingItemServiceTest` — tracking item rules with the clock fixed: risk level by type, assignee
   and follow-up date required while open, no past follow-up date on create, an unchanged past date
   kept (and overdue) on update but a new past date rejected, the closing date following the status,
-  the project list order, someone else's project (404)
+  the project list order, someone else's project (404), the dashboard summary per project
 - `DashboardServiceTest` — portfolio aggregation, latest-report selection, risk and multi-value
-  filters, year and week reference, delay filter and counter, empty portfolio
+  filters, year and week reference, delay filter and counter, empty portfolio; tracking counters
+  only from the listed projects
 - `CtoProjectTrackerBackendApplicationTests` — does the Spring context load
 
 Frontend tests (166, Vitest + Testing Library on jsdom; component tests never reach the real backend,
@@ -742,7 +756,7 @@ Run on 2026-11-10 against the current `main`:
 
 | Check | Command | Result |
 |---|---|---|
-| Backend tests | `cd backend && ./mvnw test` | 178 passed, 0 failed, 0 skipped |
+| Backend tests | `cd backend && ./mvnw test` | 194 passed, 0 failed, 0 skipped |
 | Frontend tests | `cd frontend && npm test` | 166 passed in 23 files |
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; largest chunk 324 kB (100 kB gzip) |

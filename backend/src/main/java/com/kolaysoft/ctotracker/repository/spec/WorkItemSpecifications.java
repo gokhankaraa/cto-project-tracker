@@ -135,7 +135,7 @@ public final class WorkItemSpecifications {
     }
 
     /** Kullanıcının yazdığı % ve _ karakterleri joker olarak değil, düz karakter olarak aransın. */
-    private static String escapeLike(String text) {
+    static String escapeLike(String text) {
         return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }

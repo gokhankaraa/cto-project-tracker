@@ -1,6 +1,7 @@
 package com.kolaysoft.ctotracker.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.domain.Sort;
@@ -32,6 +33,9 @@ import com.kolaysoft.ctotracker.security.CurrentUser;
  * <p>Filtreler iki asamada uygulanir: proje filtreleri (proje, durum, sorumlu) veritabani sorgusunda,
  * rapora dayali filtreler (rapor durumu, risk, gecikme) ozet satirlari uzerinde. Proje sayisi kucuk
  * oldugu icin ikinci asama bellekte yapilir. Sayaclar filtrelenmis kumeden hesaplanir.
+ *
+ * <p>Risk, engel, karar ve aksiyon ozeti ({@link TrackingSummary}) haftaya bagli degildir: yil / hafta
+ * referansi verilse de bugunku durumu gosterir. Yalnizca listelenen projelerin kayitlari sayilir.
  */
 @Service
 @Transactional(readOnly = true)
@@ -42,17 +46,20 @@ public class DashboardService {
     private final WorkItemRepository workItemRepository;
     private final DelayPolicy delayPolicy;
     private final CurrentUser currentUser;
+    private final TrackingItemService trackingItemService;
 
     public DashboardService(ProjectRepository projectRepository,
                             WeeklyReportRepository weeklyReportRepository,
                             WorkItemRepository workItemRepository,
                             DelayPolicy delayPolicy,
-                            CurrentUser currentUser) {
+                            CurrentUser currentUser,
+                            TrackingItemService trackingItemService) {
         this.projectRepository = projectRepository;
         this.weeklyReportRepository = weeklyReportRepository;
         this.workItemRepository = workItemRepository;
         this.delayPolicy = delayPolicy;
         this.currentUser = currentUser;
+        this.trackingItemService = trackingItemService;
     }
 
     /**
@@ -61,13 +68,16 @@ public class DashboardService {
      * @param filter dashboard filtresi; {@link DashboardFilter#none()} tum projeleri dondurur
      */
     public DashboardSummaryResponse getSummary(DashboardFilter filter) {
-        List<DashboardProjectSummary> summaries = projectRepository
-                // Gorunurluk kosulu filtrelerle VE ile birlesir (filtre sozlesmesi, bolum 8): proje yoneticisi
-                // yalnizca kendi projelerini gorur, sayaclar da bu kumeden hesaplanir.
-                .findAll(ProjectSpecifications.matching(filter)
-                        .and(ProjectSpecifications.ownedBy(currentUser.viewer().visibleOwnerId())), Sort.by("id"))
-                .stream()
-                .map(project -> toSummary(project, filter.referenceKey()))
+        // Gorunurluk kosulu filtrelerle VE ile birlesir (filtre sozlesmesi, bolum 8): proje yoneticisi
+        // yalnizca kendi projelerini gorur, sayaclar da bu kumeden hesaplanir.
+        List<Project> projects = projectRepository.findAll(ProjectSpecifications.matching(filter)
+                .and(ProjectSpecifications.ownedBy(currentUser.viewer().visibleOwnerId())), Sort.by("id"));
+        Map<Long, TrackingSummary> tracking = trackingItemService.openSummaries(
+                projects.stream().map(Project::getId).toList());
+
+        List<DashboardProjectSummary> summaries = projects.stream()
+                .map(project -> toSummary(project, filter.referenceKey(),
+                        tracking.getOrDefault(project.getId(), TrackingSummary.EMPTY)))
                 .filter(summary -> matchesReportCriteria(summary, filter))
                 .toList();
 
@@ -76,8 +86,18 @@ public class DashboardService {
         long totalLiveTasks = summaries.stream().mapToLong(DashboardProjectSummary::liveTaskCount).sum();
         long delayed = summaries.stream().filter(DashboardProjectSummary::delayed).count();
 
+        // Takip sayaclari yalnizca filtreden gecen projelerin kayitlarindan.
+        List<TrackingSummary> listed = summaries.stream()
+                .map(s -> tracking.getOrDefault(s.projectId(), TrackingSummary.EMPTY))
+                .toList();
+
         return new DashboardSummaryResponse(
-                summaries.size(), highRisk, withoutReport, totalLiveTasks, delayed, summaries);
+                summaries.size(), highRisk, withoutReport, totalLiveTasks, delayed,
+                listed.stream().mapToLong(TrackingSummary::openRisks).sum(),
+                listed.stream().mapToLong(TrackingSummary::openBlockers).sum(),
+                listed.stream().mapToLong(TrackingSummary::pendingDecisions).sum(),
+                listed.stream().mapToLong(TrackingSummary::overdueItems).sum(),
+                summaries);
     }
 
     /**
@@ -96,7 +116,7 @@ public class DashboardService {
                 && (filter.delayed() == null || filter.delayed() == summary.delayed());
     }
 
-    private DashboardProjectSummary toSummary(Project project, Integer referenceKey) {
+    private DashboardProjectSummary toSummary(Project project, Integer referenceKey, TrackingSummary tracking) {
         User owner = project.getOwner();
         String ownerName = owner != null ? owner.getFullName() : null;
 
@@ -105,7 +125,8 @@ public class DashboardService {
         if (evaluatedReport.isEmpty()) {
             return new DashboardProjectSummary(
                     project.getId(), project.getName(), project.getCustomer(), ownerName,
-                    project.getStatus(), false, null, null, null, 0, null, null, 0, false);
+                    project.getStatus(), false, null, null, null, 0, null, null, 0, false,
+                    tracking.openItems(), tracking.overdueItems(), tracking.highestRiskLevel());
         }
 
         WeeklyReport r = evaluatedReport.get();
@@ -116,7 +137,8 @@ public class DashboardService {
                 project.getId(), project.getName(), project.getCustomer(), ownerName,
                 project.getStatus(), true, r.getYear(), r.getWeekNumber(),
                 r.getProgressStage(), r.getProgressStage().getPercentage(),
-                r.getOverallStatus(), r.getRiskLevel(), liveTaskCount, delayPolicy.isDelayed(r));
+                r.getOverallStatus(), r.getRiskLevel(), liveTaskCount, delayPolicy.isDelayed(r),
+                tracking.openItems(), tracking.overdueItems(), tracking.highestRiskLevel());
     }
 
     /** Referans yoksa en guncel rapor, varsa anahtari referansa kadar (dahil) olan en son rapor. */

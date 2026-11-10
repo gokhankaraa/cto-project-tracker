@@ -179,4 +179,57 @@ class TrackingItemIntegrationTest {
         mockMvc.perform(delete("/api/tracking-items/" + id)).andExpect(status().isNoContent());
         mockMvc.perform(delete("/api/projects/3")).andExpect(status().isNoContent());
     }
+
+    @Test
+    @DisplayName("Projeler arasi liste: varsayilan siralama takip tarihi (tarihsiz kapali karar sonda), filtreler, sayfa")
+    void crossProjectList() throws Exception {
+        mockMvc.perform(get("/api/tracking-items"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(5))
+                .andExpect(jsonPath("$.content[0].title").value("Musteriyle kapsam toplantisi"))
+                .andExpect(jsonPath("$.content[0].overdue").value(true))
+                .andExpect(jsonPath("$.content[4].title").value("Raporlama kutuphanesi secimi"));
+
+        mockMvc.perform(get("/api/tracking-items?overdue=true"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].type").value("AKSIYON"));
+        mockMvc.perform(get("/api/tracking-items?type=KARAR&status=ACIK,DEVAM_EDIYOR"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("e-Arsiv saglayicisi secimi"));
+        mockMvc.perform(get("/api/tracking-items?riskLevel=ORTA,YUKSEK"))
+                .andExpect(jsonPath("$.totalElements").value(2));
+        mockMvc.perform(get("/api/tracking-items?assignee=zeynep&projectId=1"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+        mockMvc.perform(get("/api/tracking-items?size=2&page=1&sort=title,asc"))
+                .andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.content[0].title").value("Musteriyle kapsam toplantisi"));
+    }
+
+    @Test
+    @DisplayName("Dashboard: takip sayaclari ve proje satirlari (acik / gecikmis kayit, en yuksek acik risk seviyesi)")
+    void dashboardSummary() throws Exception {
+        mockMvc.perform(get("/api/dashboard/summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.openRisks").value(1))
+                .andExpect(jsonPath("$.openBlockers").value(1))
+                .andExpect(jsonPath("$.pendingDecisions").value(1))
+                .andExpect(jsonPath("$.overdueTrackingItems").value(1))
+                .andExpect(jsonPath("$.projects[0].openTrackingItems").value(2))
+                .andExpect(jsonPath("$.projects[0].overdueTrackingItems").value(1))
+                .andExpect(jsonPath("$.projects[0].highestOpenRiskLevel").value("YUKSEK"))
+                .andExpect(jsonPath("$.projects[1].openTrackingItems").value(2))
+                .andExpect(jsonPath("$.projects[1].highestOpenRiskLevel").value("ORTA"))
+                .andExpect(jsonPath("$.projects[2].openTrackingItems").value(0))
+                .andExpect(jsonPath("$.projects[2].highestOpenRiskLevel").doesNotExist());
+
+        // Hafta referansi takip ozetini degistirmez: kayitlar haftaya bagli degil, bugunku durum gosterilir.
+        mockMvc.perform(get("/api/dashboard/summary?year=2026&weekNumber=29"))
+                .andExpect(jsonPath("$.openRisks").value(1))
+                .andExpect(jsonPath("$.projects[0].openTrackingItems").value(2));
+        // Proje filtresi sayaclari da daraltir.
+        mockMvc.perform(get("/api/dashboard/summary?projectId=2"))
+                .andExpect(jsonPath("$.openRisks").value(0))
+                .andExpect(jsonPath("$.openBlockers").value(1))
+                .andExpect(jsonPath("$.overdueTrackingItems").value(0));
+    }
 }
