@@ -68,7 +68,8 @@ services:
     ports:
       - "${WEB_PORT:-80}:80"
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
+      # 127.0.0.1: alpine'de "localhost" once IPv6'ya (::1) gider, nginx yalnizca IPv4'te dinler.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
       interval: 10s
       timeout: 3s
       retries: 5

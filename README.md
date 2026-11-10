@@ -32,6 +32,7 @@ Project documents (in [`docs/`](docs/), Turkish):
 ├── backend/                 Spring Boot REST API (Maven project, Dockerfile)
 ├── frontend/                React + TypeScript web app (Vite; Dockerfile + nginx.conf)
 ├── e2e/                     Browser end-to-end tests (Playwright) against the Docker setup
+├── scripts/                 smoke-test.sh: release check of a running setup from the outside
 ├── docs/                    Analysis notes and the filter API contract
 ├── .github/workflows/       CI: backend tests, frontend checks, Docker images and browser tests
 ├── docker-compose.yml       Development setup: PostgreSQL, backend and frontend, demo profile
@@ -173,6 +174,12 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod ps    # all three
 ```
 
 Open `http://<host>:<WEB_PORT>` (default port 80) and log in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+Check it from the outside with the smoke test (it creates a project, a report, a work item and a risk,
+checks the dashboard, the Excel export and the history, then deletes what it created):
+
+```bash
+ADMIN_EMAIL=... ADMIN_PASSWORD=... scripts/smoke-test.sh http://<host>:<WEB_PORT>
+```
 
 | What it enforces | How |
 |---|---|
@@ -942,9 +949,11 @@ from local scripts (see [Latest test run](#latest-test-run)); `e2e/` keeps their
 | Dashboard, trend, Excel | `DashboardServiceTest`, `TrendIntegrationTest`, `ExportIntegrationTest`, `DataSeederIntegrationTest` | `DashboardPage`, `TrendSection`, `filters` | `02-dashboard` | — |
 | Change history | `AuditServiceTest`, `AuditIntegrationTest`, `AuditHistoryProtectionTest` | `ProjectHistorySection`, `historyFormat` | `04-tracking-and-history`; locally also token identity, refused writes, XSS, paging | — |
 | Errors, paging, formats | `GlobalExceptionHandlerTest`, `SortParameterTest` | `QueryState`, `client`, `searchParams`, `format` | an unexpected console error fails every browser test | — |
-| Build, health, setup | `HealthControllerTest`; images built in CI | production build in CI | CI starts the Docker setup for every run and checks the production compose file; `05-mobile` | the smoke test on the production setup |
+| Build, health, setup | `HealthControllerTest`; images built in CI | production build in CI | CI starts the Docker setup for every run and checks the production compose file; `05-mobile`; `scripts/smoke-test.sh` on the production setup | — |
 
-**Before a release** (smoke checklist, run on the production setup with an empty database):
+**Before a release** (smoke checklist, run on the production setup with an empty database).
+`scripts/smoke-test.sh` checks steps 2, 3, 5 and 6 from the outside; steps 1 and 4 and the logs are
+checked by hand with `docker compose`:
 
 1. The production setup refuses to start without its secrets (database password, `JWT_SECRET`, first
    admin).
@@ -1166,6 +1175,41 @@ page; login with JWT and
 role-based permissions in the API, mirrored in the UI; the whole stack (PostgreSQL, backend,
 frontend behind nginx) in Docker Compose; CI on every push.
 
+### Final test and deploy report
+
+Release check on 2026-11-10: a MacBook running Docker 29.7.2 and Compose 5.3.1. The
+[production setup](#production-setup) was started with an empty database on port 8090, with secrets
+generated for the run.
+
+| Check | Result |
+|---|---|
+| Backend tests (`./mvnw test`) | 249 passed |
+| Frontend tests, lint, production build | 215 passed in 29 files; no lint findings; builds |
+| Browser tests (`e2e/`, demo setup) | 13 passed |
+| Production setup refuses to start | without `DB_PASSWORD` / `JWT_SECRET` (Compose stops); without the first admin on an empty database; with the development `JWT_SECRET` |
+| Start | database, backend and web all `healthy`; only the web port is published |
+| `scripts/smoke-test.sh` | 11 checks passed: health, security headers, API docs off, demo login refused, admin login, other origins refused, project → report → work item → risk, dashboard, Excel export, change history, cleanup |
+| Logs | `INFO` only; the JWT secret and the admin and database passwords do not appear |
+| Restart with a changed `ADMIN_PASSWORD` | the admin is not created again and keeps the old password; data stays |
+| Performance on 10,000 reports | see [Performance](#performance); every list and the dashboard load in a fixed number of queries |
+
+**Found and fixed during the release check:**
+
+- The web container's health check called `localhost`, which resolves to IPv6 inside the alpine
+  image, while nginx listens on IPv4 only, so the container stayed `unhealthy`. It now calls
+  `127.0.0.1`.
+- The work item list took 185–210 ms on 10,000 reports because its filter ran once per report. It
+  now takes 11–12 ms, and both paged lists stopped issuing queries per row.
+- Six frontend tests went past the 5 s timeout when the whole suite ran on a busy machine; the limit
+  is 15 s and the slowest test was made faster.
+
+**Remaining risks:** see [Open issues](#open-issues) and [Risks](#risks). Before real use, the most
+important are:
+
+- users other than the first admin can only be added in the database;
+- there is no HTTPS, public address or automatic backup;
+- the backend owns its tables, so it could turn off the history triggers.
+
 ### Latest test run
 
 Run on 2026-11-10 against the current `main`:
@@ -1225,19 +1269,18 @@ the SQL count is the statements PostgreSQL logged for one call.
 
 - **Demo data without Turkish letters:** seeded names and texts are stored in ASCII ("Ayse Yilmaz",
   "Demo Musteri A.S."), while the UI and the API messages use Turkish letters. Cosmetic only.
-- **A slow test can time out on a busy machine:** the new-report form test takes about 0.6 s, but
-  once exceeded Vitest's 5 s limit while the backend tests were running in parallel. It passes on
-  its own and in a normal full run.
 - **Unknown query parameters are ignored:** a typo such as `?risk=YUKSEK` returns the unfiltered
   result instead of an error (see [Filtering](#filtering-paging-and-sorting)).
-- **No user management or password change:** users and their passwords come from the demo data.
+- **No user management or password change:** in the production setup only the first admin exists,
+  and the app has no way to add users or change a password; until it does, more users can only be
+  added in the database. With the demo profile, users come from the demo data.
 - **No token refresh or server-side logout:** a token stays valid until it expires (8 hours), even
   after logging out in the UI.
 - **Change history starts with Flyway V6:** changes made before it, and the demo data, have no
   history. The weekly trend still counts open risks and actions from their creation and closing
   dates; it does not yet use the history to show how risk levels moved.
-- Report locking, audit log and export are out of the MVP scope (sections 7–8 of the
-  pre-analysis document).
+- Report locking is out of the MVP scope (sections 7–8 of the pre-analysis document). The change
+  history (audit log) and the Excel export, also out of that scope, were added later.
 
 ### Risks
 
@@ -1246,8 +1289,9 @@ the SQL count is the statements PostgreSQL logged for one call.
   development secret from this repository. Choosing `demo` on a server would still bring back users
   with a publicly known password; it is meant only for a developer machine.
 - **The token is kept in `localStorage`,** so any script running on the page can read it. There are
-  no third-party scripts and React escapes the content it renders, but an XSS bug would expose the
-  token. An `httpOnly` cookie would avoid that, at the cost of adding CSRF protection.
+  no third-party scripts, React escapes the content it renders, and the Content-Security-Policy
+  allows scripts only from the app itself; still, an XSS bug would expose the token. An `httpOnly`
+  cookie would avoid that, at the cost of adding CSRF protection.
 - **Ownership is a filter in each query.** A new read endpoint that forgets it would show a project
   manager other people's data. `AuthorizationIntegrationTest` covers every current endpoint;
   each new one needs a test there too.
@@ -1256,7 +1300,10 @@ the SQL count is the statements PostgreSQL logged for one call.
   gets a label, but a renamed label has to be changed in both places.
 - **The ISO week rule exists twice,** in the backend and in `frontend/src/lib/isoWeek.ts`. Both are
   tested against the same table of dates, but a change on one side must be repeated on the other.
-- **Not deployed yet:** it runs only locally in Docker, without HTTPS.
+- **Local production setup only:** the [production setup](#production-setup) is verified on a
+  laptop; there is no public address, HTTPS or automatic backup yet.
+- **The backend owns its tables,** so it could turn off the change history triggers. A separate
+  database role would close this.
 
 ### Next phase
 
