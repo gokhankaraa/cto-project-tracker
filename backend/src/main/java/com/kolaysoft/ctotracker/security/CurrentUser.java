@@ -34,4 +34,20 @@ public class CurrentUser {
         Long userId = authentication.getPrincipal() instanceof Jwt jwt ? Long.valueOf(jwt.getSubject()) : null;
         return new Viewer(userId, role);
     }
+
+    /**
+     * Degisikligi yapan kisi (degisiklik gecmisi icin): id ve ad token'dan okunur, veritabanina gidilmez. Ad,
+     * token alindigi andaki addir. Token'siz oturumda (testlerdeki sahte kullanici) id bos, ad oturum adidir.
+     */
+    public Actor actor() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new InsufficientAuthenticationException("Oturum yok.");
+        }
+        if (authentication.getPrincipal() instanceof Jwt jwt) {
+            String name = jwt.getClaimAsString("name");
+            return new Actor(Long.valueOf(jwt.getSubject()), name != null ? name : jwt.getSubject());
+        }
+        return new Actor(null, authentication.getName());
+    }
 }

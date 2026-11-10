@@ -14,8 +14,10 @@ Stack: **Java + Spring Boot, React + TypeScript** · Author: Gökhan Kara
 > all of these screens behind a login screen. The API requires a login (JWT) and enforces
 > role-based permissions; the frontend shows each role only the actions it may take. Each project
 > also keeps its risks, blockers, decisions and actions with an assignee and a follow-up date
-> (Flyway V5); they have their own list and are summarized on the dashboard. Test results, open
-> issues, risks and the next phase are under [Project status](#project-status).
+> (Flyway V5); they have their own list and are summarized on the dashboard. Every change made
+> through the API is kept in a change history: who changed which fields of which record, and when
+> (Flyway V6). Test results, open issues, risks and the next phase are under
+> [Project status](#project-status).
 
 Project documents (in [`docs/`](docs/), Turkish):
 - [`on_analiz.md`](docs/on_analiz.md) — pre-analysis (problem, roles, data model, endpoints, assumptions, scope)
@@ -391,6 +393,25 @@ one API; `type` is `RISK`, `ENGEL`, `KARAR` or `AKSIYON`.
   zone.
 - A project's list shows open records first, by follow-up date, and closed ones last.
 
+**Change history** (audit log, Flyway V6): every create, update and delete of a project, weekly
+report, work item or tracking item made through the API is written as an event — who did it, when,
+which record (type, id and a readable name such as the title or "2026 / 45. hafta") and which
+project.
+
+- An update keeps only the fields that changed, with the old and the new value; a create keeps the
+  fields it filled; a delete keeps only the record's name. An update that changes nothing writes
+  nothing.
+- Values are stored raw (enum names, ISO dates, numbers; a project's owner by name); long texts are
+  cut at 500 characters. Field names are the API's.
+- The person comes from the login token (`sub` and `name`), never from the request, so writing an
+  event needs no extra query.
+- The event is written in the **same transaction** as the change: a change that is refused (400,
+  403, 404, 409) leaves no trace, and if the event cannot be written the change is rolled back too.
+- Events are only added; the API has no way to change or delete them. The record and project ids
+  are not foreign keys, so the history of a deleted record stays. Deleting a report also deletes its
+  work items; only the report's deletion is recorded. The demo data is not in the history (it does
+  not go through the API).
+
 > **Scope note (from the pre-analysis):** progress uses a single staged model, so there is no
 > separate "target %"; the schedule (`scheduleStatus`) field is out of MVP scope. Both are
 > documented decisions in the analysis document.
@@ -762,6 +783,12 @@ Backend tests (212 in total). The HTTP tests of business rules run as an Admin
   average progress), records open at the end of each week from creation and closing dates, a week
   starting at midnight in Turkey rather than UTC, a window across the year boundary, the last week
   equal to the dashboard, an empty portfolio, invalid parameters
+- `AuditIntegrationTest` — change history with the demo users logging in: each of the 12 write paths
+  (project, report, work item, tracking item × create, update, delete) writes exactly one event
+  with the right person and project, a report update keeps only its two changed fields, a project
+  manager's risk level change is recorded once (the same request again writes nothing), refused
+  changes (400, 403, 404, 409) leave no event, and a failure to write the event rolls the change
+  back
 - `DataSeederIntegrationTest` — the demo data's trend project: the default 12-week trend moves week
   by week (no report, then on track, at risk, delayed, blocked, back on track), its latest report
   leaves the dashboard counters unchanged, and a demo database without it gets it once on the next start
@@ -801,6 +828,10 @@ Backend tests (212 in total). The HTTP tests of business rules run as an Admin
   and follow-up date required while open, no past follow-up date on create, an unchanged past date
   kept (and overdue) on update but a new past date rejected, the closing date following the status,
   the project list order, someone else's project (404), the dashboard summary per project
+- `AuditServiceTest` — change history events: a create with its filled fields in order, an update
+  with only the changed fields, no event for an update that changes nothing (a blank text counts as
+  empty), a delete with the name only, the person and time from the session and the clock; record
+  snapshots (report name at the year boundary, owner by name, a long text cut at 500 characters)
 - `DashboardServiceTest` — portfolio aggregation, latest-report selection, risk and multi-value
   filters, year and week reference, delay filter and counter, empty portfolio; tracking counters
   only from the listed projects
@@ -951,9 +982,9 @@ the SQL count is the statements PostgreSQL logged for one call.
 - **No user management or password change:** users and their passwords come from the demo data.
 - **No token refresh or server-side logout:** a token stays valid until it expires (8 hours), even
   after logging out in the UI.
-- **No change history for risks and actions:** a record keeps its creation time and closing date,
-  but not who changed what or how its risk level moved. Trends over time can only use those two
-  dates until an audit log exists.
+- **Change history starts with Flyway V6:** changes made before it, and the demo data, have no
+  history. The weekly trend still counts open risks and actions from their creation and closing
+  dates; it does not yet use the history to show how risk levels moved.
 - Report locking, audit log and export are out of the MVP scope (sections 7–8 of the
   pre-analysis document).
 

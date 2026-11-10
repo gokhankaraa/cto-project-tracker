@@ -60,6 +60,10 @@ class WorkItemServiceTest {
     }
 
 
+    /** Gecmis yazimi AuditServiceTest ve AuditIntegrationTest'te sinanir; burada yalnizca cagrilir. */
+    @Mock
+    private AuditService auditService;
+
     @InjectMocks
     private WorkItemService service;
 

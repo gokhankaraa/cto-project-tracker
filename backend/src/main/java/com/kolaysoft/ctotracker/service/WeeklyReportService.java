@@ -64,15 +64,18 @@ public class WeeklyReportService {
     private final ProjectRepository projectRepository;
     private final WorkItemRepository workItemRepository;
     private final CurrentUser currentUser;
+    private final AuditService auditService;
 
     public WeeklyReportService(WeeklyReportRepository weeklyReportRepository,
                                ProjectRepository projectRepository,
                                WorkItemRepository workItemRepository,
-                               CurrentUser currentUser) {
+                               CurrentUser currentUser,
+                               AuditService auditService) {
         this.weeklyReportRepository = weeklyReportRepository;
         this.projectRepository = projectRepository;
         this.workItemRepository = workItemRepository;
         this.currentUser = currentUser;
+        this.auditService = auditService;
     }
 
     @Transactional(readOnly = true)
@@ -113,7 +116,9 @@ public class WeeklyReportService {
         WeeklyReport report = new WeeklyReport();
         report.setProject(project);
         applyRequest(report, request);
-        return toResponse(weeklyReportRepository.save(report));
+        WeeklyReport saved = weeklyReportRepository.save(report);
+        auditService.created(AuditSubject.of(saved));
+        return toResponse(saved);
     }
 
     public WeeklyReportResponse update(Long reportId, WeeklyReportRequest request) {
@@ -128,12 +133,18 @@ public class WeeklyReportService {
         }
 
         validateStageTransition(report.getProgressStage(), request.progressStage());
+        AuditSubject before = AuditSubject.of(report);
         applyRequest(report, request);
-        return toResponse(weeklyReportRepository.save(report));
+        WeeklyReport saved = weeklyReportRepository.save(report);
+        auditService.updated(before, AuditSubject.of(saved));
+        return toResponse(saved);
     }
 
+    /** Rapor is kalemleriyle birlikte silinir; gecmise yalnizca raporun silinmesi yazilir. */
     public void delete(Long reportId) {
-        weeklyReportRepository.delete(getReportOrThrow(reportId));
+        WeeklyReport report = getReportOrThrow(reportId);
+        auditService.deleted(AuditSubject.of(report));
+        weeklyReportRepository.delete(report);
     }
 
     /** Ters araliklar 400 doner; hata araligin bitis parametresinde raporlanir (filtre sozlesmesi, bolum 5). */

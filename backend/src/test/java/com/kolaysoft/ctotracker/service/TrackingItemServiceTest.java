@@ -54,6 +54,10 @@ class TrackingItemServiceTest {
     @Mock
     private CurrentUser currentUser;
 
+    /** Gecmis yazimi AuditServiceTest ve AuditIntegrationTest'te sinanir; burada yalnizca cagrilir. */
+    @Mock
+    private AuditService auditService;
+
     private TrackingItemService service;
 
     private Project project;
@@ -63,7 +67,7 @@ class TrackingItemServiceTest {
         // Bu testler is kurallarini sinar; oturumdaki kullanici her projeyi goren Admin'dir.
         lenient().when(currentUser.viewer()).thenReturn(new Viewer(99L, Role.ADMIN));
         lenient().when(trackingItemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        service = new TrackingItemService(trackingItemRepository, projectRepository, currentUser, CLOCK);
+        service = new TrackingItemService(trackingItemRepository, projectRepository, currentUser, CLOCK, auditService);
 
         User owner = new User();
         owner.setId(1L);

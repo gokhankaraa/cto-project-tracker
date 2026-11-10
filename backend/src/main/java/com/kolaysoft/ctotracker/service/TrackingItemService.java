@@ -71,15 +71,18 @@ public class TrackingItemService {
     private final ProjectRepository projectRepository;
     private final CurrentUser currentUser;
     private final Clock clock;
+    private final AuditService auditService;
 
     public TrackingItemService(TrackingItemRepository trackingItemRepository,
                                ProjectRepository projectRepository,
                                CurrentUser currentUser,
-                               Clock clock) {
+                               Clock clock,
+                               AuditService auditService) {
         this.trackingItemRepository = trackingItemRepository;
         this.projectRepository = projectRepository;
         this.currentUser = currentUser;
         this.clock = clock;
+        this.auditService = auditService;
     }
 
     @Transactional(readOnly = true)
@@ -174,19 +177,26 @@ public class TrackingItemService {
         item.setProject(project);
         item.setCreatedAt(Instant.now(clock));
         apply(item, request, today);
-        return toResponse(trackingItemRepository.save(item), today);
+        TrackingItem saved = trackingItemRepository.save(item);
+        auditService.created(AuditSubject.of(saved));
+        return toResponse(saved, today);
     }
 
     public TrackingItemResponse update(Long id, TrackingItemRequest request) {
         TrackingItem item = getItemOrThrow(id);
         LocalDate today = LocalDate.now(clock);
         validate(request, item.getFollowUpDate(), today);
+        AuditSubject before = AuditSubject.of(item);
         apply(item, request, today);
-        return toResponse(trackingItemRepository.save(item), today);
+        TrackingItem saved = trackingItemRepository.save(item);
+        auditService.updated(before, AuditSubject.of(saved));
+        return toResponse(saved, today);
     }
 
     public void delete(Long id) {
-        trackingItemRepository.delete(getItemOrThrow(id));
+        TrackingItem item = getItemOrThrow(id);
+        auditService.deleted(AuditSubject.of(item));
+        trackingItemRepository.delete(item);
     }
 
     /**

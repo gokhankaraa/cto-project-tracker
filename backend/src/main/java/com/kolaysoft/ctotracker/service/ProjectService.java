@@ -32,15 +32,18 @@ public class ProjectService {
     private final WeeklyReportRepository weeklyReportRepository;
     private final TrackingItemRepository trackingItemRepository;
     private final CurrentUser currentUser;
+    private final AuditService auditService;
 
     public ProjectService(ProjectRepository projectRepository, UserRepository userRepository,
                           WeeklyReportRepository weeklyReportRepository,
-                          TrackingItemRepository trackingItemRepository, CurrentUser currentUser) {
+                          TrackingItemRepository trackingItemRepository, CurrentUser currentUser,
+                          AuditService auditService) {
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.weeklyReportRepository = weeklyReportRepository;
         this.trackingItemRepository = trackingItemRepository;
         this.currentUser = currentUser;
+        this.auditService = auditService;
     }
 
     @Transactional(readOnly = true)
@@ -59,17 +62,22 @@ public class ProjectService {
     public ProjectResponse create(ProjectRequest request) {
         Project project = new Project();
         applyRequest(project, request);
-        return toResponse(projectRepository.save(project));
+        Project saved = projectRepository.save(project);
+        auditService.created(AuditSubject.of(saved));
+        return toResponse(saved);
     }
 
     public ProjectResponse update(Long id, ProjectRequest request) {
         Project project = getProjectOrThrow(id);
+        AuditSubject before = AuditSubject.of(project);
         applyRequest(project, request);
-        return toResponse(projectRepository.save(project));
+        Project saved = projectRepository.save(project);
+        auditService.updated(before, AuditSubject.of(saved));
+        return toResponse(saved);
     }
 
     public void delete(Long id) {
-        getProjectOrThrow(id);
+        Project project = getProjectOrThrow(id);
         // Raporu olan proje silinemez: kazara toplu silmeyi onlemek icin anlamli 409 doner.
         if (weeklyReportRepository.existsByProjectId(id)) {
             throw new ResourceInUseException(
@@ -79,6 +87,7 @@ public class ProjectService {
             throw new ResourceInUseException(
                     "Bu projenin risk, engel, karar ya da aksiyon kayıtları var; önce bu kayıtları silin.");
         }
+        auditService.deleted(AuditSubject.of(project));
         projectRepository.deleteById(id);
     }
 

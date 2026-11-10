@@ -43,15 +43,18 @@ public class WorkItemService {
     private final WeeklyReportRepository weeklyReportRepository;
     private final DelayPolicy delayPolicy;
     private final CurrentUser currentUser;
+    private final AuditService auditService;
 
     public WorkItemService(WorkItemRepository workItemRepository,
                            WeeklyReportRepository weeklyReportRepository,
                            DelayPolicy delayPolicy,
-                           CurrentUser currentUser) {
+                           CurrentUser currentUser,
+                           AuditService auditService) {
         this.workItemRepository = workItemRepository;
         this.weeklyReportRepository = weeklyReportRepository;
         this.delayPolicy = delayPolicy;
         this.currentUser = currentUser;
+        this.auditService = auditService;
     }
 
     @Transactional(readOnly = true)
@@ -87,17 +90,24 @@ public class WorkItemService {
         WorkItem workItem = new WorkItem();
         workItem.setWeeklyReport(report);
         applyRequest(workItem, request);
-        return toResponse(workItemRepository.save(workItem));
+        WorkItem saved = workItemRepository.save(workItem);
+        auditService.created(AuditSubject.of(saved));
+        return toResponse(saved);
     }
 
     public WorkItemResponse update(Long workItemId, WorkItemRequest request) {
         WorkItem workItem = getWorkItemOrThrow(workItemId);
+        AuditSubject before = AuditSubject.of(workItem);
         applyRequest(workItem, request);
-        return toResponse(workItemRepository.save(workItem));
+        WorkItem saved = workItemRepository.save(workItem);
+        auditService.updated(before, AuditSubject.of(saved));
+        return toResponse(saved);
     }
 
     public void delete(Long workItemId) {
-        workItemRepository.delete(getWorkItemOrThrow(workItemId));
+        WorkItem workItem = getWorkItemOrThrow(workItemId);
+        auditService.deleted(AuditSubject.of(workItem));
+        workItemRepository.delete(workItem);
     }
 
     private void applyRequest(WorkItem workItem, WorkItemRequest request) {
