@@ -1,5 +1,5 @@
-# Her push ve pull request'te: backend testleri, frontend kontrolleri ve Docker imajlarinin derlenmesi.
-# Uc is paralel calisir; biri kirilirsa hangi katmanin bozuldugu dogrudan gorunur.
+# Her push ve pull request'te: backend testleri, frontend kontrolleri, Docker imajlari ve tarayici testleri.
+# Isler paralel calisir; biri kirilirsa hangi katmanin bozuldugu dogrudan gorunur.
 name: CI
 
 on:
@@ -57,11 +57,49 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  docker:
-    name: Docker images
+  e2e:
+    name: Docker images and browser tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # docker-compose.yml'deki app (backend) ve web (frontend + nginx) imajlari derlenir.
-      - name: Build
-        run: docker compose build
+      # Uretim kurulumu gizli degerler olmadan baslamamali; sahte degerlerle de gecerli bir dosya olmali.
+      - name: Production compose file
+        run: |
+          if docker compose -f docker-compose.prod.yml config > /dev/null 2>&1; then
+            echo "docker-compose.prod.yml gizli degerler olmadan kabul edildi"; exit 1
+          fi
+          DB_PASSWORD=x JWT_SECRET=x docker compose -f docker-compose.prod.yml config > /dev/null
+      # Imajlar derlenir ve demo kurulumu (temiz veritabani) acilir.
+      - name: Start the demo setup
+        run: docker compose up -d --build
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - name: Install Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Wait for the app
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/api/health > /dev/null && curl -sf http://localhost:3000/ > /dev/null && exit 0
+            sleep 2
+          done
+          docker compose logs; exit 1
+      - name: Browser tests
+        working-directory: e2e
+        run: npx playwright test
+      - name: Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+      - name: Container logs
+        if: failure()
+        run: docker compose logs --no-color

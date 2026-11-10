@@ -29,10 +29,11 @@ Project documents (in [`docs/`](docs/), Turkish):
 ## Repository layout
 
 ```
-├── backend/             Spring Boot REST API (Maven project, Dockerfile)
-├── frontend/            React + TypeScript web app (Vite; Dockerfile + nginx.conf)
-├── docs/                Analysis notes and the filter API contract
-├── .github/workflows/   CI: backend tests, frontend checks, Docker image builds
+├── backend/                 Spring Boot REST API (Maven project, Dockerfile)
+├── frontend/                React + TypeScript web app (Vite; Dockerfile + nginx.conf)
+├── e2e/                     Browser end-to-end tests (Playwright) against the Docker setup
+├── docs/                    Analysis notes and the filter API contract
+├── .github/workflows/       CI: backend tests, frontend checks, Docker images and browser tests
 ├── docker-compose.yml       Development setup: PostgreSQL, backend and frontend, demo profile
 ├── docker-compose.prod.yml  Production setup: no demo data, required secrets, only the web port open
 ├── .env.example             Values docker-compose.yml reads
@@ -890,32 +891,58 @@ cd backend
 
 cd frontend
 npm test           # frontend unit tests, no backend needed
+
+# browser end-to-end tests: a clean demo setup first (this deletes the local demo data)
+docker compose down -v && docker compose up -d --build
+cd e2e
+npm ci && npx playwright install chromium   # once
+npm test           # E2E_BASE_URL=http://host:port for another address (default http://localhost:3000)
 ```
 
 **Continuous integration:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push
-to `main` and every pull request, in three parallel jobs: backend tests (`./mvnw test`, Java 21,
-Testcontainers on the runner's Docker), frontend checks (`npm ci`, lint, tests, build, Node 24) and
-`docker compose build` (both images still build). If backend tests fail, the Surefire reports are
-attached to the run.
+to `main` and every pull request, in three parallel jobs:
+
+1. **Backend tests:** `./mvnw test`, Java 21, Testcontainers on the runner's Docker.
+2. **Frontend checks:** `npm ci`, lint, tests and build, on Node 24.
+3. **Docker images and browser tests:**
+   - checks that `docker-compose.prod.yml` refuses to start without its secrets;
+   - builds the images and starts the demo setup;
+   - runs the browser tests in `e2e/`.
+
+When a job fails, its evidence is attached to the run: the Surefire reports for the backend, the
+Playwright report with traces and screenshots plus the container logs for the browser tests.
+
+**Browser tests** ([`e2e/`](e2e), Playwright, Chromium) drive the real app: nginx, backend and
+PostgreSQL with the demo data. They share one database, so they run one at a time in file order:
+
+| File | Mode | What it checks |
+|---|---|---|
+| `01-access` | read-only | login and permissions: a wrong password, the CTO seeing no write buttons and "Yetkiniz yok" on a form address, a project manager seeing only their own projects and "Kayıt bulunamadı" for someone else's report |
+| `02-dashboard` | read-only | the dashboard and its filters from the address, the trend charts and week 31's numbers in the table view, the Excel download (file name, a real `.xlsx`) |
+| `03-report-flow` | writes | a report and a work item added through the forms, the same week refused with 409, the dashboard updated |
+| `04-tracking-and-history` | writes | a risk level changed in a dialog and shown in the change history with its author, another project manager unable to see it, the CTO filtering the history |
+| `05-mobile` | read-only | no sideways scrolling at 390 px |
+
+Every test also fails on an unexpected browser console error. Expected 401, 403, 404 and 409
+responses are allowed.
 
 ### Regression plan
 
-Which tests guard each area before a release, and what is still missing. Backend and frontend tests
-run in CI on every push. The browser end-to-end checks still run from a local Playwright script
-against a clean Docker setup (see [Latest test run](#latest-test-run)).
+Which tests guard each area before a release, and what is still missing. Backend, frontend and
+browser tests run in CI on every push. The longer browser scenarios of each feature were run once
+from local scripts (see [Latest test run](#latest-test-run)); `e2e/` keeps their core.
 
 | Area | Backend (unit / integration) | Frontend (component) | Browser end to end | Gap, closed in |
 |---|---|---|---|---|
-| Login, token, roles | `AuthControllerTest`, `AuthorizationIntegrationTest`, `CorsConfigTest`, `UserControllerTest`, `JwtSecretTest` | `LoginPage`, `session`, `RequireAuth`, `RequirePermission`, `AppLayout`, `client` | every flow logs in as the role that does the work | — |
+| Login, token, roles | `AuthControllerTest`, `AuthorizationIntegrationTest`, `CorsConfigTest`, `UserControllerTest`, `JwtSecretTest` | `LoginPage`, `session`, `RequireAuth`, `RequirePermission`, `AppLayout`, `client` | `01-access`; every flow logs in as the role that does the work | — |
 | Production settings, first admin | `ProductionSetupIntegrationTest`, `AdminBootstrapTest`, `JwtSecretTest` | — | smoke test on the production setup | — |
 | Projects | `ProjectServiceTest`, `MvpIntegrationTest` | `ProjectListPage`, `ProjectDetailPage`, `ProjectFormPage` | Admin: create, edit, delete blocked | — |
-| Weekly reports and work items | `WeeklyReportServiceTest`, `WorkItemServiceTest`, `WeeklyReportYearTest`, `WeeklyReportQueryTest`, `WorkItemQueryTest`, `FilterIntegrationTest` | `ReportFormPage`, `ReportDetailPage`, `ReportListPage`, `WorkItemsSection`, `WorkItemListPage`, `isoWeek`, `listFilters` | report flow: new report, work item, same week 409, delay filter | per-row queries in the paged lists |
-| Risks, blockers, decisions, actions | `TrackingItemServiceTest`, `TrackingItemQueryTest`, `TrackingItemIntegrationTest` | `TrackingItemsSection`, `TrackingItemListPage`, `filters` | risks and actions flow | — |
-| Dashboard, trend, Excel | `DashboardServiceTest`, `TrendIntegrationTest`, `ExportIntegrationTest`, `DataSeederIntegrationTest` | `DashboardPage`, `TrendSection`, `filters` | trend and Excel flow, file content | — |
-| Change history | `AuditServiceTest`, `AuditIntegrationTest`, `AuditHistoryProtectionTest` | `ProjectHistorySection`, `historyFormat` | change history flow (token identity, refused writes, XSS, paging) | — |
-| Errors, paging, formats | `GlobalExceptionHandlerTest`, `SortParameterTest` | `QueryState`, `client`, `searchParams`, `format` | console errors checked in every flow | — |
-| Build, health, setup | `HealthControllerTest`; images built in CI | production build in CI | local Docker demo; production setup tried (secrets, headers, CSP in a browser) | the smoke test on the production setup |
-| All of the above | | | **not in the repository or CI** | browser checks moved into the repository and CI |
+| Weekly reports and work items | `WeeklyReportServiceTest`, `WorkItemServiceTest`, `WeeklyReportYearTest`, `WeeklyReportQueryTest`, `WorkItemQueryTest`, `FilterIntegrationTest` | `ReportFormPage`, `ReportDetailPage`, `ReportListPage`, `WorkItemsSection`, `WorkItemListPage`, `isoWeek`, `listFilters` | `03-report-flow`; `02-dashboard` delay filter | per-row queries in the paged lists |
+| Risks, blockers, decisions, actions | `TrackingItemServiceTest`, `TrackingItemQueryTest`, `TrackingItemIntegrationTest` | `TrackingItemsSection`, `TrackingItemListPage`, `filters` | `04-tracking-and-history` | — |
+| Dashboard, trend, Excel | `DashboardServiceTest`, `TrendIntegrationTest`, `ExportIntegrationTest`, `DataSeederIntegrationTest` | `DashboardPage`, `TrendSection`, `filters` | `02-dashboard` | — |
+| Change history | `AuditServiceTest`, `AuditIntegrationTest`, `AuditHistoryProtectionTest` | `ProjectHistorySection`, `historyFormat` | `04-tracking-and-history`; locally also token identity, refused writes, XSS, paging | — |
+| Errors, paging, formats | `GlobalExceptionHandlerTest`, `SortParameterTest` | `QueryState`, `client`, `searchParams`, `format` | an unexpected console error fails every browser test | — |
+| Build, health, setup | `HealthControllerTest`; images built in CI | production build in CI | CI starts the Docker setup for every run and checks the production compose file; `05-mobile` | the smoke test on the production setup |
 
 **Before a release** (smoke checklist, run on the production setup with an empty database):
 
@@ -1143,7 +1170,8 @@ Run on 2026-11-10 against the current `main`:
 | Frontend lint | `npm run lint` | no findings |
 | Frontend build | `npm run build` | builds; main chunk 326 kB (100 kB gzip), the trend charts a separate 422 kB chunk (120 kB gzip) loaded with the dashboard's charts |
 | CI | GitHub Actions on push to `main` | backend, frontend and Docker image jobs passed |
-| End-to-end | The demo scenarios in a browser on a clean Docker setup (local Playwright script) | report flow (14 checks), risks and actions flow (12 checks), the API scenario (14 checks) the trend and Excel flow (6 checks: tooltip, week-31 numbers, one owner's projects changing week by week, filtered download and its content, a project manager's own data, no sideways scroll on a phone) and the change history flow (9 checks: a change in a dialog shown without reloading, the person taken from the token whatever the body says, refused changes leaving no trace, history writes refused even for the Admin, another project's history 404 like a missing one, HTML in a title shown as text, paging, a deleted record's trace and the type filter, no sideways scroll on a phone) passed, no console errors |
+| Browser tests | `cd e2e && npm test` on a clean demo setup (also a CI job) | 13 passed in 10 s, no unexpected console errors |
+| End-to-end, by feature | The demo scenarios in a browser on a clean Docker setup (local Playwright scripts, run once per feature) | report flow (14 checks), risks and actions flow (12 checks), the API scenario (14 checks) the trend and Excel flow (6 checks: tooltip, week-31 numbers, one owner's projects changing week by week, filtered download and its content, a project manager's own data, no sideways scroll on a phone) and the change history flow (9 checks: a change in a dialog shown without reloading, the person taken from the token whatever the body says, refused changes leaving no trace, history writes refused even for the Admin, another project's history 404 like a missing one, HTML in a title shown as text, paging, a deleted record's trace and the type filter, no sideways scroll on a phone) passed, no console errors |
 
 The [Tests](#tests) section lists what each test class covers.
 
@@ -1223,6 +1251,5 @@ the SQL count is the statements PostgreSQL logged for one call.
 2. **Production readiness:** HTTPS in front of the [production setup](#production-setup), backups, a
    public deployment target, token refresh or revocation, a database role that is not the table
    owner (only adds to and reads the change history), and a retention period for the history.
-3. **Quality:** browser end-to-end tests of the demo scenarios in CI (today they run from a local
-   Playwright script), the per-row queries of the paged lists (see [Performance](#performance)), Turkish letters in the demo
+3. **Quality:** the per-row queries of the paged lists (see [Performance](#performance)), Turkish letters in the demo
    data, and a longer timeout for the slow form tests.
