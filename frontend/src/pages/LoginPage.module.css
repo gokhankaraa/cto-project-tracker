@@ -1,0 +1,114 @@
+/* Giris sayfasi: genis ekranda solda tanitim paneli, sagda form; dar ekranda yalnizca form. */
+
+.page {
+  display: grid;
+  min-height: 100vh;
+  background: var(--mantine-color-body);
+}
+
+@media (min-width: $mantine-breakpoint-md) {
+  .page {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  }
+}
+
+.showcase {
+  display: none;
+}
+
+@media (min-width: $mantine-breakpoint-md) {
+  .showcase {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-xl);
+    padding: 56px 48px;
+    color: var(--mantine-color-white);
+    background:
+      radial-gradient(120% 80% at 0% 0%, var(--mantine-color-indigo-7) 0%, transparent 60%),
+      var(--mantine-color-indigo-9);
+  }
+}
+
+.tagline {
+  max-width: 26ch;
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.taglineNote {
+  max-width: 40ch;
+  margin-top: var(--mantine-spacing-md);
+  color: var(--mantine-color-indigo-1);
+  font-size: var(--mantine-font-size-sm);
+  line-height: 1.6;
+}
+
+/* Dashboard'daki "Son 12 hafta" gorunumunun soyut hali: her satir bir proje, her hucre bir hafta. */
+.weeks {
+  max-width: 460px;
+  padding: var(--mantine-spacing-lg);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: var(--mantine-radius-md);
+  background: rgb(255 255 255 / 0.06);
+}
+
+.weeksTitle {
+  margin-bottom: var(--mantine-spacing-sm);
+  color: var(--mantine-color-indigo-1);
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+}
+
+.weeksGrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.cell {
+  aspect-ratio: 1;
+  border-radius: 4px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: var(--mantine-spacing-md);
+  color: var(--mantine-color-indigo-0);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.formSide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
+}
+
+.form {
+  width: 100%;
+  max-width: 380px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+

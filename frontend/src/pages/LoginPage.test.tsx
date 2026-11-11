@@ -86,6 +86,7 @@ describe('LoginPage', () => {
   it('bos alanlarda istek gondermez', async () => {
     const fetchMock = mockApi({})
     renderApp('/login')
+    expect(screen.getByRole('heading', { level: 1, name: 'CTO Takip Sistemi' })).toBeInTheDocument()
 
     await fillAndSubmit('', '')
 

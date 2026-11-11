@@ -1,4 +1,4 @@
-import { Alert, Button, Center, Paper, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core'
+import { Alert, Button, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -6,9 +6,14 @@ import { Navigate, useLocation } from 'react-router'
 
 import { useLogin } from '../api/auth'
 import { ApiRequestError, errorMessage } from '../api/client'
+import type { OverallStatus } from '../api/types'
 import type { LoginLocationState } from '../auth/RequireAuth'
 import { saveSession, sessionEndReason } from '../auth/session'
 import { useSession } from '../auth/useSession'
+import { BrandMark } from '../components/BrandMark'
+import { OVERALL_STATUS_LABELS } from '../lib/labels'
+import { STATUS_SWATCHES } from '../lib/statusSwatches'
+import classes from './LoginPage.module.css'
 
 interface FormValues {
   email: string
@@ -69,15 +74,21 @@ export function LoginPage() {
   const showEndNote = endReason === 'expired' && login.isIdle
 
   return (
-    <Center mih="100vh" p="md" bg="var(--mantine-color-body)">
-      <Paper withBorder shadow="sm" p="xl" radius="md" w="100%" maw={400}>
-        <form onSubmit={submit} noValidate>
-          <Stack gap="md">
-            <div>
-              <Title order={2}>CTO Takip</Title>
-              <Text c="dimmed" size="sm">
-                Devam etmek için giriş yapın.
-              </Text>
+    <div className={classes.page}>
+      <Showcase />
+      <main className={classes.formSide}>
+        <form className={classes.form} onSubmit={submit} noValidate>
+          <Stack gap="lg">
+            <div className={classes.brand}>
+              <BrandMark size={44} />
+              <div>
+                <Title order={1} fz={26} lh={1.2}>
+                  CTO Takip Sistemi
+                </Title>
+                <Text c="dimmed" size="sm">
+                  Devam etmek için giriş yapın.
+                </Text>
+              </div>
             </div>
             {showEndNote && (
               <Alert color="yellow" title="Oturum sona erdi">
@@ -89,25 +100,71 @@ export function LoginPage() {
                 {errorMessage(login.error)}
               </Alert>
             )}
-            <TextInput
-              label="E-posta"
-              type="email"
-              autoComplete="username"
-              withAsterisk
-              {...form.getInputProps('email')}
-            />
-            <PasswordInput
-              label="Parola"
-              autoComplete="current-password"
-              withAsterisk
-              {...form.getInputProps('password')}
-            />
-            <Button type="submit" loading={login.isPending} fullWidth>
+            <Stack gap="md">
+              <TextInput
+                label="E-posta"
+                type="email"
+                autoComplete="username"
+                size="md"
+                withAsterisk
+                {...form.getInputProps('email')}
+              />
+              <PasswordInput
+                label="Parola"
+                autoComplete="current-password"
+                size="md"
+                withAsterisk
+                {...form.getInputProps('password')}
+              />
+            </Stack>
+            <Button type="submit" loading={login.isPending} size="md" fullWidth>
               Giriş yap
             </Button>
           </Stack>
         </form>
-      </Paper>
-    </Center>
+      </main>
+    </div>
+  )
+}
+
+const STATUS_BY_CODE: Record<string, OverallStatus> = { Y: 'YOLUNDA', R: 'RISKLI', G: 'GECIKMELI', B: 'BLOKE' }
+
+// Ornek dort projenin on iki haftasi (Y yolunda, R riskli, G gecikmeli, B bloke). Gercek veri degil; yalnizca gorsel.
+const SAMPLE_WEEKS = ['YYYYYYYYRYYY', 'YYRRGGBBYYYY', 'RRYYYYYYYYYY', 'YYYYYYRRGGRR']
+
+/** Genis ekrandaki sol panel: uygulamanin ne yaptigi ve haftalik durum izgarasinin ornegi. */
+function Showcase() {
+  return (
+    <aside className={classes.showcase}>
+      <div>
+        <p className={classes.tagline}>Haftalık raporlar, riskler ve kararlar tek ekranda.</p>
+        <p className={classes.taglineNote}>
+          Proje yöneticileri her hafta durumu yazar; CTO tüm portföyü, geciken işleri ve bekleyen kararları bir bakışta
+          görür.
+        </p>
+      </div>
+      <div className={classes.weeks} aria-hidden="true">
+        <div className={classes.weeksTitle}>Son 12 hafta</div>
+        <div className={classes.weeksGrid}>
+          {SAMPLE_WEEKS.flatMap((row, r) =>
+            [...row].map((code, w) => (
+              <span
+                key={`${r}-${w}`}
+                className={classes.cell}
+                style={{ background: STATUS_SWATCHES[STATUS_BY_CODE[code]] }}
+              />
+            )),
+          )}
+        </div>
+        <div className={classes.legend}>
+          {(Object.keys(STATUS_SWATCHES) as OverallStatus[]).map((status) => (
+            <span key={status} className={classes.legendItem}>
+              <span className={classes.swatch} style={{ background: STATUS_SWATCHES[status] }} />
+              {OVERALL_STATUS_LABELS[status].label}
+            </span>
+          ))}
+        </div>
+      </div>
+    </aside>
   )
 }

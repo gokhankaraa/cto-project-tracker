@@ -41,6 +41,7 @@ describe('AppLayout', () => {
     const { queryClient } = renderWithProviders(<AppLayout />, { route: '/' })
     queryClient.setQueryData(['projects'], ['CTO nun gordugu veri'])
 
+    expect(screen.getByRole('link', { name: 'CTO Takip Sistemi' })).toHaveAttribute('href', '/')
     expect(screen.getByText('Zeynep Demir')).toBeInTheDocument()
     expect(screen.getByText('CTO')).toBeInTheDocument()
 

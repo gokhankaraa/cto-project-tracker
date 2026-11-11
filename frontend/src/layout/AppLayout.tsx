@@ -5,6 +5,7 @@ import { Link, Outlet, useLocation } from 'react-router'
 
 import { endSession } from '../auth/session'
 import { useSession } from '../auth/useSession'
+import { BrandMark } from '../components/BrandMark'
 import { EnumBadge } from '../components/EnumBadge'
 import { ROLE_LABELS } from '../lib/labels'
 import { BackendStatus } from './BackendStatus'
@@ -37,9 +38,18 @@ export function AppLayout() {
         <Group h="100%" px="md" justify="space-between">
           <Group gap="sm">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menüyü aç/kapat" />
-            <Title order={3} renderRoot={(props) => <Link to="/" {...props} />} c="inherit" td="none">
-              CTO Takip
-            </Title>
+            <Group
+              gap={10}
+              wrap="nowrap"
+              renderRoot={(props) => <Link to="/" {...props} />}
+              c="inherit"
+              td="none"
+            >
+              <BrandMark size={28} />
+              <Title order={3} fz={18} component="span">
+                CTO Takip Sistemi
+              </Title>
+            </Group>
           </Group>
           <Group gap="md">
             <Text size="sm" c="dimmed" visibleFrom="md">
