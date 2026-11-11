@@ -63,7 +63,7 @@ function ReportDetail({ id }: { id: number }) {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+      <Text size="sm" c="dimmed" fw={500} mb={4}>
         {label}
       </Text>
       <Text size="sm" component="div">

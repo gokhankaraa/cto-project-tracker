@@ -18,7 +18,7 @@ export function BackendStatus() {
 
   return (
     <Tooltip label={detail}>
-      <Badge color={up ? 'teal' : 'red'} variant="dot" size="lg">
+      <Badge color={up ? 'teal' : 'red'} variant="dot" size="md" tt="none" fw={500}>
         {up ? 'Backend bağlı' : 'Bağlantı yok'}
       </Badge>
     </Tooltip>

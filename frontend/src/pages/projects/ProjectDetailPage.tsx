@@ -86,7 +86,7 @@ function ProjectDetail({ id }: { id: number }) {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+      <Text size="sm" c="dimmed" fw={500}>
         {label}
       </Text>
       <Text size="sm" component="div">

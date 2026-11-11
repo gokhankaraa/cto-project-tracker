@@ -1,4 +1,4 @@
-import { AppShell, Burger, Button, Group, NavLink, Text, Title } from '@mantine/core'
+import { AppShell, Box, Burger, Button, Group, NavLink, Text, Title } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, Outlet, useLocation } from 'react-router'
@@ -35,8 +35,8 @@ export function AppLayout() {
       padding="md"
     >
       <AppShell.Header>
-        <Group h="100%" px="md" justify="space-between">
-          <Group gap="sm">
+        <Group h="100%" px="md" justify="space-between" wrap="nowrap">
+          <Group gap="sm" wrap="nowrap">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Menüyü aç/kapat" />
             <Group
               gap={10}
@@ -51,17 +51,17 @@ export function AppLayout() {
               </Title>
             </Group>
           </Group>
-          <Group gap="md">
-            <Text size="sm" c="dimmed" visibleFrom="md">
-              Haftalık proje durum raporlama
-            </Text>
-            <BackendStatus />
+          <Group gap="md" wrap="nowrap">
+            {/* Dar ekranda ust bar tek satirda kalsin diye baglanti gostergesi gizlenir. */}
+            <Box visibleFrom="sm">
+              <BackendStatus />
+            </Box>
             <UserMenu />
           </Group>
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar p="xs" aria-label="Ana menü">
+      <AppShell.Navbar p="sm" aria-label="Ana menü">
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
@@ -74,7 +74,8 @@ export function AppLayout() {
         ))}
       </AppShell.Navbar>
 
-      <AppShell.Main>
+      {/* Gri zemin: icerikteki kirik beyaz kartlar (Paper) one cikar. */}
+      <AppShell.Main bg="var(--mantine-color-gray-1)">
         <Outlet />
       </AppShell.Main>
     </AppShell>

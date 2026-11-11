@@ -1,7 +1,19 @@
-import { Group, Paper, SimpleGrid, Stack, Text, Title, UnstyledButton, type MantineColor } from '@mantine/core'
+import {
+  getThemeColor,
+  Group,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+  UnstyledButton,
+  useMantineTheme,
+  type MantineColor,
+} from '@mantine/core'
 import { Link } from 'react-router'
 
 import type { DashboardSummary } from '../../api/types'
+import classes from './SummaryCards.module.css'
 
 interface Counter {
   label: string
@@ -13,19 +25,41 @@ interface Counter {
 }
 
 function CounterCard({ label, value, alertColor, to }: Counter) {
+  const theme = useMantineTheme()
+  const color = value > 0 && alertColor ? getThemeColor(alertColor, theme) : undefined
   const content = (
-    <Paper withBorder p="md" h="100%" role="group" aria-label={label}>
-      <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+    <Paper
+      withBorder
+      p="md"
+      h="100%"
+      role="group"
+      aria-label={label}
+      className={classes.card}
+      style={{ '--counter-accent': color }}
+    >
+      <Text size="sm" c="dimmed" fw={500}>
         {label}
       </Text>
-      <Text fz={28} fw={700} lh={1.2} c={value > 0 ? alertColor : undefined}>
-        {value}
-      </Text>
+      <Group justify="space-between" align="flex-end" gap="xs" mt={4}>
+        <Text fz={30} fw={700} lh={1.1} c={color}>
+          {value}
+        </Text>
+        {to && (
+          <Text size="xs" c="indigo" fw={500} className={classes.hint}>
+            Listeyi aç
+          </Text>
+        )}
+      </Group>
     </Paper>
   )
   if (!to) return content
   return (
-    <UnstyledButton component={Link} to={to} aria-label={`${label}: ${value}, listeyi aç`}>
+    <UnstyledButton
+      component={Link}
+      to={to}
+      className={classes.link}
+      aria-label={`${label}: ${value}, listeyi aç`}
+    >
       {content}
     </UnstyledButton>
   )
