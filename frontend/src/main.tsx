@@ -11,7 +11,7 @@ import { RouterProvider } from 'react-router/dom'
 
 import { ApiRequestError } from './api/client'
 import { router } from './router'
-import { theme } from './theme'
+import { cssVariablesResolver, theme } from './theme'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,7 +28,8 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MantineProvider theme={theme}>
+    {/* Yalnizca koyu tema: kayitli tercih ya da isletim sistemi ayari dikkate alinmaz. */}
+    <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver} forceColorScheme="dark">
       <Notifications position="top-right" />
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />

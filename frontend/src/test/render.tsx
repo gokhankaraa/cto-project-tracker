@@ -5,7 +5,7 @@ import { render, type RenderOptions } from '@testing-library/react'
 import type { ReactElement, ReactNode } from 'react'
 import { MemoryRouter } from 'react-router'
 
-import { theme } from '../theme'
+import { cssVariablesResolver, theme } from '../theme'
 
 interface Options extends Omit<RenderOptions, 'wrapper'> {
   /** Sayfanin acildigi adres (or. '/?year=2026'). */
@@ -21,7 +21,7 @@ export function renderWithProviders(ui: ReactElement, { route = '/', ...options 
   function Wrapper({ children }: { children: ReactNode }) {
     // env="test": gecis animasyonlari ve portallar kapali; acilir listeler hemen ve agacta gorunur.
     return (
-      <MantineProvider theme={theme} env="test">
+      <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver} forceColorScheme="dark" env="test">
         <Notifications />
         <QueryClientProvider client={queryClient}>
           <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>

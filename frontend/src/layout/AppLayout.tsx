@@ -74,8 +74,8 @@ export function AppLayout() {
         ))}
       </AppShell.Navbar>
 
-      {/* Gri zemin: icerikteki kirik beyaz kartlar (Paper) one cikar. */}
-      <AppShell.Main bg="var(--mantine-color-gray-1)">
+      {/* Zemin rengi temada (dark.9): kartlar (Paper) koyu zeminden bir ton acik durur. */}
+      <AppShell.Main>
         <Outlet />
       </AppShell.Main>
     </AppShell>

@@ -8,28 +8,28 @@ import { QueryState } from '../../components/QueryState'
 import { formatWeek } from '../../lib/format'
 
 /**
- * Grafik renkleri. Rozetlerle ayni ton aileleri, ama acik zeminde ve renk korlugunde birbirinden ayrilacak
- * adimlar secildi (dataviz dogrulayicisi: bitisik ciftler CVD ΔE >= 8.6, normal gorus ΔE >= 15).
- * Durum renkleri anlam tasir (iyi -> kritik); "Rapor yok" bir durum degil, verinin yoklugu: notr gri.
+ * Grafik renkleri. Rozetlerle ayni ton aileleri, koyu kart zemininde (#1E2431) secildi (dataviz dogrulayicisi:
+ * bitisik ciftler CVD ΔE >= 10.9, normal gorus ΔE >= 16.3, her renk zemine >= 3:1). Durum renkleri anlam tasir
+ * (iyi -> kritik); "Rapor yok" bir durum degil, verinin yoklugu: geri planda kalan notr gri.
  */
 const STATUS_SERIES = [
   { name: 'YOLUNDA', label: 'Yolunda', color: '#12b886' },
-  { name: 'RISKLI', label: 'Riskli', color: '#f08c00' },
-  { name: 'GECIKMELI', label: 'Gecikmeli', color: '#d9480f' },
-  { name: 'BLOKE', label: 'Bloke', color: '#a61e4d' },
-  { name: 'RAPOR_YOK', label: 'Rapor yok', color: '#ced4da' },
+  { name: 'RISKLI', label: 'Riskli', color: '#fab005' },
+  { name: 'GECIKMELI', label: 'Gecikmeli', color: '#f76707' },
+  { name: 'BLOKE', label: 'Bloke', color: '#d6336c' },
+  { name: 'RAPOR_YOK', label: 'Rapor yok', color: '#596278' },
 ]
 
 /**
- * Tur renkleri, tur rozetlerinin ton aileleri (risk turuncu, engel kirmizi, karar mor, aksiyon mavi). Acik kayitlar
- * da her hafta bir toplamin parcalari oldugu icin yigilmis cubuk: kucuk tam sayilarda cizgiler ust uste binip
- * birbirini gizlerdi.
+ * Tur renkleri, tur rozetlerinin ton aileleri (risk turuncu, engel kirmizi, karar mor, aksiyon mavi); koyu zeminde
+ * CVD ΔE >= 8.9, normal gorus ΔE >= 16.5, zemine >= 3:1. Acik kayitlar da her hafta bir toplamin parcalari oldugu
+ * icin yigilmis cubuk: kucuk tam sayilarda cizgiler ust uste binip birbirini gizlerdi.
  */
 const TRACKING_SERIES = [
-  { name: 'openRisks', label: 'Açık risk', color: '#e8590c' },
-  { name: 'openBlockers', label: 'Açık engel', color: '#a61e4d' },
-  { name: 'pendingDecisions', label: 'Bekleyen karar', color: '#cc5de8' },
-  { name: 'openActions', label: 'Açık aksiyon', color: '#1864ab' },
+  { name: 'openRisks', label: 'Açık risk', color: '#f76707' },
+  { name: 'openBlockers', label: 'Açık engel', color: '#d6336c' },
+  { name: 'pendingDecisions', label: 'Bekleyen karar', color: '#be4bdb' },
+  { name: 'openActions', label: 'Açık aksiyon', color: '#4dabf7' },
 ]
 
 function referenceText({ year, weekNumber }: DashboardFilters) {

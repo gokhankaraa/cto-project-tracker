@@ -24,9 +24,15 @@
     gap: var(--mantine-spacing-xl);
     padding: 56px 48px;
     color: var(--mantine-color-white);
+    /* Koyu temada parlak bir indigo blok yerine koyu lacivert zemin ve kosede yumusak bir indigo isik. */
+    border-right: 1px solid var(--mantine-color-default-border);
     background:
-      radial-gradient(120% 80% at 0% 0%, var(--mantine-color-indigo-7) 0%, transparent 60%),
-      var(--mantine-color-indigo-9);
+      radial-gradient(
+        120% 80% at 0% 0%,
+        color-mix(in srgb, var(--mantine-color-indigo-7) 45%, transparent) 0%,
+        transparent 60%
+      ),
+      color-mix(in srgb, var(--mantine-color-indigo-9) 30%, var(--mantine-color-dark-9));
   }
 }
 

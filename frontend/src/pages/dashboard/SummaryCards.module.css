@@ -23,7 +23,7 @@
 }
 
 .link:hover .card {
-  border-color: var(--mantine-color-indigo-3);
+  border-color: light-dark(var(--mantine-color-indigo-3), var(--mantine-color-indigo-6));
   box-shadow: var(--mantine-shadow-sm);
 }
 
